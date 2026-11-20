@@ -15,6 +15,11 @@ when opened as a normal file from a folder. It cannot run if only index.html is 
 (app file previews, content:// links) - the page then says the assets folder is missing.
 three.js still loads from cdn.jsdelivr.net, so the first load needs internet.
 
+DIFFICULTY (main menu, one tap starts the game)
+- Practice: no nun, explore the map.   - Easy: 5 days, slower nun with weaker senses.
+- Hard: 4 days (default).               - Extreme: 3 days, faster nun, sharper senses.
+- Nightmare: 1 day, fastest nun, checks lockers often.
+
 HOW TO WIN
 - You wake up in your hospital bed (ward room, ground floor). You have 4 days.
 - Find the HAMMER (random room, can be in the basement), go to the EMERGENCY EXIT room in the
