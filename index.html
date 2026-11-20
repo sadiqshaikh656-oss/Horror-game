@@ -207,6 +207,14 @@ body.qhid #qp{top:84%}
 #qbars i{position:absolute;left:0;right:0;height:11vh;background:#000;transition:transform .8s}
 #qbars i:first-child{top:0}#qbars i:last-child{bottom:0}
 body.qcine #qbars{display:block}body.qcine #hud,body.qcine #touch{opacity:0!important;pointer-events:none!important}
+#qcred{position:fixed;inset:0;z-index:30;background:#000;display:none;overflow:hidden;color:#d8d0c4;text-align:center;font-family:"Special Elite",Georgia,serif;cursor:pointer}
+#qcred .roll{position:absolute;left:0;right:0;top:0;padding:0 max(16px,env(safe-area-inset-left,0px));will-change:transform}
+#qcred h1{font:400 clamp(40px,9vw,88px) "Creepster",Georgia,serif;color:#b70f18;letter-spacing:.08em;margin:0 0 4vh;text-shadow:0 0 26px rgba(200,0,0,.55)}
+#qcred .big{font-size:clamp(20px,4vw,34px);letter-spacing:.2em;color:#efe6d8;margin:2vh 0 5vh}#qcred .big b{color:#ff3a2e;font-weight:400}
+#qcred h3{font-weight:400;font-size:clamp(11px,1.8vw,14px);letter-spacing:.32em;text-transform:uppercase;color:#8d8278;margin:6vh 0 .6vh}
+#qcred p{max-width:620px;margin:0 auto 1vh;font-size:clamp(14px,2.2vw,19px);line-height:1.5;letter-spacing:.04em}
+#qcred .sm{font-size:11px;color:#6d655e;letter-spacing:.06em}
+#qcred .skip{position:absolute;right:16px;bottom:12px;font-size:12px;color:#6d655e;letter-spacing:.2em;text-transform:uppercase}
 
 </style><link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/MaskPass.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></head><body>
 <canvas id="c"></canvas>
@@ -223,7 +231,7 @@ body.qcine #qbars{display:block}body.qcine #hud,body.qcine #touch{opacity:0!impo
 <div id="ov" class="hide"><h1>Down.</h1><div class="sub" id="os"></div><button class="btn on go" id="rs">Run it again</button></div>
 <div id="menu" class="hide"><h1>Dusk Protocol</h1><div class="sub">She is still here. Choose how long you survive.</div>
 <button class="btn on go" id="go">Start</button><button class="btn go hide" id="rsb">Restart</button><button class="btn go" id="sb">Settings</button><button class="btn go" id="ib">Install app</button><button class="btn go hide" id="mm">Main menu</button>
-<div class="help" id="hl">WASD move · Mouse aim · LMB fire · RMB aim · Shift sprint · Alt walk · C crouch · E pick up · Y laser · T inspect · I bag<br>Click game to capture mouse · Esc / P = pause<br><small>Find the hammer, tear the planks off the EXIT, find the key in a drawer or cabinet. She hears everything. One blow from her hammer is enough.</small><br><small style="opacity:.6">Evil Nun model by Mr.Prizz (Sketchfab) · CC BY 4.0 · Flashlight with Hand by Giovanni Cartella (John's Art), Blend Swap · CC BY-SA 3.0 · Metal Locker by Teslov (Sketchfab) · CC BY 4.0 · Pine Tree by EmreAlkan (Sketchfab) · CC BY 4.0</small></div></div>
+<div class="help" id="hl">WASD move · Mouse aim · LMB fire · RMB aim · Shift sprint · Alt walk · C crouch · E pick up · Y laser · T inspect · I bag<br>Click game to capture mouse · Esc / P = pause<br><small>Find the hammer, tear the planks off the EXIT, find the key in a drawer or cabinet. She hears everything. One blow from her hammer is enough.</small><br><small style="opacity:.6">Evil Nun model by Mr.Prizz (Sketchfab) · CC BY 4.0 · Flashlight with Hand by Giovanni Cartella (John's Art), Blend Swap · CC BY-SA 3.0 · Metal Locker by Teslov (Sketchfab) · CC BY 4.0</small></div></div>
 <div id="set" class="hide"><div id="sp"><h2>Settings</h2><div id="tabs"><button class="btn on" data-t="g">Graphics</button><button class="btn" data-t="c">Controls</button><button class="btn" data-t="a">Audio</button></div><div id="rows"></div><button class="btn go hide" id="ced">Edit touch controls (move / size)</button><button class="btn on go" id="sbk">Back</button></div></div>
 <div id="ed" class="hide"><span id="edt">Drag a control · tap to select</span><button class="btn" id="edm">−</button><b id="eds">100%</b><button class="btn" id="edp">+</button><button class="btn" id="edr">Reset</button><button class="btn on" id="edd">Done</button></div><div id="load"><h1 style="font-size:46px">Dusk Protocol</h1><div class="sub" id="lt">Loading engine…</div><div id="bar"><i id="bf2"></i></div></div>
 <script>function __dpA(i,t,d){var e=document.createElement('script');e.type=t;e.id=i;e.text=d;document.head.appendChild(e)}</script>
@@ -1301,42 +1309,151 @@ function qGroundTex(kind){
   if(kind)x.fillRect(R()*256,R()*256,1+R()*4,1+R()*3);else{const px=R()*256,py=R()*256;x.fillRect(px,py,1,3+R()*6)}}
  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;return t
 }
+
+function qCanvasTex(w,h,draw,rep){const c=document.createElement("canvas");c.width=w;c.height=h;draw(c.getContext("2d"),w,h);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping}t.anisotropy=8;return t}
+/* forest floor: mud, leaf litter, needles, moss */
+function qForestFloorTex(){return qCanvasTex(512,512,(x,w,h)=>{const R=sgRnd(5);
+ x.fillStyle="#1a1c12";x.fillRect(0,0,w,h);
+ for(let i=0;i<70;i++){const gx=R()*w,gy=R()*h,r=20+R()*70,g=x.createRadialGradient(gx,gy,0,gx,gy,r);const m=R();g.addColorStop(0,m<.4?"rgba(40,52,22,.55)":m<.75?"rgba(48,36,22,.5)":"rgba(18,16,12,.6)");g.addColorStop(1,"rgba(0,0,0,0)");x.fillStyle=g;x.fillRect(0,0,w,h)}
+ for(let i=0;i<9000;i++){const px=R()*w,py=R()*h,m=R();x.save();x.translate(px,py);x.rotate(R()*6.28);
+  if(m<.45){x.fillStyle=`rgba(${70+R()*50|0},${45+R()*30|0},${20+R()*15|0},${.35+R()*.4})`;x.beginPath();x.ellipse(0,0,2+R()*4,1+R()*2,0,0,6.28);x.fill()}
+  else if(m<.8){x.fillStyle=`rgba(${60+R()*30|0},${50+R()*25|0},${30|0},${.3+R()*.3})`;x.fillRect(0,0,6+R()*7,.8)}
+  else{x.fillStyle=`rgba(${30+R()*20|0},${55+R()*35|0},${20+R()*15|0},${.3+R()*.4})`;x.fillRect(0,0,1.2,3+R()*5)}
+  x.restore()}},1)}
+function qPathTex(){return qCanvasTex(512,128,(x,w,h)=>{const R=sgRnd(9);x.fillStyle="#2b2318";x.fillRect(0,0,w,h);
+ for(let i=0;i<5000;i++){x.fillStyle=`rgba(${60+R()*50|0},${48+R()*35|0},${30+R()*20|0},${.3+R()*.5})`;x.fillRect(R()*w,R()*h,1+R()*3,1+R()*2)}
+ for(const y of[.38,.62]){x.strokeStyle="rgba(15,12,8,.5)";x.lineWidth=6;x.beginPath();for(let px=0;px<=w;px+=16)x.lineTo(px,h*y+(R()-.5)*6);x.stroke()}
+ const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,"rgba(26,28,18,1)");g.addColorStop(.18,"rgba(26,28,18,0)");g.addColorStop(.82,"rgba(26,28,18,0)");g.addColorStop(1,"rgba(26,28,18,1)");x.fillStyle=g;x.fillRect(0,0,w,h)},1)}
+function qNeedleTex(){return qCanvasTex(128,128,(x,w,h)=>{const R=sgRnd(13);x.clearRect(0,0,w,h);
+ for(let i=0;i<900;i++){const px=R()*w,py=R()*h,a=Math.PI/2+(R()-.5)*1.2,l=6+R()*12;x.strokeStyle=`rgba(${20+R()*25|0},${45+R()*40|0},${22+R()*20|0},1)`;x.lineWidth=1+R();x.beginPath();x.moveTo(px,py);x.lineTo(px+Math.cos(a)*l,py+Math.sin(a)*l);x.stroke()}},1)}
+function qMistTex(){return qCanvasTex(128,128,(x,w,h)=>{const g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,"rgba(190,200,215,.55)");g.addColorStop(.5,"rgba(170,180,200,.22)");g.addColorStop(1,"rgba(160,170,190,0)");x.fillStyle=g;x.fillRect(0,0,w,h)})}
+function qGrassTex(){return qCanvasTex(128,128,(x,w,h)=>{const R=sgRnd(23);x.clearRect(0,0,w,h);
+ for(let i=0;i<60;i++){const bx=10+R()*108,ht=50+R()*75,bend=(R()-.5)*30;x.strokeStyle=`rgba(${30+R()*30|0},${55+R()*45|0},${25+R()*20|0},1)`;x.lineWidth=1.5+R()*2;x.beginPath();x.moveTo(bx,128);x.quadraticCurveTo(bx+bend*.4,128-ht*.6,bx+bend,128-ht);x.stroke()}})}
+/* layered, ragged pine canopy (irregular drooping needle skirts) */
+function qPineCanopy(seed,layers){
+ const R=sgRnd(seed),parts=[];
+ for(let i=0;i<layers;i++){const k=i/(layers-1),r=(1-k)*.27+.04,h=.16+.05*(1-k),y=.4+k*.58;
+  const g=new THREE.ConeGeometry(r*(.85+R()*.3),h,11,2,true);const p=g.attributes.position;
+  for(let j=0;j<p.count;j++){const vx=p.getX(j),vy=p.getY(j),vz=p.getZ(j),d=Math.hypot(vx,vz);if(d>.01){const n=1+(R()-.5)*.35;p.setXYZ(j,vx*n,vy-(d/(r+.001))*(.03+R()*.05),vz*n)}}
+  g.computeVertexNormals();g.translate((R()-.5)*.03,y,(R()-.5)*.03);parts.push([g,new THREE.Matrix4()])}
+ return lkMerge(parts)
+}
 function qOutBuild(){
  if(QST.out)return QST.out;
  const O=new THREE.Group;O.visible=false;scene.add(O);
  let outer=QST.face-.13;for(const b of obs)if(Math.abs(b.x+10)<.35&&b.hz>2.5&&b.y0==null){outer=b.x-b.hx;break}
- const dz=EXR.dz;
- const gt=qGroundTex(0);gt.repeat.set(26,26);
- const gnd=new THREE.Mesh(new THREE.PlaneGeometry(120,120),new THREE.MeshStandardMaterial({map:gt,roughness:1,metalness:0,color:0xb0b8b0}));gnd.rotation.x=-Math.PI/2;gnd.position.set(outer-60,.012,dz);gnd.receiveShadow=true;O.add(gnd);
- const pt=qGroundTex(1);pt.repeat.set(18,1);
- const path=new THREE.Mesh(new THREE.PlaneGeometry(75,2.6),new THREE.MeshStandardMaterial({map:pt,roughness:1,metalness:0,transparent:true,opacity:.92}));path.rotation.x=-Math.PI/2;path.position.set(outer-37.5,.02,dz);path.receiveShadow=true;O.add(path);
- /* doorway on the outside wall: glowing red interior */
- const dc=document.createElement("canvas");dc.width=64;dc.height=128;const dx=dc.getContext("2d"),dg=dx.createLinearGradient(0,0,0,128);dg.addColorStop(0,"#5a0a06");dg.addColorStop(.6,"#a3200f");dg.addColorStop(1,"#3a0604");dx.fillStyle=dg;dx.fillRect(0,0,64,128);
- const dtex=new THREE.CanvasTexture(dc);dtex.encoding=THREE.sRGBEncoding;
- const dw=new THREE.Mesh(new THREE.PlaneGeometry(1.9,2.3),new THREE.MeshBasicMaterial({map:dtex,toneMapped:false}));dw.position.set(outer-.012,1.15,dz);dw.rotation.y=-Math.PI/2;O.add(dw);
+ const dz=EXR.dz,R=sgRnd(1234);
+ /* ground */
+ const gt=qForestFloorTex();gt.repeat.set(30,30);
+ const gnd=new THREE.Mesh(new THREE.PlaneGeometry(150,150,1,1),new THREE.MeshStandardMaterial({map:gt,roughness:1,metalness:0}));gnd.rotation.x=-Math.PI/2;gnd.position.set(outer-50,.012,dz);gnd.receiveShadow=true;O.add(gnd);
+ const pt=qPathTex();pt.repeat.set(16,1);
+ const path=new THREE.Mesh(new THREE.PlaneGeometry(80,2.4),new THREE.MeshStandardMaterial({map:pt,roughness:1,metalness:0,transparent:true}));path.rotation.x=-Math.PI/2;path.position.set(outer-40,.02,dz);path.receiveShadow=true;O.add(path);
+ /* ---- hospital exterior shell (only visible from outside, in this cinematic) ---- */
+ const wallTex=(lit)=>qCanvasTex(512,256,(x,w,h)=>{const Rr=sgRnd(lit?3:4);x.fillStyle="#6d6a62";x.fillRect(0,0,w,h);
+  for(let i=0;i<4000;i++){x.fillStyle=`rgba(${Rr()<.5?20:150},${Rr()<.5?20:145},${Rr()<.5?18:135},${.05+Rr()*.08})`;x.fillRect(Rr()*w,Rr()*h,2+Rr()*4,2+Rr()*4)}
+  for(let i=0;i<14;i++){const sx=Rr()*w,g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,"rgba(30,26,20,.0)");g.addColorStop(.3,"rgba(30,26,20,.35)");g.addColorStop(1,"rgba(30,26,20,.05)");x.fillStyle=g;x.fillRect(sx,0,6+Rr()*18,h)}
+  x.fillStyle="rgba(0,0,0,.25)";x.fillRect(0,h*.47,w,6);
+  for(let c=0;c<2;c++)for(let r=0;r<2;r++){const wx=40+c*256,wy=24+r*128,ww=150,wh=74;x.fillStyle="#2b2d2c";x.fillRect(wx-6,wy-6,ww+12,wh+12);
+   const on=lit&&Rr()<.35;x.fillStyle=on?"#5d4a26":"#0b0d10";x.fillRect(wx,wy,ww,wh);if(on){const g=x.createRadialGradient(wx+ww/2,wy+wh/2,5,wx+ww/2,wy+wh/2,90);g.addColorStop(0,"rgba(255,200,120,.35)");g.addColorStop(1,"rgba(0,0,0,0)");x.fillStyle=g;x.fillRect(wx,wy,ww,wh)}
+   x.strokeStyle="#3b3e3c";x.lineWidth=5;x.beginPath();x.moveTo(wx+ww/2,wy);x.lineTo(wx+ww/2,wy+wh);x.moveTo(wx,wy+wh/2);x.lineTo(wx+ww,wy+wh/2);x.stroke();
+   if(Rr()<.3){x.fillStyle="rgba(0,0,0,.9)";x.beginPath();x.moveTo(wx+20,wy+5);x.lineTo(wx+70,wy+40);x.lineTo(wx+30,wy+60);x.fill()}}},1);
+ const T1=wallTex(1),T2=wallTex(0);
+ const face=(w,h,x,y,z,ry,tex)=>{const t=tex.clone();t.needsUpdate=true;t.repeat.set(w/10,h/7.6);const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshStandardMaterial({map:t,roughness:.95,metalness:0}));m.position.set(x,y,z);m.rotation.y=ry;m.receiveShadow=true;O.add(m);return m};
+ const LH=4.4,MH=7.6;
+ /* lobby west wall with the exit opening */
+ face(dz-1.05-5.92,LH,outer-.01,LH/2,(5.92+dz-1.05)/2,-Math.PI/2,T2);
+ face(18.08-dz-1.05,LH,outer-.01,LH/2,(dz+1.05+18.08)/2,-Math.PI/2,T2);
+ face(2.1,LH-2.4,outer-.01,2.4+(LH-2.4)/2,dz,-Math.PI/2,T2);
+ face(10.1,LH,-5,LH/2,5.9,Math.PI,T2);face(10.1,LH,-5,LH/2,18.1,0,T2);
+ /* main block behind, two storeys */
+ face(24.3,MH,-.06,MH/2,12,-Math.PI/2,T1);face(40.2,MH,20,MH/2,-.08,Math.PI,T1);face(40.2,MH,20,MH/2,24.08,0,T1);
+ const roofM=new THREE.MeshStandardMaterial({color:0x2a2b2a,roughness:1});
+ const roof=(w,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,.35,d),roofM);m.position.set(x,y,z);O.add(m)};
+ roof(10.4,12.5,-5,LH+.15,12);roof(40.6,24.6,20,MH+.15,12);
+ /* rooftop sign + red cross */
+ const sign=new THREE.Mesh(new THREE.PlaneGeometry(9,1.3),new THREE.MeshBasicMaterial({transparent:true,toneMapped:false,map:qCanvasTex(1024,148,(x,w,h)=>{x.clearRect(0,0,w,h);x.font="bold 92px Arial";x.textAlign="center";x.fillStyle="#d8e2e6";x.shadowColor="#9fd0ff";x.shadowBlur=18;x.fillText("DUSK MEMORIAL HOSPITAL",w/2,110);x.fillStyle="rgba(0,0,0,.85)";x.fillRect(w*.61,40,60,90)})}));
+ sign.position.set(-.3,MH+1.1,12);sign.rotation.y=-Math.PI/2;O.add(sign);QST.sign=sign;
+ const cross=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.2),new THREE.MeshBasicMaterial({transparent:true,toneMapped:false,map:qCanvasTex(128,128,(x)=>{x.fillStyle="#ff2b22";x.shadowColor="#ff2b22";x.shadowBlur=14;x.fillRect(46,14,36,100);x.fillRect(14,46,100,36)})}));
+ cross.position.set(outer-.03,LH-.8,dz-3.6);cross.rotation.y=-Math.PI/2;O.add(cross);
+ /* exit doorway glowing red */
+ const dw=new THREE.Mesh(new THREE.PlaneGeometry(2.0,2.4),new THREE.MeshBasicMaterial({toneMapped:false,map:qCanvasTex(64,128,(x)=>{const g=x.createLinearGradient(0,0,0,128);g.addColorStop(0,"#4a0805");g.addColorStop(.6,"#9b1e0e");g.addColorStop(1,"#340503");x.fillStyle=g;x.fillRect(0,0,64,128)})}));
+ dw.position.set(outer-.03,1.2,dz);dw.rotation.y=-Math.PI/2;O.add(dw);
  const fm=new THREE.MeshStandardMaterial({color:0x2a2f2c,roughness:.6,metalness:.6});
- for(const s of[-1,1]){const f=new THREE.Mesh(new THREE.BoxGeometry(.12,2.45,.12),fm);f.position.set(outer-.05,1.22,dz+s*1.0);O.add(f)}
- const top=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,2.12),fm);top.position.set(outer-.05,2.42,dz);O.add(top);
- const sg=new THREE.Mesh(new THREE.PlaneGeometry(1.3,.32),new THREE.MeshBasicMaterial({map:qSignTex("EMERGENCY EXIT","","#0b2a12","#3dff7a",512,128),toneMapped:false}));sg.position.set(outer-.02,2.78,dz);sg.rotation.y=-Math.PI/2;O.add(sg);
- /* pine forest (uploaded pine_tree.glb, reduced for phones) as instanced meshes */
- if(QST.asset.pine){const P2=QST.asset.pine;P2.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(P2),H=bb.max.y-bb.min.y,cx=(bb.min.x+bb.max.x)/2,cz=(bb.min.z+bb.max.z)/2;
-  const norm=new THREE.Matrix4().makeScale(1/H,1/H,1/H).multiply(new THREE.Matrix4().makeTranslation(-cx,-bb.min.y,-cz));
-  const lists={trunk:[],leaf:[]};P2.traverse(o=>{if(o.isMesh)(o.material.name=="Malzeme"?lists.leaf:lists.trunk).push([o.geometry,norm.clone().multiply(o.matrixWorld)])});
-  const mats={trunk:new THREE.MeshStandardMaterial({color:0x2e2017,roughness:1,metalness:0}),leaf:new THREE.MeshStandardMaterial({color:0x173320,roughness:.95,metalness:0,emissive:0x030805})};
-  const pos=[];const R=sgRnd(77);
-  const tryT=(x,z)=>{if(Math.abs(z-dz)<3.6&&x<outer-3)return;if(x>outer-6&&Math.abs(z-dz)<7)return;if(pos.some(p=>Math.hypot(p[0]-x,p[1]-z)<3))return;pos.push([x,z,9+R()*8,R()*6.28])};
-  /* lining the path on both sides, so the forest frames the look-back shot */
-  for(let i=0;i<500&&pos.length<70;i++){const x=outer-4-R()*48,s=R()<.5?-1:1,z=dz+s*(4+R()*R()*24);tryT(x,z)}
-  /* deeper forest and trees flanking the hospital */
-  for(let i=0;i<500&&pos.length<110;i++){const x=outer-2-R()*72,z=dz-40+R()*90;tryT(x,z)}
-  for(let i=0;i<200&&pos.length<128;i++){const x=outer+R()*40,z=R()<.5?-4-R()*16:28+R()*16;tryT(x,z)}
-  for(const k of["trunk","leaf"]){if(!lists[k].length)continue;const geo=lkMerge(lists[k]);const im=new THREE.InstancedMesh(geo,mats[k],pos.length);const m4=new THREE.Matrix4();
-   pos.forEach((p,i)=>{m4.compose(new THREE.Vector3(p[0],0,p[1]),new THREE.Quaternion().setFromEuler(new THREE.Euler(0,p[3],0)),new THREE.Vector3(p[2]*(.85+R()*.3),p[2],p[2]*(.85+R()*.3)));im.setMatrixAt(i,m4)});
-   im.castShadow=true;im.receiveShadow=true;im.frustumCulled=false;O.add(im)}}
- return QST.out={g:O,outer,light:null}
+ for(const s of[-1,1]){const f=new THREE.Mesh(new THREE.BoxGeometry(.14,2.5,.14),fm);f.position.set(outer-.06,1.25,dz+s*1.05);O.add(f)}
+ {const f=new THREE.Mesh(new THREE.BoxGeometry(.14,.14,2.24),fm);f.position.set(outer-.06,2.48,dz);O.add(f)}
+ const ex=new THREE.Mesh(new THREE.PlaneGeometry(1.0,.26),new THREE.MeshBasicMaterial({map:qSignTex("EXIT","","#0b2a12","#3dff7a",256,64),toneMapped:false}));ex.position.set(outer-.05,2.8,dz);ex.rotation.y=-Math.PI/2;O.add(ex);
+ const lampM=new THREE.MeshBasicMaterial({color:0xffd9a0,toneMapped:false});const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.08,.4),lampM);lamp.position.set(outer-.15,3.15,dz);O.add(lamp);QST.lampM=lampM;
+ const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:qMistTex(),color:0xffc890,transparent:true,depthWrite:false,opacity:.5}));gl.scale.set(2.2,1.6,1);gl.position.set(outer-.4,3.0,dz);O.add(gl);
+ /* ---- forest ---- */
+ const needle=qNeedleTex();needle.repeat.set(3,2);
+ const mats={bark:new THREE.MeshStandardMaterial({color:0x2a1f17,roughness:1,metalness:0}),
+  needles:new THREE.MeshStandardMaterial({color:0x2e4a32,map:needle,alphaTest:.45,side:THREE.DoubleSide,roughness:.95,metalness:0,emissive:0x020503}),
+  dead:new THREE.MeshStandardMaterial({color:0x24201c,roughness:1,metalness:0})};
+ /* tapered bark trunks (procedural: the uploaded pine broke into shards when reduced for phones) */
+ const barkT=qCanvasTex(64,256,(x,w,h)=>{const Rr=sgRnd(31);x.fillStyle="#2a1e16";x.fillRect(0,0,w,h);for(let k=0;k<160;k++){x.fillStyle=`rgba(${Rr()<.5?10:70},${Rr()<.5?8:52},${Rr()<.5?6:38},${.3+Rr()*.4})`;x.fillRect(Rr()*w,Rr()*h,1+Rr()*3,10+Rr()*40)}},1);barkT.repeat.set(2,6);
+ mats.bark.map=barkT;mats.bark.color.setHex(0x9a8a7c);
+ const trunkGeo=(()=>{const g=new THREE.CylinderGeometry(.009,.024,1,9,4);const p=g.attributes.position;for(let k=0;k<p.count;k++){const yy=p.getY(k);p.setX(k,p.getX(k)+Math.sin(yy*9)*.002);p.setZ(k,p.getZ(k)+Math.cos(yy*7)*.002)}g.translate(0,.5,0);g.computeVertexNormals();return g})();
+ const simpleTrunk=trunkGeo;
+ const canopies=[qPineCanopy(3,8),qPineCanopy(7,10),qPineCanopy(11,7)];
+ /* random natural placement (Poisson-ish), only a narrow path and small gaps left open */
+ const pts=[];const ok=(x,z,m)=>{for(const p of pts)if(Math.hypot(p.x-x,p.z-z)<m)return false;return true};
+ const inBuilding=(x,z,m)=>{m=m||0;return (x>outer-1.5-m&&x<1+m&&z>4.5-m&&z<19.5+m)||(x>-1.5-m&&x<41.5+m&&z>-1.5-m&&z<25.5+m)||(x>39-m&&x<59+m&&z>0-m&&z<22+m)};
+ for(let i=0;i<9000&&pts.length<340;i++){const x=outer+8-R()*80,z=dz-46+R()*96;
+  const dp=Math.abs(z-dz);if(x<outer-1&&dp<1.7)continue;if(x>outer-6&&dp<5.5)continue;if(inBuilding(x,z))continue;
+  const near=dp<9&&x<outer;const m=near?2.1+R()*1.6:2.6+R()*2.4;if(!ok(x,z,m))continue;
+  const h=(dp<5?13:8)+R()*9+(R()<.12?6:0);if(inBuilding(x,z,h*.24))continue;
+  pts.push({x,z,h,s:R(),near,dead:R()<.15,lean:(R()-.5)*.06,rot:R()*6.28,v:R()*3|0})}
+ const M4=new THREE.Matrix4(),Q4=new THREE.Quaternion(),E4=new THREE.Euler();
+ const inst=(geo,mat,list,fn)=>{if(!list.length||!geo)return;const im=new THREE.InstancedMesh(geo,mat,list.length);list.forEach((p,i)=>{fn(p);im.setMatrixAt(i,M4)});im.castShadow=true;im.receiveShadow=true;im.frustumCulled=false;O.add(im)};
+ const setM=(p,w,h,y0)=>{E4.set(p.lean,p.rot,p.lean*.7);Q4.setFromEuler(E4);M4.compose(new THREE.Vector3(p.x,y0||0,p.z),Q4,new THREE.Vector3(w,h,w))};
+ const nearT=pts.filter(p=>p.near),farT=pts.filter(p=>!p.near);
+ inst(trunkGeo,mats.bark,pts,p=>setM(p,p.h*(.9+p.s*.35),p.h));
+ for(let v=0;v<3;v++){const L=pts.filter(p=>!p.dead&&p.v==v);inst(canopies[v],mats.needles,L,p=>{const w=p.h*(.7+p.s*.35);setM(p,w,p.h*(1.02+p.s*.06),-p.h*.04)})}
+ /* dead branches on bare trees */
+ {const br=[];pts.filter(p=>p.dead).forEach(p=>{for(let k=0;k<5;k++)br.push({x:p.x,z:p.z,h:p.h,y:p.h*(.35+k*.12),a:R()*6.28,l:.8+R()*1.8})});
+  const g=new THREE.CylinderGeometry(.015,.05,1,5);g.rotateZ(Math.PI/2);g.translate(.5,0,0);
+  inst(g,mats.dead,br,b=>{E4.set(0,b.a,-.35-R()*.4);Q4.setFromEuler(E4);M4.compose(new THREE.Vector3(b.x,b.y,b.z),Q4,new THREE.Vector3(b.l,1,1))})}
+ /* undergrowth: bushes, ferns/grass, rocks, fallen logs */
+ const bush=(()=>{const g=new THREE.IcosahedronGeometry(1,2);const p=g.attributes.position;for(let j=0;j<p.count;j++){const X=p.getX(j),Y=p.getY(j),Z=p.getZ(j),n=.8+.25*Math.sin(X*5.1+Z*3.7)*Math.cos(Y*4.3+X*2.1);p.setXYZ(j,X*n,Math.max(-.2,Y)*n*.7,Z*n)}g.computeVertexNormals();return g})();
+ const bushes=[];for(let i=0;i<500&&bushes.length<170;i++){const x=outer+4-R()*72,z=dz-40+R()*86;if(Math.abs(z-dz)<1.6||inBuilding(x,z))continue;bushes.push({x,z,s:.4+R()*.9,r:R()*6})}
+ inst(bush,new THREE.MeshStandardMaterial({color:0x1f2d1a,roughness:1,map:needle,emissive:0x010201}),bushes,b=>{E4.set(0,b.r,0);Q4.setFromEuler(E4);M4.compose(new THREE.Vector3(b.x,b.s*.25,b.z),Q4,new THREE.Vector3(b.s,b.s,b.s))});
+ const gq=(()=>{const a=new THREE.PlaneGeometry(1,1);a.translate(0,.5,0);const b=a.clone();b.rotateY(Math.PI/2);return lkMerge([[a,new THREE.Matrix4()],[b,new THREE.Matrix4()]])})();
+ const grass=[];for(let i=0;i<1400&&grass.length<700;i++){const x=outer+2-R()*60,z=dz-28+R()*56;if(Math.abs(z-dz)<1.05||inBuilding(x,z))continue;grass.push({x,z,s:.35+R()*.6,r:R()*6})}
+ inst(gq,new THREE.MeshStandardMaterial({map:qGrassTex(),alphaTest:.5,side:THREE.DoubleSide,color:0x6f8a5a,roughness:1}),grass,b=>{E4.set(0,b.r,0);Q4.setFromEuler(E4);M4.compose(new THREE.Vector3(b.x,0,b.z),Q4,new THREE.Vector3(b.s,b.s,b.s))});
+ const rock=new THREE.DodecahedronGeometry(1,0);const rocks=[];for(let i=0;i<300&&rocks.length<60;i++){const x=outer+2-R()*70,z=dz-38+R()*80;if(Math.abs(z-dz)<1.7||inBuilding(x,z))continue;rocks.push({x,z,s:.15+R()*.5,r:R()*6})}
+ inst(rock,new THREE.MeshStandardMaterial({color:0x3d3e3a,roughness:.95}),rocks,b=>{E4.set(R(),b.r,R());Q4.setFromEuler(E4);M4.compose(new THREE.Vector3(b.x,b.s*.3,b.z),Q4,new THREE.Vector3(b.s,b.s*.6,b.s*.8))});
+ const logG=new THREE.CylinderGeometry(.18,.24,1,8);logG.rotateZ(Math.PI/2);const logs=[];for(let i=0;i<200&&logs.length<16;i++){const x=outer-3-R()*60,z=dz-30+R()*60;if(Math.abs(z-dz)<2.5)continue;logs.push({x,z,l:2+R()*4,r:R()*6})}
+ inst(logG,mats.bark,logs,b=>{E4.set(0,b.r,(R()-.5)*.1);Q4.setFromEuler(E4);M4.compose(new THREE.Vector3(b.x,.18,b.z),Q4,new THREE.Vector3(b.l,1,1))});
+ /* ground mist */
+ const mist=[];const mt=qMistTex();for(let i=0;i<40;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:mt,transparent:true,depthWrite:false,opacity:.16+R()*.12,color:0x9aa8c0}));
+  s.position.set(outer-2-R()*50,.3+R()*1.1,dz-14+R()*28);const k=5+R()*8;s.scale.set(k,k*.35,1);O.add(s);mist.push({s,vx:(R()-.5)*.25,vz:(R()-.5)*.2})}
+ return QST.out={g:O,outer,light:null,mist}
 }
 function qPostLight(){ /* after the game's lamp update: outdoors only moon + doorway */
  const c=QST.cine;if(!c||c.type!="escape"||!c.out)return;lamps.forEach(l=>l.intensity=0)
+}
+/* wind in the trees */
+function qWind(on){
+ if(!AC)return;if(on&&!QST.wind){const s=AC.createBufferSource();s.buffer=nb;s.loop=true;const f=AC.createBiquadFilter();f.type="bandpass";f.frequency.value=380;f.Q.value=.6;const g=AC.createGain();g.gain.value=0;
+  const l=AC.createOscillator(),lg=AC.createGain();l.frequency.value=.13;lg.gain.value=160;l.connect(lg);lg.connect(f.frequency);s.connect(f);f.connect(g);g.connect(mg);s.start();l.start();g.gain.setTargetAtTime(.22,AC.currentTime,1.2);QST.wind={s,g,l}}
+ else if(!on&&QST.wind){const w=QST.wind;QST.wind=null;try{w.g.gain.setTargetAtTime(0,AC.currentTime,.6);setTimeout(()=>{try{w.s.stop();w.l.stop()}catch(e){}},2500)}catch(e){}}
+}
+/* ---------------- credits ---------------- */
+function qCredits(done){
+ let el=$("qcred");if(!el){el=document.createElement("div");el.id="qcred";document.body.appendChild(el)}
+ el.innerHTML='<div class="roll"><h1>DUSK PROTOCOL</h1><p class="big">Made by <b>MOHAMMED</b></p>'+
+  '<p>A horror game created, designed and directed by Mohammed.</p>'+
+  '<p>Mohammed imagined the hospital, the Evil Nun and the four nights you must survive, and shaped every scare, every hiding place and this escape.</p>'+
+  '<h3>Created by</h3><p>Mohammed</p><h3>Game design &amp; story</h3><p>Mohammed</p><h3>Level &amp; horror direction</h3><p>Mohammed</p><h3>Testing</h3><p>Mohammed</p>'+
+  '<h3>Thank you for playing</h3><p>She is still in there. She will be waiting.</p>'+
+  '<h3 class="sm">3D models (licence credits)</h3><p class="sm">Evil Nun — Mr.Prizz (CC BY 4.0) · Metal Locker — Teslov (CC BY 4.0) · Pine Tree — EmreAlkan (CC BY 4.0) · Flashlight with Hand — Giovanni Cartella / John’s Art (CC BY-SA 3.0)</p>'+
+  '<p class="big" style="margin-top:28vh">MOHAMMED</p></div><div class="skip">tap to skip</div>';
+ el.style.display="block";const roll=el.querySelector(".roll");roll.style.transform="translateY(100vh)";
+ const H=roll.offsetHeight,dur=Math.max(16,H/60);let t0=performance.now(),fin=false;
+ const end=()=>{if(fin)return;fin=true;el.style.display="none";done&&done()};
+ el.onclick=end;
+ const step=()=>{if(fin)return;const k=(performance.now()-t0)/1e3/dur;roll.style.transform="translateY("+(innerHeight-(innerHeight+H)*Math.min(1,k))+"px)";if(k>=1){setTimeout(end,600);return}requestAnimationFrame(step)};
+ requestAnimationFrame(step)
 }
 /* ---------------- world construction ---------------- */
 function qBuild(){
@@ -1624,7 +1741,7 @@ function qSwingStep(dt){
   g.rotateY(.5+QST.ix);g.rotateX(-.9);g.rotateZ(.25)}
 }
 function qUnlock(){
- const ex=QST.ex;QST.hasK=false;QST.keyUsed=true;QST.cine={type:"escape",t:0,ph:0};
+ const ex=QST.ex;QST.hasK=false;QST.keyUsed=true;QST.cine={type:"escape",t:0};
  NUN.wait=99;if(NUN.st=="chase"||NUN.st=="attack"){NUN.st="patrol";NUN.goal=null}cmStop();FL.on=0;
  const k=(QST.ktpl||new THREE.Mesh(new THREE.BoxGeometry(.1,.02,.02))).clone(true);k.rotation.set(0,0,-Math.PI/2);
  const kg=new THREE.Group;kg.add(k);kg.position.set(ex.face+.3,1.08,EXR.dz+.2);grp.add(kg);ex.key=kg;
@@ -1634,7 +1751,8 @@ function qUnlock(){
  qSave()
 }
 function qEscapeEnd(){
- document.body.classList.remove("qcine"); /* restore lights / nun after the cinematic */
+ document.body.classList.remove("qcine");
+ qWind(false);if(QST.sun0&&QST.sun0.sky)skyU.sun.value.copy(QST.sun0.sky); /* restore lights / nun after the cinematic */
  const O=QST.out;if(O){O.g.visible=false;if(O.light){scene.remove(O.light);O.light=null}}
  if(QST.sun0){sun.intensity=QST.sun0.i;sun.color.copy(QST.sun0.c);HEMI.intensity=QST.sun0.h;QST.sun0=null}
 }
@@ -1699,42 +1817,49 @@ function qCam(dt){
  }
  else if(c.type=="escape"){
   document.body.classList.add("qcine");
-  P.dead=false;vX=vZ=0;firing=false;const ex=QST.ex,O=QST.out,dz=EXR.dz,ease=k=>k*k*(3-2*k);
-  if(t<2.6){/* inside: key turns, door swings open onto the dark night, camera moves to it */
-   if(ex.key){ex.key.rotation.x=-ease(Math.min(1,t/.55))*Math.PI/2}
-   if(t>.6){if(ex.key)ex.key.visible=t<.85;ex.glow.visible=true;const k=Math.min(1,(t-.6)/1.5);ex.piv.rotation.y=-ease(k)*1.5}
-   if(t>.6&&!c.snd){c.snd=1;try{snd("dooropen",1,{x:ex.face,z:EXR.dz},0,.62);snd("creak",.9,{x:ex.face,z:EXR.dz},0,.6);nsbPlay("riser",.55)}catch(e){}}
-   const k2=ease(clamp((t-.8)/1.8,0,1));cam.position.copy(c.cam0).lerp(_nA.set(ex.face+.9,1.55,dz),k2);cam.lookAt(ex.face-3,1.45,dz);cam.fov+=(64-cam.fov)*Math.min(1,dt*3);cam.updateProjectionMatrix();
-   QUI.fade.style.background="#000";QUI.fade.style.opacity=clamp((t-1.95)/.5,0,1).toFixed(2);return}
-  if(!c.out){/* cut to outside (hidden by black) */
-   c.out=1;if(O){O.g.visible=true;QST.sun0={i:sun.intensity,c:sun.color.clone(),h:HEMI.intensity};sun.color.setHex(0x8fa6d8);
-    const L=new THREE.PointLight(0xff3a1c,2.2,9,1.6);L.position.set(O.outer-.7,2.1,dz);scene.add(L);O.light=L}
-   ex.piv.rotation.y=0;
-   if(NUN.ok){NUN.g.visible=true;NUN.L=0;NUN.stair=null;NUN.pos.set((O?O.outer:-10.1)-.5,0,dz);NUN.face=-Math.PI/2;NUN.st="cine";nunPlay("idle_look",.01);NUN.g.position.copy(NUN.pos);NUN.g.rotation.y=NUN.face}
-   try{pbreathStart(1)}catch(e){}}
-  const ox=O?O.outer:-10.1,te=t-2.6;sun.intensity=.85;HEMI.intensity=.62;
-  let x,y=1.55,yawc=-Math.PI/2,pit=.0,roll=0,fov=66;
-  if(te<5.4){/* run down the path into the forest */
-   const sp=te<.5?te*2*5:5,dist=te<.5?te*te*5:1.25+(te-.5)*5;x=ox-1.2-dist;
-   const ph=te*11;y+=Math.abs(Math.sin(ph))*.07-.03;roll=Math.sin(ph)*.025;yawc+=Math.sin(ph*.5)*.04;pit=.06+Math.sin(ph)*.02;
-   c.st=(c.st||0)-dt;if(c.st<=0&&te>.2){c.st=.36;try{snd("run",1,null)}catch(e){}}
-   c.x5=x}
-  else if(te<7){/* slow down, stop, turn round */
-   const k=ease((te-5.4)/1.6);x=(c.x5??(ox-24))-2.2*Math.sin(Math.min(1,(te-5.4)/1.6)*Math.PI/2);y+=Math.abs(Math.sin(te*6))*.03*(1-k);yawc=-Math.PI/2+k*Math.PI;pit=.04-k*.06;c.x7=x;
-   c.st=(c.st||0)-dt;if(c.st<=0&&k<.6){c.st=.5;try{snd("step",.8,null)}catch(e){}}}
-  else{/* she is standing in the doorway, watching you */
-   x=c.x7??(ox-26);yawc=Math.PI/2;const k=clamp((te-7)/3.6,0,1);pit=-.02;fov=66-k*22;y+=Math.sin(te*1.7)*.008;
-   if(!c.hit&&te>7.6){c.hit=1;try{nsbPlay("hit",.9);snd("thud",1)}catch(e){}}
-   const lf=(te>8.3&&te<8.42)||(te>8.55&&te<8.62)||(te>10.1&&te<10.2);HEMI.intensity=lf?3.2:.62;sun.intensity=lf?2.4:.85;
-   if(te>8.35&&!c.th){c.th=1;setTimeout(()=>{try{snd("thud",1);snd("bm"in SX?"bm":"thud",.8)}catch(e){}},400)}}
-  P.pos.set(x,0,dz);
-  cam.position.set(x,y,dz+(te<5.4?Math.sin(te*5.5)*.05:0));cam.quaternion.setFromEuler(new THREE.Euler(-pit,yawc,roll,"YXZ"));cam.fov+=(fov-cam.fov)*Math.min(1,dt*2.5);cam.updateProjectionMatrix();
-  const fo=te<.5?1-te/.5:te>10.9?clamp((te-10.9)/1.1,0,1):0;QUI.fade.style.background="#000";QUI.fade.style.opacity=fo.toFixed(2);
-  if(te>12.2&&!QST.won)qWin()
+  P.dead=false;vX=vZ=0;firing=false;const ex=QST.ex,O=QST.out,dz=EXR.dz,ease=k=>k*k*(3-2*k),ox=O?O.outer:-10.1;
+  if(!c.init){c.init=1;c.x=c.cam0.x;c.v=0;c.yaw=-Math.PI/2;
+   if(O){O.g.visible=true;QST.sun0={i:sun.intensity,c:sun.color.clone(),h:HEMI.intensity,sky:skyU.sun.value.clone()};sun.color.setHex(0x7d8fb8);skyU.sun.value.set(.25,-.5,.8).normalize();
+   }}
+  /* key turns, door swings open on the night outside */
+  if(ex.key){ex.key.rotation.x=-ease(Math.min(1,t/.55))*Math.PI/2;ex.key.visible=t<.9}
+  if(t>.6){ex.glow.visible=c.x>QST.face-.05;ex.piv.rotation.y=-ease(Math.min(1,(t-.6)/1.2))*1.5}
+  if(t>.6&&!c.snd){c.snd=1;try{snd("dooropen",1,{x:ex.face,z:EXR.dz},0,.62);snd("creak",.9,{x:ex.face,z:EXR.dz},0,.6);nsbPlay("riser",.5)}catch(e){}}
+  let y=1.55,pit=0,roll=0,fov=66,look=null;
+  if(c.ph==null){c.ph="go"}
+  if(t<1.5){const k=ease(t/1.5);cam.position.copy(c.cam0).lerp(_nA.set(QST.face+.9,1.55,dz),k);c.x=cam.position.x}
+  else if(c.ph=="go"){/* one continuous move: through the doorway and straight into a run */
+   c.v=Math.min(5.2,c.v+dt*5.5);c.x-=c.v*dt;const ph=(c.run=(c.run||0)+dt*c.v*2.2);y+=Math.abs(Math.sin(ph))*.07*(c.v/5.2)-.03;roll=Math.sin(ph)*.022;pit=.05+Math.sin(ph)*.018;
+   c.st=(c.st||0)-dt*c.v/5.2;if(c.st<=0&&c.v>2){c.st=.36;try{snd(c.x<ox?"run":"step",1,null)}catch(e){}}
+   if(c.x<QST.face&&!c.out){c.out=1;qWind(true);try{pbreathStart(1)}catch(e){}if(O&&!O.light){const L=new THREE.PointLight(0xff3a1c,2.4,10,1.6);L.position.set(ox-.8,2.1,dz);scene.add(L);O.light=L}}
+   if(c.x<ox-9&&!c.nun&&NUN.ok){c.nun=1;NUN.g.visible=true;NUN.L=0;NUN.stair=null;NUN.pos.set(ox-.6,0,dz);NUN.face=-Math.PI/2;NUN.st="cine";nunPlay("idle_look",.01);NUN.g.position.copy(NUN.pos);NUN.g.rotation.y=NUN.face}
+   if(c.x<ox-31){c.ph="turn";c.t2=t}}
+  else if(c.ph=="turn"){const k=clamp((t-c.t2)/1.7,0,1);c.v=Math.max(0,c.v-dt*4);c.x-=c.v*dt;c.yaw=-Math.PI/2+ease(k)*Math.PI;y+=Math.abs(Math.sin(t*7))*.03*(1-k);pit=.03-.05*ease(k);
+   c.st=(c.st||0)-dt;if(c.st<=0&&c.v>.8){c.st=.5;try{snd("step",.8,null)}catch(e){}}
+   if(k>=1){c.ph="look";c.t3=t}}
+  else if(c.ph=="look"){/* she is standing in the doorway: slow cinematic zoom onto her face */
+   const tl=t-c.t3,k=ease(clamp((tl-.9)/3.4,0,1));c.yaw=Math.PI/2;y+=Math.sin(tl*1.6)*.006;
+   if(NUN.head){NUN.head.getWorldPosition(_nB);look=_nB.clone();look.y+=.02}else look=_nB.set(ox-.6,1.6,dz).clone();
+   fov=66-55*k;
+   if(!c.hit&&tl>.9){c.hit=1;try{nsbPlay("hit",.75)}catch(e){}}
+   const lf=(tl>2.1&&tl<2.2)||(tl>2.32&&tl<2.38)||(tl>3.9&&tl<3.98);HEMI.intensity=lf?2.6:.4;sun.intensity=lf?1.8:.5;
+   if(tl>2.4&&!c.th){c.th=1;setTimeout(()=>{try{snd("thud",1)}catch(e){}},350)}
+   if(tl>4.9&&!c.cut){c.cut=1;try{nsbPlay("js2",.9);shake=.05}catch(e){}QUI.fade.style.background="#000";QUI.fade.style.opacity=1;setTimeout(()=>{if(!QST.won)qWin()},350)}}
+  if(c.ph!="look"){HEMI.intensity=c.out?.4:HEMI.intensity;if(c.out)sun.intensity=.5}
+  if(c.out&&O){for(const m of O.mist){m.s.position.x+=m.vx*dt;m.s.position.z+=m.vz*dt}if(QST.sign)QST.sign.material.opacity=Math.random()<.06?.25:1}
+  P.pos.set(c.x,0,dz);
+  if(t>=1.5){cam.position.set(c.x,y,dz+(c.ph=="go"?Math.sin(t*5.2)*.05:0));
+   if(look){cam.lookAt(look);}else cam.quaternion.setFromEuler(new THREE.Euler(-pit,c.yaw,roll,"YXZ"))}
+  else{cam.lookAt(QST.face-3,1.45,dz)}
+  if(c.fov==null)c.fov=cam.fov;c.fov+=(fov-c.fov)*Math.min(1,dt*(c.ph=="look"?2.2:3));cam.fov=c.fov;cam.updateProjectionMatrix()
  }
 }
 function qWin(){
  QST.won=true;QST.cine=null;st="over";qClearSave();qEscapeEnd();if(NUN.g)NUN.g.visible=false;try{pbreathStop()}catch(e){}
+ $("hud").classList.add("hide");$("touch").classList.add("hide");QUI.fade.style.background="#000";QUI.fade.style.opacity=1;
+ qCredits(()=>qWinShow())
+}
+function qWinShow(){
  if(document.exitPointerLock)document.exitPointerLock();
  $("hud").classList.add("hide");$("touch").classList.add("hide");
  $("qws").textContent="You escaped on Day "+QST.day+" of "+QST.MAXD+".";

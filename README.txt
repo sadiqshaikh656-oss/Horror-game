@@ -26,7 +26,8 @@ HOW TO WIN
   south-west corner of the lobby and smash the 2 planks nailed across the steel exit door.
 - Find the EXIT KEY (always in one of the records-room drawers).
 - You can carry ONE item at a time: DROP (G / Q, or the DROP button) before picking up another.
-- Unlock the door and escape.
+- Unlock the door and escape: cinematic run into the forest, the nun watching from the doorway,
+  then the credits (Made by Mohammed).
 - If the nun catches you, the day ends and you wake up in bed again; whatever you were
   holding drops where she caught you. Caught on Day 4 = game over.
 - Hide in the metal lockers (every room, corridors and the basement): you look out through
@@ -79,6 +80,3 @@ single solid block, so the in-game lockers are built as real hollow geometry in 
 style (hinged door with see-through slits at eye level, louvres, handle); the player can look around
 inside.
 
-"Pine Tree" by EmreAlkan (https://sketchfab.com/Anadolubebesi), licence CC BY 4.0
-(https://sketchfab.com/3d-models/pine-tree-27ab66bf87fd47bda321efde1d7a6fae); reduced from
-685k to ~18k vertices for phones (assets/source/pine_tree_lowpoly.glb), used in the escape cinematic.
