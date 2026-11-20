@@ -22,10 +22,10 @@ DIFFICULTY (main menu, one tap starts the game)
 
 HOW TO WIN
 - You wake up in your hospital bed (ward room, ground floor). You have 4 days.
-- Find the HAMMER (lying on a table or counter in one of the rooms), go to the EMERGENCY EXIT room in the
-  south-west corner of the lobby and smash the 2 planks nailed across the steel exit door.
+- Find the HAMMER (on a workbench in one of the rooms), go to the EMERGENCY EXIT room in the
+  south-west corner of the lobby and pull the 4 nails out of the 2 planks nailed across the steel exit door.
 - Find the EXIT KEY (always in one of the records-room drawers).
-- You can carry ONE item at a time: DROP (G / Q, or the DROP button) before picking up another.
+- Carrying: the item is held in your right hand (the torch moves to your left hand). ONE item at a time: DROP (G / Q, or the DROP button) before picking up another.
 - Unlock the door and escape: cinematic run into the forest, the nun watching from the doorway,
   then the credits (Made by Mohammed).
 - If the nun catches you, the day ends and you wake up in bed again; whatever you were
@@ -80,3 +80,7 @@ single solid block, so the in-game lockers are built as real hollow geometry in 
 style (hinged door with see-through slits at eye level, louvres, handle); the player can look around
 inside.
 
+
+Forest (escape cinematic) props, all CC BY 4.0 on Sketchfab: "Pine Tree" by EmreAlkan
+(reduced for phones; far trees are flat impostors rendered from it), "Grass_green" by
+nikitadyachik05, "Grass" by Cosmic_dust, "Low poly Stones" by rakutin.
