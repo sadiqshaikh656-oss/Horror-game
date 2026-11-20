@@ -185,6 +185,7 @@ html,body{background:#040203}
 #qlk .b{bottom:0;height:40%;background:linear-gradient(#050505,#000 18%)}
 #qlk .s{top:38%;height:21%;background:repeating-linear-gradient(to bottom,#030303 0,#030303 8px,rgba(0,0,0,.35) 9.5px,rgba(0,0,0,0) 11px,rgba(0,0,0,0) 18px,rgba(0,0,0,.35) 19.5px,#030303 21px);box-shadow:inset 0 0 36px 8px #000}
 body.qaim #ip{display:none!important}
+body.qhid #qp{top:84%}
 
 </style><link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/MaskPass.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"><link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></head><body>
 <canvas id="c"></canvas>
@@ -984,7 +985,7 @@ function nunStep(dt){
   break}
  case"catch":{NUN.face=lerpA(NUN.face,Math.atan2(dx,dz),dt*6);break}
  case"lkopen":{const l=NUN.lkO;NUN.face=lerpA(NUN.face,Math.atan2(l.x-NUN.pos.x,l.z-NUN.pos.z),dt*8);
-  if(NUN.t>.3&&!l.tgt){l.tgt=1;try{snd("creak",.9,{x:l.x,z:l.z},0,1.3)}catch(e){}if(HLK.el)HLK.el.style.display="none";l.dp.visible=true;HLK.hide&&(HLK.hide.ph="caught")}
+  if(NUN.t>.3&&!l.tgt){l.tgt=1;try{snd("creak",.9,{x:l.x,z:l.z},0,1.3)}catch(e){}HLK.hide&&(HLK.hide.ph="caught")}
   if(NUN.t>.62){nunCatch()}
   break}
  }
@@ -1570,7 +1571,7 @@ function qAfterReset(){
 function qStep(dt){
  if(!QST.built){if(QST.ready&&HD.length&&HOSP&&obs.length>20)qBuild();else return}
  if(QST.pending)qAfterReset();
- QST.aim=qAim();document.body.classList.toggle("qaim",!!QST.aim);
+ QST.aim=qAim();document.body.classList.toggle("qaim",!!QST.aim);document.body.classList.toggle("qhid",!!HLK.hide);
  const pr=QUI.p;
  if(pr){if(QST.aim&&!QST.swing){pr.textContent=(touch?"USE • ":"E • ")+QST.aim.t;pr.classList.remove("hide")}else pr.classList.add("hide")}
  qPlankStep(dt);
@@ -1598,18 +1599,59 @@ qLoad();
    placed against walls in every room, corridors and the basement
    ===================================================================== */
 const HLK={list:[],built:false,tpl:null,hide:null,seen:false,el:null};
+function lkPaint(inner){
+ const c=document.createElement("canvas");c.width=c.height=256;const x=c.getContext("2d"),R=sgRnd(inner?5:3);
+ x.fillStyle=inner?"#2a3034":"#5f6d75";x.fillRect(0,0,256,256);
+ for(let i=0;i<2200;i++){const v=R();x.fillStyle=`rgba(${v<.5?0:255},${v<.5?0:255},${v<.5?0:255},${.025+R()*.04})`;x.fillRect(R()*256,R()*256,1+R()*3,1+R()*3)}
+ if(!inner){for(let i=0;i<40;i++){x.strokeStyle=`rgba(210,215,215,${.08+R()*.18})`;x.lineWidth=.6+R();x.beginPath();const sx=R()*256,sy=R()*256;x.moveTo(sx,sy);x.lineTo(sx+(R()-.5)*50,sy+(R()-.5)*12);x.stroke()}
+  for(let i=0;i<14;i++){const gx=R()*256,gy=R()*256,r=4+R()*16,g=x.createRadialGradient(gx,gy,0,gx,gy,r);g.addColorStop(0,`rgba(${90+R()*40|0},${45+R()*20|0},20,${.25+R()*.3})`);g.addColorStop(1,"rgba(80,40,20,0)");x.fillStyle=g;x.fillRect(gx-r,gy-r,r*2,r*2)}
+  const gr=x.createLinearGradient(0,170,0,256);gr.addColorStop(0,"rgba(20,16,12,0)");gr.addColorStop(1,"rgba(20,16,12,.45)");x.fillStyle=gr;x.fillRect(0,0,256,256)}
+ const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=4;return t
+}
+/* a real, hollow locker (same size/style as the uploaded "Metal Locker"): body with inner walls,
+   hinged door with see-through slits at eye level */
+function lkMerge(list){ /* [geometry, matrix4] -> one non-indexed geometry */
+ const parts=list.map(([g,m])=>{const c=(g.index?g.toNonIndexed():g.clone());c.applyMatrix4(m);return c});
+ let n=0;for(const p of parts)n+=p.attributes.position.count;
+ const out=new THREE.BufferGeometry();
+ for(const k of["position","normal","uv"]){const sz=parts[0].attributes[k].itemSize,arr=new Float32Array(n*sz);let o=0;for(const p of parts){arr.set(p.attributes[k].array,o);o+=p.attributes[k].array.length}out.setAttribute(k,new THREE.BufferAttribute(arr,sz))}
+ out.computeBoundingSphere();return out
+}
+function lkGroupGeo(g){ /* per material merged geometries of a template group, in group space */
+ const by=new Map();g.updateMatrixWorld(true);
+ g.traverse(o=>{if(!o.isMesh)return;if(!by.has(o.material))by.set(o.material,[]);by.get(o.material).push([o.geometry,o.matrix.clone()])});
+ return [...by].map(([m,l])=>[lkMerge(l),m])
+}
 function lkTemplate(){
- if(HLK.tpl)return HLK.tpl;const sc=QST.asset.locker;if(!sc)return null;
- sc.updateMatrixWorld(true);let mesh=null;sc.traverse(o=>{if(o.isMesh&&!mesh)mesh=o});if(!mesh)return null;
- const g=mesh.geometry.clone().applyMatrix4(mesh.matrixWorld).toNonIndexed();
- const P=g.attributes.position,n=P.count/3,bodyI=[],doorI=[];
- for(let t=0;t<n;t++){let zmin=1e9,zmax=-1e9;for(let k=0;k<3;k++){const z=P.getZ(t*3+k);zmin=Math.min(zmin,z);zmax=Math.max(zmax,z)}
-  if(zmin>.2555)doorI.push(t);else if(Math.abs(zmin-.25)<.003&&Math.abs(zmax-.25)<.003){/* body front face: removed so the locker is open */}else bodyI.push(t)}
- const pick=(tris)=>{const ng=new THREE.BufferGeometry();for(const k in g.attributes){const a=g.attributes[k],arr=new Float32Array(tris.length*3*a.itemSize);let o=0;for(const t of tris)for(let v=0;v<3;v++)for(let c=0;c<a.itemSize;c++)arr[o++]=a.array[(t*3+v)*a.itemSize+c];ng.setAttribute(k,new THREE.BufferAttribute(arr,a.itemSize))}ng.computeBoundingSphere();return ng};
- const body=pick(bodyI),door=pick(doorI);door.translate(-.25,0,-.255);
- const mb=mesh.material.clone();mb.side=THREE.DoubleSide;mb.envMapIntensity=.7;
- const md=mesh.material.clone();md.envMapIntensity=.7;
- return HLK.tpl={body,door,mb,md}
+ if(HLK.tpl)return HLK.tpl;
+ const mo=new THREE.MeshStandardMaterial({map:lkPaint(0),color:0xffffff,roughness:.62,metalness:.55,envMapIntensity:.8}),
+  mi=new THREE.MeshStandardMaterial({map:lkPaint(1),color:0xffffff,roughness:.8,metalness:.3}),
+  mk=new THREE.MeshStandardMaterial({color:0x1d2124,roughness:.5,metalness:.7});
+ const W=.5,D=.5,H=1.85,t=.016;
+ const body=new THREE.Group,door=new THREE.Group;
+ const box=(g,w,h,d,x,y,z,m,rx)=>{const me=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);me.position.set(x,y,z);if(rx)me.rotation.x=rx;me.castShadow=me.receiveShadow=true;g.add(me);return me};
+ /* outer shell (outside paint), inner skin (dark) */
+ box(body,W,H-.06,t,0,.06+(H-.06)/2,-D/2+t/2,mo);box(body,W-2*t,H-.08,.004,0,.06+(H-.06)/2,-D/2+t+.002,mi);
+ for(const s of[-1,1]){box(body,t,H-.06,D,s*(W/2-t/2),.06+(H-.06)/2,0,mo);box(body,.004,H-.08,D-t,s*(W/2-t-.002),.06+(H-.06)/2,.008,mi)}
+ box(body,W,t,D,0,H-t/2,0,mo);box(body,W-2*t,.004,D-t,0,H-t-.002,.008,mi);
+ box(body,W,.06,D,0,.03,0,mk);box(body,W-2*t,t,D-t,0,.06+t/2,.008,mi);
+ /* front frame lips */
+ for(const s of[-1,1])box(body,.025,H-.06,.02,s*(W/2-.0125),.06+(H-.06)/2,D/2-.01,mo);
+ box(body,W,.03,.02,0,H-.015,D/2-.01,mo);
+ /* door, built around its hinge (x=0 at the hinge, extends to -x) */
+ const dw=W-.05,x0=-dw/2-.002,dt=.018;
+ const pan=(y0,y1)=>box(door,dw,y1-y0,dt,x0,(y0+y1)/2,0,mo);
+ const sY0=1.46,sY1=1.66,n=6,slit=.014;
+ pan(.07,sY0);pan(sY1,H-.035);
+ /* eye-level band: two stiles + slats with real gaps */
+ box(door,.06,sY1-sY0,dt,x0-dw/2+.03,(sY0+sY1)/2,0,mo);box(door,.06,sY1-sY0,dt,x0+dw/2-.03,(sY0+sY1)/2,0,mo);
+ const step=(sY1-sY0)/n;for(let k=0;k<n;k++){const y=sY0+k*step;box(door,dw-.12,step-slit,dt,x0,y+(step-slit)/2,0,mo)}
+ /* decorative louvres top and bottom (like the uploaded model) */
+ for(const [yb,cnt] of [[1.71,4],[.16,4]])for(let k=0;k<cnt;k++)box(door,dw*.55,.012,.02,x0,yb+k*.03,.012,mo,-.6);
+ box(door,.03,.13,.03,x0-dw/2+.06,1.05,.024,mk);
+ box(door,.06,.03,.004,x0,1.75+.12,.01,mk);
+ HLK.tpl={body:lkGroupGeo(body),door:lkGroupGeo(door)};
+ return HLK.tpl
 }
 function lkBlocked(x,z,L,r){
  const y=layerY(L);
@@ -1620,7 +1662,7 @@ function lkBlocked(x,z,L,r){
 function lkPlace(){
  const T2=lkTemplate();if(!T2)return;
  const R=nunRoute(),placed=[],dirs=[[1,0],[-1,0],[0,1],[0,-1]];
- const avoid=[];for(const d of HD)avoid.push([d.cx,d.cz,1.7,0]);
+ const avoid=[];for(const d of HD){avoid.push([d.cx,d.cz,2.2,0]);avoid.push([d.x,d.z,1.5,0])}
  if(QST.ex)avoid.push([QST.ex.face,EXR.dz,2.6,0]);avoid.push([BEDP.x,BEDP.z,1.8,0]);
  const st=BSM.st;
  const tryAt=(p,spacing)=>{
@@ -1653,12 +1695,13 @@ function lkPlace(){
  for(const p of R.filter(p=>p.L===0))tryAt(p,7);
  for(const q of placed){
   const g=new THREE.Group,y=layerY(q.L);g.position.set(q.x,y,q.z);g.rotation.y=Math.atan2(-q.dx,-q.dz);
-  const b=new THREE.Mesh(T2.body,T2.mb);b.castShadow=b.receiveShadow=true;g.add(b);
-  const dp=new THREE.Group;dp.position.set(.25,0,.255);const dm=new THREE.Mesh(T2.door,T2.md);dm.castShadow=dm.receiveShadow=true;dp.add(dm);g.add(dp);
+  const dp=new THREE.Group;dp.position.set(.25,0,.25);for(const [ge,m] of T2.door){const me=new THREE.Mesh(ge,m);me.castShadow=me.receiveShadow=true;dp.add(me)}g.add(dp);
   g.traverse(o=>{if(o.isMesh){o.matrixAutoUpdate=true}});grp.add(g);
   const box=q.L?{x:q.x,z:q.z,hx:.27,hz:.27,h:y+1.85,y0:y,nc:true}:{x:q.x,z:q.z,hx:.27,hz:.27,h:1.85};obs.push(box);
   HLK.list.push({g,dp,x:q.x,z:q.z,L:q.L,fx:q.x-q.dx*.85,fz:q.z-q.dz*.85,ox:-q.dx,oz:-q.dz,a:0,tgt:0,lt:0,box})
  }
+ for(const [ge,m] of T2.body){const lst=[];for(const k of HLK.list){k.g.updateMatrixWorld(true);lst.push([ge,k.g.matrixWorld.clone()])}
+  if(lst.length){const me=new THREE.Mesh(lkMerge(lst),m);me.castShadow=me.receiveShadow=true;me.frustumCulled=false;grp.add(me)}}
  HLK.built=true;NL.ok=false;
  console.log("[lockers] placed "+HLK.list.length)
 }
@@ -1689,8 +1732,7 @@ function lkStep(dt){
  const h0=HLK.hide;
  for(const l of HLK.list){
   if(l.tgt!==l.lt){l.lt=l.tgt;if(!l.tgt)setTimeout(()=>lkSnd(l,false),380)}
-  l.dp.visible=!(h0&&h0.l===l&&h0.ph=="inside");
-  const g=l.tgt?1:0;if(l.a!==g){l.a+=Math.sign(g-l.a)*Math.min(Math.abs(g-l.a),dt*2.6);l.dp.rotation.y=l.a*1.75*(l.a*(2-l.a))}
+   const g=l.tgt?1:0;if(l.a!==g){l.a+=Math.sign(g-l.a)*Math.min(Math.abs(g-l.a),dt*2.6);l.dp.rotation.y=l.a*1.75*(l.a*(2-l.a))}
   l.box.hz=l.box.hx=.27
  }
  const h=HLK.hide;if(!h)return;
@@ -1698,27 +1740,27 @@ function lkStep(dt){
  /* body stays inside the locker */
  P.pos.set(l.x,layerY(l.L),l.z);vX=vZ=0;firing=false;
  if(h.ph=="in"&&h.t>.85&&l.tgt){l.tgt=0}
- if(h.ph=="in"&&h.t>1.35){h.ph="inside";h.t=0;HLK.el.style.display="block";yaw=Math.atan2(l.ox,l.oz);pitch=.02;h.by=yaw}
- if(h.ph=="out"){if(h.t>.15)HLK.el.style.display="none";
+ if(h.ph=="in"&&h.t>1.35){h.ph="inside";h.t=0;yaw=Math.atan2(l.ox,l.oz);pitch=.02;h.by=yaw}
+ if(h.ph=="out"){
   if(h.t>.95){P.pos.set(l.fx,layerY(l.L),l.fz);yaw=Math.atan2(l.ox,l.oz);pitch=.02;l.tgt=0;FL.on=h.fl?1:0;HLK.hide=null;HLK.seen=false}}
  /* hear her coming */
  if(h.ph=="inside"){const d=Math.hypot(NUN.pos.x-l.x,NUN.pos.z-l.z);if(d<6&&!SB.pb)try{pbreathStart(.4)}catch(e){}}
 }
 function lkCam(dt){
  const h=HLK.hide,l=h.l,y=layerY(l.L);
- const inside=_nA.set(l.x-l.ox*.06,y+1.56,l.z-l.oz*.06),out=_nB.set(l.fx,y+1.5,l.fz);
+ const inside=_nA.set(l.x+l.ox*.04,y+1.56,l.z+l.oz*.04),out=_nB.set(l.fx,y+1.5,l.fz);
  const ease=k=>k*k*(3-2*k);
  if(h.ph=="in"){const k=ease(clamp((h.t-.25)/.75,0,1));cam.position.copy(h.ex).lerp(inside,k);
   const q0=h.eq,lookOut=new THREE.Quaternion().setFromEuler(new THREE.Euler(0,Math.atan2(-l.ox,-l.oz),0,"YXZ"));
   const lookIn=new THREE.Quaternion().setFromEuler(new THREE.Euler(0,Math.atan2(l.ox,l.oz),0,"YXZ"));
   const k1=ease(clamp(h.t/.45,0,1)),k2=ease(clamp((h.t-.55)/.6,0,1));
   cam.quaternion.copy(q0).slerp(lookIn,k1).slerp(lookOut,k2)}
- else if(h.ph=="inside"){cam.position.copy(inside);cam.position.y+=Math.sin(T*1.6)*.004;
-  /* limited look-around through the slits */
-  const dy=Math.atan2(Math.sin(yaw-h.by),Math.cos(yaw-h.by)),cl=clamp(dy,-.35,.35);yaw=h.by+cl;pitch=clamp(pitch,-.18,.22);
+ else if(h.ph=="inside"){cam.position.copy(inside);cam.position.y+=Math.sin(T*1.6)*.003;
+  /* look around inside the locker: left/right/up/down */
+  const dy=Math.atan2(Math.sin(yaw-h.by),Math.cos(yaw-h.by)),cl=clamp(dy,-1.35,1.35);yaw=h.by+cl;pitch=clamp(pitch,-.95,.85);
   cam.quaternion.setFromEuler(new THREE.Euler(-pitch,Math.atan2(-l.ox,-l.oz)+cl,0,"YXZ"))}
  else{const k=ease(clamp((h.t-.2)/.7,0,1));cam.position.copy(inside).lerp(out,k);cam.quaternion.setFromEuler(new THREE.Euler(0,Math.atan2(-l.ox,-l.oz),0,"YXZ"))}
- cam.fov+=(66-cam.fov)*Math.min(1,dt*6);cam.updateProjectionMatrix()
+ cam.fov+=(70-cam.fov)*Math.min(1,dt*6);cam.near=.03;cam.updateProjectionMatrix()
 }
 function lkTarget(){
  const h=HLK.hide;if(!h||h.ph!="inside")return null;

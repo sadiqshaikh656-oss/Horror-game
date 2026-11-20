@@ -68,5 +68,7 @@ converted model (assets/source/flashlight_with_hand.glb, assets/models/flashglb.
 shared under the same CC BY-SA 3.0 licence.
 
 "Metal Locker" by Teslov (https://sketchfab.com/Teslov), licence CC BY 4.0
-(https://sketchfab.com/3d-models/metal-locker-1807cfeea89c4a57997cbe5fce569b53). The door is split
-off at runtime so it can open; textures resized for mobile.
+(https://sketchfab.com/3d-models/metal-locker-1807cfeea89c4a57997cbe5fce569b53). The uploaded mesh is a
+single solid block, so the in-game lockers are built as real hollow geometry in the same size and
+style (hinged door with see-through slits at eye level, louvres, handle); the player can look around
+inside.
