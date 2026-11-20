@@ -23,6 +23,8 @@ HOW TO WIN
 - Unlock the door and escape.
 - If the nun catches you, the day ends and you wake up in bed again; whatever you were
   holding drops where she caught you. Caught on Day 4 = game over.
+- Hide in the metal lockers (every room, corridors and the basement): you look out through
+  the slits. If she saw you get in she pulls you out; otherwise she may still check while searching.
 - Progress is saved automatically (also when the app is minimised). "Continue" on the main menu.
 
 EVIL NUN (enemy AI)
@@ -64,3 +66,7 @@ licence CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/).
 licence CC BY-SA 3.0. Converted to glTF with Blender 4.0, materials recoloured; the
 converted model (assets/source/flashlight_with_hand.glb, assets/models/flashglb.js) is
 shared under the same CC BY-SA 3.0 licence.
+
+"Metal Locker" by Teslov (https://sketchfab.com/Teslov), licence CC BY 4.0
+(https://sketchfab.com/3d-models/metal-locker-1807cfeea89c4a57997cbe5fce569b53). The door is split
+off at runtime so it can open; textures resized for mobile.
