@@ -84,3 +84,6 @@ inside.
 Forest (escape cinematic) props, all CC BY 4.0 on Sketchfab: "Pine Tree" by EmreAlkan
 (reduced for phones; far trees are flat impostors rendered from it), "Grass_green" by
 nikitadyachik05, "Grass" by Cosmic_dust, "Low poly Stones" by rakutin.
+
+
+Latest round: only the flashlight model's own hand is shown (no extra procedural hand); held hammer/key are shown big at the right like in Granny, torch at the left. Corridor lockers restored (5-7 hide spots). Hammer now sits on the nearest workbench to the start bed. Applying graphics settings no longer deletes rooms or the exit room (world is fully reset before rebuild). New setting: Motion blur 0-60% (camera-based, 9-tap). Better drop/pickup physics. Escape cinematic: real night fog that blends the forest, player runs straight out, turns back, camera zooms on the nun who walks to the door and stares, then credits.
