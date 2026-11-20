@@ -3,6 +3,7 @@ Dusk Protocol - Hospital Annex (split build) + Evil Nun enemy
 index.html            the game - open this
 assets/models/        3D models (GLB data, base64)       *.js
   questglb.js         exit door, bed, planks, key, hammer
+  flashglb.js         first-person arm + flashlight (converted from Flashlight_Idle.blend)
   evilnun.js          the Evil Nun enemy (evil_nun.glb as base64, loaded by index.html)
   evil_nun.glb        original source model (kept for editing; the game reads evilnun.js)
 assets/data/          level, characters, animations, kit  *.js
@@ -58,3 +59,8 @@ hospital bed, wood planks pack, door key, hammer.
 
 Credits: "Evil Nun" 3D model by Mr.Prizz (https://sketchfab.com/Rodolfoisreal1423),
 licence CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/).
+
+"Unity 5 - Flashlight with Hand" (Blend Swap #88445) by Giovanni Cartella (John's Art),
+licence CC BY-SA 3.0. Converted to glTF with Blender 4.0, materials recoloured; the
+converted model (assets/source/flashlight_with_hand.glb, assets/models/flashglb.js) is
+shared under the same CC BY-SA 3.0 licence.
