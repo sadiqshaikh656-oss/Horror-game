@@ -2541,81 +2541,41 @@ function pwStep(dt){
    ===================================================================== */
 const RR={done:false,g:null,lt:null,lm:[]};
 function rrBuild(){
- if(RR.done||!QST.asset||!QST.asset.troca||!LV.ok||!LV.b1)return;RR.done=true;
+ if(RR.done||!QST.asset||!QST.asset.wroom||!LV.ok||!LV.b1)return;RR.done=true;
  try{
-  const Y=BSM.Y,X0=14.13,X1=19.87,Z0=10.13,Z1=17.87,HT=3.0,DX=17.0,OW=1.2,OH=2.35;
-  const g=new THREE.Group;LV.b1.add(g);RR.g=g;RR.lm=[];
-  /* ---- 1. floor: the user's black-and-white checkered tile ---- */
-  {const src=QST.asset.tfloor;let mp=null;src.traverse(o=>{if(o.isMesh&&o.material&&o.material.map)mp=o.material.map});
-   const geo=new THREE.PlaneGeometry(X1-X0,Z1-Z0);geo.rotateX(-Math.PI/2);const U=geo.attributes.uv,S=(X1-X0)/1.6,Tt=(Z1-Z0)/1.6;for(let k=0;k<U.count;k++)U.setXY(k,U.getX(k)*S,U.getY(k)*Tt);
-   const m=new THREE.MeshStandardMaterial({map:mp,color:new THREE.Color(.82,.82,.84),roughness:.4,metalness:.05,envMapIntensity:.3});if(mp){mp.encoding=THREE.sRGBEncoding;mp.wrapS=mp.wrapT=THREE.RepeatWrapping;mp.anisotropy=4;mp.needsUpdate=true}
-   const f=new THREE.Mesh(geo,m);f.position.set((X0+X1)/2,Y+.014,(Z0+Z1)/2);f.receiveShadow=true;f.renderOrder=1;m.polygonOffset=true;m.polygonOffsetFactor=-2;m.polygonOffsetUnits=-4;g.add(f)}
-  /* ---- 2. walls: clean white tile (no gaps, covers the old plaster) ---- */
-  const tt=qCanvasTex(512,512,(x,w,h)=>{const R=sgRnd(41),n=4,s=w/n,gr=5;
-   x.fillStyle="#5d5f5a";x.fillRect(0,0,w,h);
-   for(let a=0;a<n;a++)for(let b=0;b<n;b++){const v=214+R()*22|0,y0=b*s+gr/2,x0=a*s+gr/2,ts=s-gr;
-    x.fillStyle=`rgb(${v},${v-2+R()*3|0},${v-8+R()*4|0})`;x.fillRect(x0,y0,ts,ts);
-    const gg=x.createLinearGradient(x0,y0,x0+ts,y0+ts);gg.addColorStop(0,"rgba(255,255,255,.22)");gg.addColorStop(.5,"rgba(255,255,255,0)");gg.addColorStop(1,"rgba(0,0,0,.16)");x.fillStyle=gg;x.fillRect(x0,y0,ts,ts);
-    x.fillStyle="rgba(255,255,255,.35)";x.fillRect(x0,y0,ts,2);x.fillRect(x0,y0,2,ts);x.fillStyle="rgba(0,0,0,.22)";x.fillRect(x0,y0+ts-2,ts,2);x.fillRect(x0+ts-2,y0,2,ts);
-    if(R()<.18){x.strokeStyle="rgba(40,35,30,.55)";x.lineWidth=1;x.beginPath();let px=x0+R()*ts,py=y0+R()*ts;x.moveTo(px,py);for(let c=0;c<5;c++){px+=(R()-.5)*40;py+=(R()-.5)*40;x.lineTo(px,py)}x.stroke()}
-    if(R()<.3){const gx=x0+R()*ts,gy=y0+R()*ts,r=10+R()*40,g2=x.createRadialGradient(gx,gy,0,gx,gy,r);g2.addColorStop(0,`rgba(${70+R()*30|0},${55+R()*20|0},30,.25)`);g2.addColorStop(1,"rgba(70,55,30,0)");x.fillStyle=g2;x.fillRect(gx-r,gy-r,r*2,r*2)}}
-   for(let i=0;i<7;i++){const gx=R()*w,gr2=x.createLinearGradient(0,0,0,h);gr2.addColorStop(0,"rgba(60,45,30,0)");gr2.addColorStop(.3,"rgba(60,45,30,.25)");gr2.addColorStop(1,"rgba(60,45,30,.05)");x.fillStyle=gr2;x.fillRect(gx,R()*h*.4,2+R()*4,h)}},1);
-  tt.wrapS=tt.wrapT=THREE.RepeatWrapping;
-  const wm=new THREE.MeshStandardMaterial({map:tt,color:new THREE.Color(.8,.8,.8),roughness:.28,metalness:0,envMapIntensity:.55});
-  const wall=(w,h,x,y,z,ry)=>{if(w<=.001||h<=.001)return;const geo=new THREE.PlaneGeometry(w,h);const U=geo.attributes.uv;for(let k=0;k<U.count;k++)U.setXY(k,U.getX(k)*w/.6,U.getY(k)*h/.6);const m=new THREE.Mesh(geo,wm);m.position.set(x,y,z);m.rotation.y=ry;m.receiveShadow=true;g.add(m)};
-  const e=.012;
-  wall(Z1-Z0,HT,X0+e,Y+HT/2,(Z0+Z1)/2,Math.PI/2);          /* west */
-  wall(Z1-Z0,HT,X1-e,Y+HT/2,(Z0+Z1)/2,-Math.PI/2);         /* east */
-  wall(X1-X0,HT,(X0+X1)/2,Y+HT/2,Z1-e,Math.PI);            /* north */
-  wall(DX-OW/2-X0,HT,(X0+DX-OW/2)/2,Y+HT/2,Z0+e,0);         /* south, left of the doorway */
-  wall(X1-DX-OW/2,HT,(X1+DX+OW/2)/2,Y+HT/2,Z0+e,0);         /* south, right of the doorway */
-  wall(OW,HT-OH,DX,Y+OH+(HT-OH)/2,Z0+e,0);                  /* above the doorway */
-  /* ---- 3. fixtures ---- */
-  const lit=(root,tint,rough,metal)=>root.traverse(o=>{if(!o.isMesh)return;const m0=o.material;const chrome=/metal|chrome|button|fasten/i.test((m0.name||"")+o.name);
-   const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,color:chrome?new THREE.Color(.75,.76,.78):(m0.color?m0.color.clone().multiply(tint):tint.clone()),roughness:chrome?.25:rough,metalness:chrome?.85:metal,envMapIntensity:chrome?.9:.4,side:THREE.DoubleSide});
-   if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true});
+  const Y=BSM.Y,X0=14.13,X1=19.87,Z0=10.13,Z1=17.87,DX=17.0,OW=1.2,OH=2.35;
+  const g=new THREE.Group;LV.b1.add(g);RR.g=g;RR.lm=[];RR.sd=null;
   const box=(x0,x1,z0,z1,h)=>obs.push({x:(x0+x1)/2,z:(z0+z1)/2,hx:(x1-x0)/2,hz:(z1-z0)/2,h:Y+(h||1.4),y0:Y,nc:true,rr:1});
-  /* a model placed on the floor, yaw applied, then snapped so its back touches a wall */
-  const place=(src,yaw,sc,along,wall,side)=>{const root=new THREE.Group,inner=src.clone(true);root.add(inner);inner.scale.setScalar(sc);root.rotation.y=yaw;g.add(root);root.updateMatrixWorld(true);
-   const b=new THREE.Box3().setFromObject(root);let dx=0,dz=0;
-   if(side=="N")dz=wall-b.max.z;else if(side=="S")dz=wall-b.min.z;else if(side=="W")dx=wall-b.min.x;else dx=wall-b.max.x;
-   if(side=="N"||side=="S")dx=along-(b.min.x+b.max.x)/2;else dz=along-(b.min.z+b.max.z)/2;
-   root.position.set(dx,0,dz);root.position.y=Y+.006-b.min.y;root.updateMatrixWorld(true);return root};
-  /* -- 3a. the user's 6-cubicle WC row along the east wall, a toilet inside every cubicle -- */
-  RR.stalls=[];
-  {const inner=QST.asset.tstall.clone(true);inner.updateMatrixWorld(true);
-   /* split the model's merged doors into one hinged door per cubicle */
-   const PX=[-.8,.55,1.9,3.25,4.6,6.0,7.4];let dsrc=null,dmat=null;const drop=[];
-   inner.traverse(o=>{if(!o.isMesh)return;if(/^(base_base|door_door|Cloner_2_door)/.test(o.name))drop.push(o);if(/^Cloner_1_door/.test(o.name)){dsrc=o;drop.push(o)}});
-   const bk=[[],[],[],[],[],[]];let names=null;
-   if(dsrc){const gq=(dsrc.geometry.index?dsrc.geometry.toNonIndexed():dsrc.geometry.clone()).applyMatrix4(dsrc.matrixWorld);dmat=dsrc.material;names=Object.keys(gq.attributes);const P=gq.attributes.position;
-    for(let t=0;t+2<P.count;t+=3){const cx=(P.getX(t)+P.getX(t+1)+P.getX(t+2))/3;let k=-1;for(let s=0;s<6;s++)if(cx>PX[s]&&cx<PX[s+1])k=s;if(k<0)continue;bk[k].push(t)}
-    const mk=(list,dx)=>{const out={};names.forEach(n=>out[n]=[]);for(const t of list)for(const n of names){const a=gq.attributes[n],is=a.itemSize;for(let j=0;j<3;j++)for(let c=0;c<is;c++)out[n].push(a.array[(t+j)*is+c]+(n=="position"&&c==0?dx:0))}const ng=new THREE.BufferGeometry();for(const n of names)ng.setAttribute(n,new THREE.Float32BufferAttribute(out[n],gq.attributes[n].itemSize));ng.computeBoundingBox();return ng};
-    RR.sd=[];
-    for(let k=0;k<6;k++){let ng=bk[k].length?mk(bk[k],0):(k>0&&bk[k-1].length?mk(bk[k-1],PX[k]-PX[k-1]):null);if(!ng)continue;
-     const b0=ng.boundingBox,hx=b0.max.x,hz=(b0.min.z+b0.max.z)/2;ng.translate(-hx,0,-hz);
-     const pv=new THREE.Group;pv.position.set(hx,0,hz);inner.add(pv);const me=new THREE.Mesh(ng,dmat);pv.add(me);
-     RR.sd.push({pv,k,a:k==3?1:0,tgt:k==3?1:0,v:0,w:b0.max.x-b0.min.x,hz,locked:k==0})}}
-   drop.forEach(o=>o.parent.remove(o));
-   const SC=.87;inner.scale.setScalar(SC);const row=new THREE.Group;row.add(inner);row.rotation.y=-Math.PI/2;g.add(row);row.updateMatrixWorld(true);
-   let b=new THREE.Box3().setFromObject(row);row.position.set(X1-.015-b.max.x,Y+.006-b.min.y,(Z0+Z1)/2+.12-(b.min.z+b.max.z)/2);row.updateMatrixWorld(true);
-   b=new THREE.Box3().setFromObject(row);RR.row=row;
-   lit(row,new THREE.Color(.78,.8,.82),.5,.15);
-   /* collision: the cubicle side panels, each toilet, and each door while it is closed */
-   for(const x of PX){const a=inner.localToWorld(new THREE.Vector3(x,0,.78)),c=inner.localToWorld(new THREE.Vector3(x,0,-1.8));box(Math.min(a.x,c.x),Math.max(a.x,c.x),Math.min(a.z,c.z)-.03,Math.max(a.z,c.z)+.03,2.1)}
-   for(const xc of [-.125,1.225,2.575,3.925,5.3,6.7]){const p=inner.localToWorld(new THREE.Vector3(xc,0,-1.72));
-    const t=place(QST.asset.troca,-Math.PI/2,1.15,p.z,p.x,"E");lit(t,new THREE.Color(.85,.85,.85),.25,0);RR.stalls.push(t);t.updateMatrixWorld(true);const tb=new THREE.Box3().setFromObject(t);box(tb.min.x,tb.max.x,tb.min.z,tb.max.z,.8)}
-   for(const s of RR.sd||[]){s.pv.rotation.y=0;s.pv.updateMatrixWorld(true);const c=s.pv.localToWorld(new THREE.Vector3(-s.w/2,1.1,0));s.wx=c.x;s.wz=c.z;
-    const e0=s.pv.localToWorld(new THREE.Vector3(0,0,0)),e1=s.pv.localToWorld(new THREE.Vector3(-s.w,0,0));
-    s.box={x:(e0.x+e1.x)/2,z:(e0.z+e1.z)/2,hx:Math.abs(e0.x-e1.x)/2+.05,hz:Math.abs(e0.z-e1.z)/2+.05,h:Y+2,y0:Y,nc:true};if(!s.tgt)obs.push(s.box);s.pv.rotation.y=-s.a*1.45}}
-  /* -- 3b. four urinals on the west wall, with dividers -- */
-  RR.urinals=[];
-  for(let k=0;k<4;k++){const z=12.2+k*1.05;const u=place(QST.asset.turinal,RR.urYaw==null?Math.PI/2:RR.urYaw,.2,z,X0+.02,"W");
-   u.position.y+=.32;u.updateMatrixWorld(true);lit(u,new THREE.Color(.92,.92,.9),.2,0);const ub=new THREE.Box3().setFromObject(u);box(X0,ub.max.x,ub.min.z,ub.max.z,1.2);RR.urinals.push(u);
-   if(k<3){const dv=new THREE.Mesh(new THREE.BoxGeometry(.5,1.1,.03),new THREE.MeshStandardMaterial({color:0x9aa3a6,roughness:.5,metalness:.4}));dv.position.set(X0+.27,Y+1.05,z+.525);dv.receiveShadow=true;g.add(dv);box(X0,X0+.54,z+.525-.04,z+.525+.04,1.6)}}
-  /* -- 3c. a smaller sink on the south wall, west of the door -- */
-  RR.sink=place(QST.asset.tsink,RR.skYaw==null?0:RR.skYaw,.45,15.1,Z0+.015,"S");RR.sink.position.y+=.4;RR.sink.updateMatrixWorld(true);lit(RR.sink,new THREE.Color(.8,.8,.82),.45,.1);
-  {RR.sink.updateMatrixWorld(true);const sb=new THREE.Box3().setFromObject(RR.sink);box(sb.min.x,sb.max.x,Z0,sb.max.z,1)}
+  /* ---- 1. the user's washroom model: fills the room width, open side towards the corridor door ---- */
+  const src=QST.asset.wroom.clone(true);src.updateMatrixWorld(true);const sb0=new THREE.Box3().setFromObject(src),sz0=sb0.getSize(new THREE.Vector3()),S=(X1-X0)/sz0.x,SY=3.0/sz0.y;
+  const inner=new THREE.Group;inner.add(src);inner.scale.set(S,SY,S);
+  const root=new THREE.Group;root.add(inner);root.rotation.y=Math.PI;g.add(root);root.updateMatrixWorld(true);
+  {const fl=[];src.traverse(o=>{if(o.isMesh&&o.material&&/di_ban/.test(o.material.name||""))fl.push(o)});const b=new THREE.Box3();(fl.length?fl:[src]).forEach(o=>b.expandByObject(o));
+   const wb=new THREE.Box3().setFromObject(src);root.position.set(X0-wb.min.x,Y-b.max.y+.012,Z0-wb.min.z);root.updateMatrixWorld(true)}
+  const RB=new THREE.Box3().setFromObject(src);RR.rb=RB;
+  src.traverse(o=>{if(!o.isMesh)return;const m0=o.material,nm=m0.name||"";
+   const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,color:m0.color?m0.color.clone().multiplyScalar(.9):new THREE.Color(.9,.9,.9),roughness:/jing_zi/.test(nm)?.08:/di_ban|qiang/.test(nm)?.45:.6,metalness:/jing_zi/.test(nm)?.6:0,envMapIntensity:/jing_zi/.test(nm)?1:.35,side:THREE.DoubleSide,transparent:!!m0.transparent,opacity:m0.opacity,alphaTest:m0.alphaTest||0});m.name=nm;
+   if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true});
+  /* ---- 2. the two open sides: a copy of the side wall on the west, a copy of the back wall (with the doorway) on the south ---- */
+  const wall=(re)=>{let w=null;src.traverse(o=>{if(o.isMesh&&re.test(o.material.name||""))w=o});return w};
+  const copyWall=(m,place)=>{if(!m)return null;m.updateWorldMatrix(true,false);const geo=(m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone()).applyMatrix4(m.matrixWorld);geo.computeBoundingBox();const b=geo.boundingBox;
+   const cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;geo.translate(-cx,0,-cz);geo.rotateY(Math.PI);place(geo);geo.computeVertexNormals();const me=new THREE.Mesh(geo,m.material);me.receiveShadow=true;g.add(me);return me};
+  const side=wall(/qiang1/),back=wall(/qiang2/);
+  copyWall(side,geo=>geo.translate(X0+.05,0,(RB.min.z+RB.max.z)/2));
+  const sw=copyWall(back,geo=>geo.translate((X0+X1)/2,0,Z0+.05));
+  if(sw){sw.updateMatrixWorld(true);rrCut([sw],DX-OW/2,DX+OW/2,Z0-.2,Z0+.2,Y-.05,Y+OH)}
+  /* the back wall is the room's end now: block the strip behind it */
+  box(X0,X1,RB.max.z-.03,Z1,3);
+  /* ---- 3. collision from the model's fixtures (stalls, partitions, basin counter, bins) ---- */
+  {const cs=.15,cells=new Set,v=new THREE.Vector3(),A=new THREE.Vector3(),B=new THREE.Vector3(),C=new THREE.Vector3();
+   src.traverse(o=>{if(!o.isMesh)return;const nm=o.material.name||"";if(/di_ban|tian_hua|qiang|jing_zi/.test(nm))return;o.updateWorldMatrix(true,false);
+    const gq=o.geometry.index?o.geometry.toNonIndexed():o.geometry,P=gq.attributes.position;
+    for(let t=0;t+2<P.count;t+=3){A.fromBufferAttribute(P,t).applyMatrix4(o.matrixWorld);B.fromBufferAttribute(P,t+1).applyMatrix4(o.matrixWorld);C.fromBufferAttribute(P,t+2).applyMatrix4(o.matrixWorld);
+     const n=Math.min(12,Math.ceil(Math.max(A.distanceTo(B),B.distanceTo(C),A.distanceTo(C))/cs));
+     for(let a=0;a<=n;a++)for(let c=0;c<=n-a;c++){const u=a/n,w=c/n;v.copy(A).multiplyScalar(1-u-w).addScaledVector(B,u).addScaledVector(C,w);const h=v.y-Y;if(h<.2||h>1.5)continue;if(v.x<X0||v.x>X1||v.z<Z0||v.z>Z1)continue;cells.add(Math.floor(v.x/cs)+","+Math.floor(v.z/cs))}}});
+   for(const c of [...cells]){const [cx,cz]=c.split(",").map(Number);const x=(cx+.5)*cs,z=(cz+.5)*cs;if(x>DX-.8&&x<DX+.8&&z<Z0+1.4)cells.delete(c)}
+   const rows=new Map;for(const c of cells){const [cx,cz]=c.split(",").map(Number);if(!rows.has(cz))rows.set(cz,[]);rows.get(cz).push(cx)}
+   for(const [cz,xs] of rows){xs.sort((a,b)=>a-b);let a=xs[0],p=a;for(let i=1;i<=xs.length;i++){if(i<xs.length&&xs[i]==p+1){p=xs[i];continue}box(a*cs,(p+1)*cs,cz*cs,(cz+1)*cs,2);if(i<xs.length){a=xs[i];p=a}}}}
   /* ---- 4. door: the old hospital door goes; the user's toilet door fills the original opening (no frame) ---- */
   const old=HD.find(h=>Math.abs(h.cx-DX)<.3&&Math.abs(h.cz-10)<.3);
   if(old){if(old.pv)old.pv.visible=false;const oi=obs.indexOf(old.box);if(oi>=0)obs.splice(oi,1);HD.splice(HD.indexOf(old),1)}
@@ -2627,40 +2587,11 @@ function rrBuild(){
    const sg=new THREE.Group;sg.add(inner);sg.scale.set(LW/ds.x,LH/ds.y,.05/Math.max(.001,ds.z));sg.rotation.y=Math.PI;sg.position.set(0,0,-.025);pv.add(sg);
    dsrc.traverse(o=>{if(o.isMesh){const m0=o.material;const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,roughnessMap:m0.roughnessMap||null,metalnessMap:m0.metalnessMap||null,color:new THREE.Color(1.5,1.45,1.4),roughness:.6,metalness:.1,envMapIntensity:.3});if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true}})}
   RR.door={pv,x0:DX-LW/2,x1:DX+LW/2,z:zc,a:0,tgt:0,box:{x:DX,z:zc,hx:LW/2+.02,hz:.08,h:Y+LH,y0:Y,nc:true}};obs.push(RR.door.box);
-  /* ---- 5. a flickering tube light in the ceiling ---- */
-  {const tm=new THREE.MeshStandardMaterial({color:0x111111,emissive:new THREE.Color(0xcfe3da),emissiveIntensity:.9,roughness:.5});const tube=new THREE.Mesh(new THREE.BoxGeometry(1.1,.05,.14),tm);tube.position.set(17,Y+HT-.04,14);g.add(tube);RR.lm.push(tm);
-   const t2=tube.clone();t2.position.set(17,Y+HT-.04,12.2);g.add(t2)}
-  /* ---- 6. real-bathroom trims: dark skirting and a dark tile band ---- */
-  {const tm=new THREE.MeshStandardMaterial({color:0x1d2b2a,roughness:.3,metalness:0,envMapIntensity:.5});
-   const strip=(y,hh)=>{const d=.012;const segs=[[X0+d,(Z0+Z1)/2,.01,Z1-Z0],[X1-d,(Z0+Z1)/2,.01,Z1-Z0],[(X0+X1)/2,Z1-d,X1-X0,.01],[(X0+DX-OW/2)/2,Z0+d,DX-OW/2-X0,.01],[(X1+DX+OW/2)/2,Z0+d,X1-DX-OW/2,.01]];
-    for(const s of segs){const m=new THREE.Mesh(new THREE.BoxGeometry(s[2],hh,s[3]),tm);m.position.set(s[0],Y+y+hh/2,s[1]);g.add(m)}};
-   strip(0,.12);strip(1.18,.07)}
-  /* ---- 7. haunted: blood smears, handprints, drips, writing, a pool and a drag trail ---- */
-  {const bt=(w,h,fn)=>{const t=qCanvasTex(w,h,(x)=>{x.clearRect(0,0,w,h);fn(x,w,h)},1);return new THREE.MeshStandardMaterial({map:t,emissiveMap:t,emissive:new THREE.Color(.22,.02,.02),color:new THREE.Color(1.25,.9,.9),transparent:true,depthWrite:false,roughness:.25,metalness:0,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4,envMapIntensity:.6})};
-   const R=sgRnd(666),bc=a=>`rgba(${120+R()*50|0},${R()*6|0},${R()*10|0},${a})`;
-   const blob=(x,cx,cy,r)=>{x.fillStyle=bc(.85);x.beginPath();for(let k=0;k<=20;k++){const a=k/20*6.283,rr=r*(.7+R()*.5);k?x.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr):x.moveTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr)}x.fill()};
-   const drips=(x,w,h,n,y0)=>{for(let k=0;k<n;k++){const sx=R()*w,len=h*(.2+R()*.7),wd=2+R()*5;x.fillStyle=bc(.8);x.fillRect(sx,y0,wd,len);blob(x,sx+wd/2,y0+len,wd*.9)}};
-   const hand=(x,cx,cy,s,rot)=>{x.save();x.translate(cx,cy);x.rotate(rot);x.fillStyle=bc(.8);x.beginPath();x.ellipse(0,0,s*.38,s*.45,0,0,6.283);x.fill();for(let f=0;f<4;f++){x.save();x.rotate(-.5+f*.33);x.fillRect(-s*.07,-s*1.05,s*.14,s*.6);x.restore()}x.save();x.rotate(1.1);x.fillRect(-s*.07,-s*.75,s*.14,s*.45);x.restore();
-    x.globalCompositeOperation="destination-out";for(let k=0;k<30;k++){x.fillStyle="rgba(0,0,0,.6)";x.fillRect((R()-.5)*s,(R()-.5)*s*1.6,2+R()*4,2+R()*4)}x.globalCompositeOperation="source-over";x.restore()};
-   const plane=(mat,w,h,x,y,z,ry,rx)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);m.position.set(x,y,z);m.rotation.set(rx||0,ry||0,0);m.renderOrder=2;g.add(m);return m};
-   /* writing on the north wall */
-   plane(bt(1024,384,(x,w,h)=>{x.font="bold 190px 'Creepster',Impact,serif";x.textAlign="center";x.fillStyle=bc(.9);x.fillText("GET OUT",w/2,h*.62);drips(x,w,h,26,h*.5)}),2.4,.9,15.8,Y+1.75,Z1-.02,Math.PI);
-   /* smear + handprints above the urinals (west wall) */
-   plane(bt(512,256,(x,w,h)=>{for(let k=0;k<6;k++){x.strokeStyle=bc(.55+R()*.3);x.lineWidth=8+R()*14;x.beginPath();x.moveTo(20,60+k*20+R()*20);x.bezierCurveTo(w*.3,40+R()*120,w*.6,80+R()*120,w-20,90+R()*90);x.stroke()}drips(x,w,h,14,h*.55)}),2.2,.9,X0+.02,Y+1.65,13.6,Math.PI/2);
-   plane(bt(256,256,(x,w,h)=>{hand(x,90,140,80,-.2);hand(x,175,110,72,.25)}),.55,.55,X0+.02,Y+1.25,15.8,Math.PI/2);
-   /* handprints and scratches on the locked cubicle door, sliding down */
-   {const s0=RR.sd&&RR.sd.find(s=>s.locked);if(s0){plane(bt(256,512,(x,w,h)=>{hand(x,110,120,70,.1);hand(x,150,260,66,-.15);for(let k=0;k<4;k++){x.strokeStyle=bc(.75);x.lineWidth=5;x.beginPath();x.moveTo(80+k*22,250);x.lineTo(70+k*24,500);x.stroke()}}),.6,1.2,s0.wx-.06,Y+1.15,s0.wz,-Math.PI/2)}}
-   /* drips under the sink */
-   plane(bt(256,256,(x,w,h)=>{drips(x,w,h,9,0)}),.8,.8,15.1,Y+.55,Z0+.02,0);
-   /* pool seeping from under the locked cubicle + drag trail across the floor */
-   {const s0=RR.sd&&RR.sd.find(s=>s.locked);const px=s0?s0.wx-.35:17.2,pz=s0?s0.wz:11.1;
-    plane(bt(512,512,(x,w,h)=>{blob(x,w/2,h/2,150);for(let k=0;k<26;k++)blob(x,w/2+(R()-.5)*360,h/2+(R()-.5)*360,8+R()*26)}),1.4,1.4,px,Y+.02,pz,0,-Math.PI/2);
-    plane(bt(1024,256,(x,w,h)=>{for(let k=0;k<5;k++){x.strokeStyle=bc(.35+R()*.3);x.lineWidth=14+R()*20;x.beginPath();x.moveTo(0,h/2+(R()-.5)*60);x.bezierCurveTo(w*.3,h/2+(R()-.5)*90,w*.7,h/2+(R()-.5)*90,w,h/2+(R()-.5)*50);x.stroke()}}),3.2,.8,px-1.7,Y+.021,pz+1.1,.45,-Math.PI/2)}
-   /* splatter on the south wall next to the door */
-   plane(bt(512,512,(x,w,h)=>{blob(x,w/2,h/2,60);for(let k=0;k<60;k++){const a=R()*6.283,d=40+R()*200;blob(x,w/2+Math.cos(a)*d,h/2+Math.sin(a)*d,2+R()*10)}drips(x,w,h,10,h/2)}),1.2,1.2,18.8,Y+1.5,Z0+.02,0)}
+  /* ---- 5. a sick flickering tube under the ceiling ---- */
+  {const tm=new THREE.MeshStandardMaterial({color:0x111111,emissive:new THREE.Color(0xcfe3da),emissiveIntensity:.9,roughness:.5});const tube=new THREE.Mesh(new THREE.BoxGeometry(1.1,.05,.14),tm);tube.position.set(17,RB.max.y-.06,12.6);g.add(tube);RR.lm.push(tm)}
   RR.lt={intensity:0};NL.ok=false;
   try{const vis=LV.b1.visible;LV.b1.visible=true;R.compile(scene,cam);LV.b1.visible=vis}catch(e){}
-  console.log("[washroom] built")
+  console.log("[washroom] built (model)")
  }catch(e){console.error("[washroom]",e)}
 }
 function rrCut(meshes,x0,x1,z0,z1,y0,y1){
