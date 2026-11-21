@@ -1593,8 +1593,8 @@ const _hq1=new THREE.Quaternion(),_hq2=new THREE.Quaternion(),_hv1=new THREE.Vec
 function qNunStare(w){
  const h=NUN.head;if(!h||!h.parent||w<=0)return;h.updateWorldMatrix(true,false);h.getWorldPosition(_hv1);
  _hv2.copy(cam.position).sub(_hv1).normalize();const f=new THREE.Vector3(Math.sin(NUN.face),0,Math.cos(NUN.face));
- _hq1.setFromUnitVectors(f,_hv2);const ang=2*Math.acos(Math.min(1,Math.abs(_hq1.w)));if(ang>1.0)_hq1.slerp(new THREE.Quaternion(),1-1.0/ang);
- _hq1.multiply(new THREE.Quaternion().setFromAxisAngle(f,.2));_hq1.slerp(new THREE.Quaternion(),1-w);
+ _hq1.setFromUnitVectors(f,_hv2);const ang=2*Math.acos(Math.min(1,Math.abs(_hq1.w)));if(ang>.35)_hq1.slerp(new THREE.Quaternion(),1-.35/ang);
+ _hq1.multiply(new THREE.Quaternion().setFromAxisAngle(f,.07));_hq1.slerp(new THREE.Quaternion(),1-w);
  h.parent.getWorldQuaternion(_hq2);h.quaternion.premultiply(_hq2.clone().invert().multiply(_hq1).multiply(_hq2))
 }
 function qBuild(){
@@ -1680,11 +1680,11 @@ function qMkItem(tpl,kind){
  const o=new THREE.Group;o.add(o0);
  if(kind=="h"){try{o.updateMatrixWorld(true);const pts=[];o0.traverse(m=>{if(!m.isMesh)return;const p=m.geometry.attributes.position,st=Math.max(1,Math.floor(p.count/700));for(let i=0;i<p.count;i+=st)pts.push(new THREE.Vector3().fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld))});
   let x0=1e9,x1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x)}const L=x1-x0,Qx=new THREE.Quaternion(),Qz=new THREE.Quaternion(),Q=new THREE.Quaternion(),v=new THREE.Vector3();let best=null;
-  for(const bx of[Math.PI/2,-Math.PI/2]){Qx.setFromAxisAngle(_qx,bx);let ba=null;
-   for(let a=-.8;a<=.8;a+=.01){Qz.setFromAxisAngle(new THREE.Vector3(0,0,1),a);Q.copy(Qz).multiply(Qx);let mh=1e9,md=1e9,mn=1e9,sy=0;
+  for(let bx=0;bx<6.28;bx+=.087){Qx.setFromAxisAngle(_qx,bx);let ba=null;
+   for(let a=-.3;a<=.3;a+=.02){Qz.setFromAxisAngle(new THREE.Vector3(0,0,1),a);Q.copy(Qz).multiply(Qx);let mh=1e9,md=1e9,mn=1e9,sy=0;
     for(const p of pts){v.copy(p).applyQuaternion(Q);sy+=v.y;if(v.y<mn)mn=v.y;if(p.x<x0+L*.14&&v.y<mh)mh=v.y;if(p.x>x1-L*.3&&v.y<md)md=v.y}
-    const gap=Math.abs(mh-md),sc=sy/pts.length-mn;if(!ba||gap<ba.gap-1e-4||(Math.abs(gap-ba.gap)<1e-4&&sc<ba.sc))ba={gap,sc,a}}
-   if(!best||ba.sc+ba.gap*3<best.sc+best.gap*3)best={bx,a:ba.a,sc:ba.sc,gap:ba.gap}}
+    let mx=-1e9;for(const p of pts){v.copy(p).applyQuaternion(Q);if(v.y>mx)mx=v.y}const gap=Math.abs(mh-md),sc=mx-mn;if(!ba||gap<ba.gap-1e-4||(Math.abs(gap-ba.gap)<1e-4&&sc<ba.sc))ba={gap,sc,a}}
+   if(!best||ba.sc+ba.gap*1.5<best.sc+best.gap*1.5)best={bx,a:ba.a,sc:ba.sc,gap:ba.gap}}
   Qx.setFromAxisAngle(_qx,best.bx);Qz.setFromAxisAngle(new THREE.Vector3(0,0,1),best.a);Q.copy(Qz).multiply(Qx);o0.quaternion.premultiply(Q);o0.position.applyQuaternion(Q);
   o.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(o);o0.position.y-=bb.min.y}catch(e){console.warn("hammer rest",e)}}
  if(kind=="k"){try{o.updateMatrixWorld(true);let bb=new THREE.Box3().setFromObject(o);const s=bb.getSize(new THREE.Vector3());
