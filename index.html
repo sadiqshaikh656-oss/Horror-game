@@ -2567,7 +2567,7 @@ function rrBuild(){
   const RB=new THREE.Box3().setFromObject(src);RR.rb=RB;
   src.traverse(o=>{if(!o.isMesh)return;const m0=o.material,nm=m0.name||"";
    const mir=/jing_zi/.test(nm);
-   const m=new THREE.MeshStandardMaterial({map:mir?null:(m0.map||null),normalMap:m0.normalMap||null,envMap:mir?metalEnv():null,color:mir?new THREE.Color(.55,.58,.6):(m0.color?m0.color.clone().multiplyScalar(.9):new THREE.Color(.9,.9,.9)),roughness:mir?.12:/di_ban|qiang/.test(nm)?.45:.6,metalness:mir?.95:0,envMapIntensity:mir?1.3:.35,side:THREE.DoubleSide,transparent:!!m0.transparent,opacity:m0.opacity,alphaTest:m0.alphaTest||0});m.name=nm;
+   const m=new THREE.MeshStandardMaterial({map:mir?null:(m0.map||null),normalMap:m0.normalMap||null,envMap:mir?metalEnv():null,color:mir?new THREE.Color(.34,.35,.36):(m0.color?m0.color.clone().multiplyScalar(.9):new THREE.Color(.9,.9,.9)),roughness:mir?.35:/di_ban|qiang/.test(nm)?.45:.6,metalness:mir?.95:0,envMapIntensity:mir?.5:.35,side:THREE.DoubleSide,transparent:!!m0.transparent,opacity:m0.opacity,alphaTest:m0.alphaTest||0});m.name=nm;
    if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true});
   /* ---- 2. the two open sides: a copy of the side wall on the west, a copy of the back wall (with the doorway) on the south ---- */
   const wall=(re)=>{let w=null;src.traverse(o=>{if(o.isMesh&&re.test(o.material.name||""))w=o});return w};
@@ -2604,9 +2604,22 @@ function rrBuild(){
   for(const s of RR.sd){const r0=s.pv.rotation.y;s.pv.rotation.y=-s.b0;s.pv.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(s.me);s.wx=(b.min.x+b.max.x)/2;s.wz=(b.min.z+b.max.z)/2;
    s.box={x:s.wx,z:s.wz,hx:(b.max.x-b.min.x)/2+.04,hz:(b.max.z-b.min.z)/2+.04,h:Y+2,y0:Y,nc:true};s.pv.rotation.y=r0;if(s.a<.2)obs.push(s.box)}
   /* real ceiling lamps (the game's own lamp system), warm and dim like the reference */
-  if(!HOSP.lights.some(l=>l.rr)){const L1=[16.2,Y+2.25,13.0,1,1.5,8.5,0xe2cfa8];L1.rr=1;const L2=[18.4,Y+2.25,14.6,0,.9,7,0xd9c9a6];L2.rr=1;HOSP.lights.push(L1,L2)}
+  /* fluorescent bar above the mirrors, like the reference: cool white, bright wall wash, room falls off into dark */
+  {const mb=new THREE.Box3();src.traverse(o=>{if(o.isMesh&&/jing_zi/.test(o.material.name||""))mb.expandByObject(o)});
+   if(!mb.isEmpty()){const sx=mb.max.x-mb.min.x,sz=mb.max.z-mb.min.z,alongX=sx>sz;const cx=(mb.min.x+mb.max.x)/2,cz=(mb.min.z+mb.max.z)/2,ty=mb.max.y+.07;
+    /* wall side: the mirror is on the wall, room centre is away from it */
+    const nx=alongX?0:(cx<(X0+X1)/2?1:-1),nz=alongX?(cz<(Z0+Z1)/2?1:-1):0,len=(alongX?sx:sz)*.92;
+    const tm=new THREE.MeshBasicMaterial({color:new THREE.Color(2.6,2.7,2.7),toneMapped:false}),hm=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:.5,metalness:.6});
+    for(const s of[-1,1]){const seg=len/2-.04,ox=alongX?s*len/4:0,oz=alongX?0:s*len/4;
+     const tube=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,seg,10),tm);tube.rotation.z=alongX?Math.PI/2:0;tube.rotation.x=alongX?0:Math.PI/2;tube.position.set(cx+ox+nx*.06,ty,cz+oz+nz*.06);g.add(tube);RR.tube=RR.tube||[];RR.tube.push(tm);
+     const hold=new THREE.Mesh(new THREE.BoxGeometry(alongX?.07:.05,.05,alongX?.05:.07),hm);hold.position.set(cx+(alongX?s*len/2:0)+nx*.05,ty,cz+(alongX?0:s*len/2)+nz*.05);g.add(hold)}
+    /* soft glow halo on the tiles behind the tube */
+    {const t=qCanvasTex(256,128,(x,w,h)=>{const gr=x.createRadialGradient(w/2,h/2,4,w/2,h/2,w/2);gr.addColorStop(0,"rgba(255,255,255,.55)");gr.addColorStop(.4,"rgba(235,240,245,.2)");gr.addColorStop(1,"rgba(235,240,245,0)");x.fillStyle=gr;x.fillRect(0,0,w,h)},1);
+     const gm=new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});const gp=new THREE.Mesh(new THREE.PlaneGeometry(len*1.5,1.6),gm);
+     gp.position.set(cx+nx*.03,ty-.05,cz+nz*.03);gp.rotation.y=Math.atan2(nx,nz);g.add(gp)}
+    if(!HOSP.lights.some(l=>l.rr)){const L1=[cx+nx*.4,ty-.1,cz+nz*.4,0,2.8,6.5,0xeef3f4];L1.rr=1;const L2=[(X0+X1)/2,Y+2.3,(Z0+Z1)/2+1.2,1,.35,7,0xc9d2d4];L2.rr=1;HOSP.lights.push(L1,L2)}
+    RR.mirrorLight=[cx,cz,nx,nz]}}
   /* ---- 5. a sick flickering tube under the ceiling ---- */
-  {const tm=new THREE.MeshStandardMaterial({color:0x111111,emissive:new THREE.Color(0xcfe3da),emissiveIntensity:.9,roughness:.5});const tube=new THREE.Mesh(new THREE.BoxGeometry(1.1,.05,.14),tm);tube.position.set(17,RB.max.y-.06,12.6);g.add(tube);RR.lm.push(tm)}
   RR.lt={intensity:0};NL.ok=false;
   try{const vis=LV.b1.visible;LV.b1.visible=true;R.compile(scene,cam);LV.b1.visible=vis}catch(e){}
   console.log("[washroom] built (model)")
