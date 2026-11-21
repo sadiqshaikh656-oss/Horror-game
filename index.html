@@ -2573,9 +2573,12 @@ function rrBuild(){
      const pv=new THREE.Group;pv.position.set(b.max.x,Y,(b.min.z+b.max.z)/2);LV.b1.add(pv);
      ed.visible=false;hm.visible=false;
      const W=b.max.x-b.min.x,Hh=2.3;
+     {const fm=new THREE.MeshStandardMaterial({color:0x2a2e2d,roughness:.55,metalness:.6,envMapIntensity:.3}),z0=9.84,z1=b.max.z+.05,zc=(z0+z1)/2,dz=z1-z0;
+      const bx=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),fm);m.position.set(x,y,z);m.receiveShadow=true;LV.b1.add(m)};
+      bx(.09,2.42,dz,b.min.x-.035,Y+1.21,zc);bx(.09,2.42,dz,b.max.x+.035,Y+1.21,zc);bx(W+.16,.1,dz,(b.min.x+b.max.x)/2,Y+2.35,zc);bx(W+.16,.022,dz+.12,(b.min.x+b.max.x)/2,Y+.011,zc+.02);bx(.03,2.32,.04,b.min.x+.01,Y+1.16,b.max.z+.06)}
      if(QST.asset.wdoor){const dsrc=QST.asset.wdoor.clone(true);dsrc.updateMatrixWorld(true);const db=new THREE.Box3().setFromObject(dsrc),ds=db.getSize(new THREE.Vector3());
       const inner=new THREE.Group;inner.add(dsrc);dsrc.position.set(-db.min.x,-db.min.y,-db.max.z);
-      const sg=new THREE.Group;sg.add(inner);sg.scale.set((W-.02)/ds.x,Hh/ds.y,.05/Math.max(.001,ds.z));sg.rotation.y=Math.PI;sg.position.set(-.01,0,-.03);pv.add(sg);
+      const sg=new THREE.Group;sg.add(inner);sg.scale.set((W+.01)/ds.x,Hh/ds.y,.05/Math.max(.001,ds.z));sg.rotation.y=Math.PI;sg.position.set(.005,0,-.03);pv.add(sg);
       dsrc.traverse(o=>{if(o.isMesh){const m0=o.material;const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,roughnessMap:m0.roughnessMap||null,metalnessMap:m0.metalnessMap||null,color:new THREE.Color(.62,.64,.62),roughness:.7,metalness:.3,envMapIntensity:.3});if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true}})}
      else{ed.visible=true;hm.visible=true;pv.attach(ed);pv.attach(hm)}
      RR.door={pv,x0:b.min.x,x1:b.max.x,z:(b.min.z+b.max.z)/2,a:0,tgt:0,box:{x:(b.min.x+b.max.x)/2,z:(b.min.z+b.max.z)/2,hx:(b.max.x-b.min.x)/2,hz:.08,h:Y+2.3,y0:Y,nc:true}};obs.push(RR.door.box)}}
@@ -2589,17 +2592,24 @@ function rrBuild(){
       if(a0<D.x0-.02)obs.push({...o,x:(a0+D.x0-.02)/2,hx:(D.x0-.02-a0)/2});if(a1>D.x1+.02)obs.push({...o,x:(a1+D.x1+.02)/2,hx:(a1-D.x1-.02)/2})}}
     obs.push({x:17,z:10,hx:.6,hz:.13,h:Y+3,y0:Y});
     /* wall-up visual from the corridor side, using the corridor wall's own material */
-    {const cand=[];for(const r of [typeof HOSPG!=="undefined"?HOSPG:null,grp])if(r)r.traverse(o=>{if(!o.isMesh||o.isInstancedMesh)return;for(let q=o;q;q=q.parent)if(q===g)return;cand.push(o)});
-     const rc=new THREE.Raycaster();const matAt=h=>{rc.set(new THREE.Vector3(15.5,Y+h,9.3),new THREE.Vector3(0,0,1));rc.far=1.2;let best=null;for(const m of cand){try{const hs=rc.intersectObject(m,false);if(hs.length&&(!best||hs[0].distance<best.d))best={d:hs[0].distance,m:Array.isArray(m.material)?m.material[0]:m.material}}catch(e){}}return best};
-     const bands=[];for(let h=.05;h<3.1;h+=.1){const r=matAt(h);const m=r&&r.m;const L=bands[bands.length-1];if(L&&L.m===m)L.h1=h+.05;else bands.push({m,h0:Math.max(0,h-.05),h1:h+.05,d:r?r.d:.7})}
-     for(const b of bands){if(!b.m)continue;const hh=b.h1-b.h0;const geo=new THREE.BoxGeometry(1.3,hh,.24);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*1.3/2,uv.getY(i)*hh/2);
-      const f=new THREE.Mesh(geo,b.m);f.position.set(17,Y+b.h0+hh/2,9.3+b.d+.12);f.receiveShadow=true;LV.b1.add(f)}}
+    {/* patch = a plane on the corridor wall surface that continues the wall's own texture mapping (sampled by raycast) */
+     const cand=[];for(const r of [typeof HOSPG!=="undefined"?HOSPG:null,grp])if(r)r.traverse(o=>{if(!o.isMesh||o.isInstancedMesh)return;for(let q=o;q;q=q.parent)if(q===g||q===LV.b1)return;cand.push(o)});
+     const rc=new THREE.Raycaster();const hit=(x,h)=>{rc.set(new THREE.Vector3(x,Y+h,9.3),new THREE.Vector3(0,0,1));rc.far=1.5;let best=null;for(const m of cand){try{const hs=rc.intersectObject(m,false);if(hs.length&&hs[0].uv&&(!best||hs[0].distance<best.distance))best=hs[0]}catch(e){}}return best};
+     const a=hit(15.6,.4),b=hit(15.6,2.6),c=hit(16.0,.4);
+     if(a&&b&&c){const m=Array.isArray(a.object.material)?a.object.material[0]:a.object.material;const zS=a.point.z-.004;
+      const dudy=(b.uv.x-a.uv.x)/2.2,dvdy=(b.uv.y-a.uv.y)/2.2,dudx=(c.uv.x-a.uv.x)/.4,dvdx=(c.uv.y-a.uv.y)/.4;
+      const X0=16.25,X1=17.75,H=3.0,geo=new THREE.PlaneGeometry(X1-X0,H);geo.rotateY(Math.PI);
+      const P=geo.attributes.position,U=geo.attributes.uv;for(let k=0;k<P.count;k++){const wx=(X0+X1)/2+P.getX(k),wy=H/2+P.getY(k);U.setXY(k,a.uv.x+(wx-15.6)*dudx+(wy-.4)*dudy,a.uv.y+(wx-15.6)*dvdx+(wy-.4)*dvdy)}
+      geo.computeVertexNormals();const f=new THREE.Mesh(geo,m);f.position.set((X0+X1)/2,Y+H/2,zS);f.receiveShadow=true;LV.b1.add(f);RR.patch=f}
+     /* hide the old door's frame / leftovers */
+     const vb=new THREE.Box3();for(const m of cand){if(!m.visible||!m.geometry)continue;vb.setFromObject(m);if(vb.min.x>15.9&&vb.max.x<18.1&&vb.min.z>9.4&&vb.max.z<10.6&&vb.min.y>Y-.2&&vb.max.y<Y+3.2)m.visible=false}
+     LV.b1.traverse(o=>{if(!o.isMesh||o===RR.patch)return;for(let q=o;q;q=q.parent)if(q===g)return;vb.setFromObject(o);if(vb.min.x>15.9&&vb.max.x<18.1&&vb.min.z>9.4&&vb.max.z<10.6&&vb.min.y>Y-.2&&vb.max.y<Y+2.6&&!(o.geometry&&o.geometry.type=="PlaneGeometry"&&vb.max.y>Y+2.3))o.visible=false})}
     const ms=[];(typeof HOSPG!=="undefined"&&HOSPG?HOSPG:grp).traverse(o=>{if(o.isMesh&&!o.isInstancedMesh)ms.push(o)});LV.b1.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh&&ms.indexOf(o)<0){let q=o;while(q&&q!==g)q=q.parent;if(!q)ms.push(o)}});
     const near=ms.filter(m=>{if(!m.geometry||!m.geometry.attributes.position)return false;m.geometry.computeBoundingBox();const b=m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);return b.max.x>D.x0&&b.min.x<D.x1&&b.max.z>9.7&&b.min.z<10.3&&b.max.y>Y&&b.min.y<Y+2.4});
     near.forEach(m=>{if(m.geometry.userData.rrOwn!==1){m.geometry=m.geometry.clone();m.geometry.userData.rrOwn=1}});
     rrCut(near,D.x0+.02,D.x1-.02,9.7,10.3,Y+.02,Y+2.32);
     /* move the room sign */
-    LV.b1.traverse(o=>{if(o.isMesh&&Math.abs(o.position.x-17)<.05&&Math.abs(o.position.z-9.86)<.05)o.position.x=(D.x0+D.x1)/2});
+    LV.b1.traverse(o=>{if(o.isMesh&&o!==RR.patch&&o.geometry.type!="PlaneGeometry"||0){}if(o.isMesh&&o!==RR.patch&&Math.abs(o.position.x-17)<.05&&Math.abs(o.position.z-9.86)<.02)o.position.x=(D.x0+D.x1)/2});
    }}catch(e){console.error("[washroom door]",e)}
   /* collision built from the model's own fixtures (partitions, toilets, sinks, urinals) */
   const cs=.15,cells=new Set,v=new THREE.Vector3;
