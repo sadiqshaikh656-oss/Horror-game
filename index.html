@@ -1710,8 +1710,11 @@ function qPlaceKey(spec){
 function qRandomItems(){
  const ts=qTableSpots();
  if(ts.length){
-  ts.sort((a,b)=>Math.hypot(a.x-BEDP.x,a.z-BEDP.z)-Math.hypot(b.x-BEDP.x,b.z-BEDP.z));
-  const sp=ts[Math.random()*Math.min(4,ts.length)|0];qPlaceTable(sp);qPlaceHammer(qTableTop(sp,(Math.random()-.5)*.55))}
+  /* always the same spot: against a wall of the emptiest room (fewest props around it) */
+  const props=s=>{let n=0;for(const o of obs){if(!(o.x===o.x)||o.x<-900||o.y0!=null||o.hx>1.4||o.hz>1.4)continue;if(Math.hypot(o.x-s.x,o.z-s.z)<3.2)n++}return n};
+  ts.forEach(s=>{s.n=props(s);s.d=Math.hypot(s.x-BEDP.x,s.z-BEDP.z)});
+  ts.sort((a,b)=>a.n-b.n||a.d-b.d);
+  const sp=ts[0];qPlaceTable(sp);qPlaceHammer(qTableTop(sp,(Math.random()-.5)*.55))}
  else{if(QST.tbl)QST.tbl.g.visible=false;const hs=qHammerSpots();qPlaceHammer(hs[Math.random()*hs.length|0])}
  const hs=qHammerSpots();
  const drw=DRW.filter(q=>!q.lk).length;
