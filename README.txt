@@ -122,3 +122,4 @@ Washroom door frame: wider dark matte jambs/header with casings both sides, corr
 Washroom doorway: no black frame - the door reveals use the corridor wall's own material with continuous UVs; the old doorway's caps/frame are cut away behind the wall patch.
 Washroom door now sits in the user's bathroom_door_frame.glb (assets/source/bathroom_door_frame.glb, 'dframe' in questglb.js), fitted to the opening.
 Washroom entrance rebuilt with the user's metal_door_2.glb (frame + leaf + glass + handle, assets/source/metal_door_2.glb, 'mdoor' in questglb.js); previous toilet door and frame models removed. Corridor wall and restroom walls are cut exactly to the door opening and the frame (0.56 m deep) covers both wall faces.
+Washroom entrance: metal door removed; the restroom model's own entrance leaf (baked to world space, lit) now swings on a hinge inside the user's bathroom_door_frame.glb, which is sized to the leaf and 0.56 m deep so it covers both cut wall faces.

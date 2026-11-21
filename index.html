@@ -2575,19 +2575,25 @@ function rrBuild(){
      /* fresh entrance: the user's metal door (frame + leaf + glass + handle) fitted into the doorway */
      const cx=(b.min.x+b.max.x)/2,zc=10.06,FW=1.40,FH=2.46,FD=.56,DD=.055;
      let ix0=b.min.x,ix1=b.max.x,DH=2.3;RR.frame=[];
-     if(QST.asset.mdoor){const src2=QST.asset.mdoor.clone(true);src2.updateMatrixWorld(true);
-      const parts=[];src2.traverse(o=>{if(!o.isMesh)return;const gq=(o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone()).applyMatrix4(o.matrixWorld);gq.computeBoundingBox();parts.push({g:gq,m:o.material,b:gq.boundingBox.clone()})});
-      parts.sort((p,q)=>(q.b.max.x-q.b.min.x)-(p.b.max.x-p.b.min.x));
-      const fr=parts[0],fb=fr.b,leaf=parts.slice(1),db=new THREE.Box3();leaf.forEach(p=>{if(p.b.max.y-p.b.min.y>(fb.max.y-fb.min.y)*.5)db.union(p.b)});if(db.isEmpty())leaf.forEach(p=>db.union(p.b));
-      const fcx=(fb.min.x+fb.max.x)/2,fcz=(fb.min.z+fb.max.z)/2,sx=FW/(fb.max.x-fb.min.x),sy=FH/(fb.max.y-fb.min.y),szF=FD/(fb.max.z-fb.min.z),szD=DD/Math.max(.001,db.max.z-db.min.z);
-      ix0=cx+(db.min.x-fcx)*sx;ix1=cx+(db.max.x-fcx)*sx;DH=(db.max.y-fb.min.y)*sy;
-      const mat=(m0,glass)=>{const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,roughnessMap:m0.roughnessMap||null,metalnessMap:m0.metalnessMap||null,color:new THREE.Color(.66,.67,.66),roughness:glass?.1:.6,metalness:glass?.1:.45,envMapIntensity:.35,transparent:glass,opacity:glass?.35:1,depthWrite:!glass});if(m.map)m.map.encoding=THREE.sRGBEncoding;return m};
-      {const gq=fr.g.clone();gq.translate(-fcx,-fb.min.y,-fcz);gq.scale(sx,sy,szF);const fm=new THREE.Mesh(gq,mat(fr.m));fm.position.set(cx,Y,zc);fm.receiveShadow=true;LV.b1.add(fm);RR.fm=fm}
-      const dcz=(db.min.z+db.max.z)/2;
-      for(const p of leaf){const glass=(p.b.max.z-p.b.min.z)<(db.max.z-db.min.z)*.75&&(p.b.max.y-p.b.min.y)>(fb.max.y-fb.min.y)*.2;
-       const gq=p.g.clone();gq.translate(-db.max.x,-fb.min.y,-dcz);gq.scale(sx,sy,szD);const me=new THREE.Mesh(gq,mat(p.m,glass&&p.g.attributes.position.count<60));me.receiveShadow=true;pv.add(me)}
-      pv.position.set(ix1,Y,zc)}
-     else{ed.visible=true;hm.visible=true;pv.attach(ed);pv.attach(hm)}
+     /* the restroom's own entrance leaf (baked to world space, lit material) on a hinge at its east edge */
+     {const lb=new THREE.Box3();const bake=o=>{o.updateWorldMatrix(true,false);const gq=(o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone()).applyMatrix4(o.matrixWorld);gq.computeBoundingBox();return gq};
+      const eg=bake(ed),hg=bake(hm);lb.copy(eg.boundingBox);ix0=lb.min.x;ix1=lb.max.x;DH=lb.max.y-Y;
+      const lz=(lb.min.z+lb.max.z)/2;pv.position.set(ix1,Y,lz);
+      const lit=m0=>{const m=new THREE.MeshStandardMaterial({map:m0.map||null,color:new THREE.Color(2.3,2.2,2.1),roughness:.55,metalness:0,envMapIntensity:.3,side:THREE.DoubleSide});if(m.map)m.map.encoding=THREE.sRGBEncoding;return m};
+      for(const [gq,m0] of [[eg,ed.material],[hg,hm.material]]){gq.translate(-ix1,-Y,-lz);const me=new THREE.Mesh(gq,lit(m0));me.receiveShadow=true;pv.add(me)}
+      ed.visible=false;hm.visible=false}
+     /* user's bathroom door frame: inner opening = the leaf, deep enough to cover both wall faces */
+     if(QST.asset.dframe)try{const fsrc=QST.asset.dframe.clone(true);fsrc.updateMatrixWorld(true);const pts=[],v=new THREE.Vector3();
+      fsrc.traverse(o=>{if(!o.isMesh)return;const P=o.geometry.attributes.position;for(let k=0;k<P.count;k++)pts.push(v.fromBufferAttribute(P,k).applyMatrix4(o.matrixWorld).clone())});
+      const bb=new THREE.Box3().setFromPoints(pts),cz0=(bb.min.z+bb.max.z)/2,Hm=bb.max.y-bb.min.y;
+      let ih=1e9;for(const q of pts){const t=(q.y-bb.min.y)/Hm;if(t>.3&&t<.7)ih=Math.min(ih,Math.abs(q.z-cz0))}
+      let it=1e9;for(const q of pts){if(Math.abs(q.z-cz0)<ih*.6&&q.y-bb.min.y>Hm*.5)it=Math.min(it,q.y-bb.min.y)}
+      if(!(ih<1e8)||!(it<1e8)){ih=(bb.max.z-bb.min.z)*.38;it=Hm*.9}
+      const inner=new THREE.Group;inner.add(fsrc);fsrc.position.set(-(bb.min.x+bb.max.x)/2,-bb.min.y,-cz0);
+      const sw=((ix1-ix0)/2+.008)/ih,sh=(DH+.01)/it,sd=FD/Math.max(.001,bb.max.x-bb.min.x);
+      const fg=new THREE.Group;fg.add(inner);inner.scale.set(sd,sh,sw);fg.rotation.y=Math.PI/2;fg.position.set((ix0+ix1)/2,Y,zc);LV.b1.add(fg);
+      fsrc.traverse(o=>{if(o.isMesh){const m0=o.material;const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,color:new THREE.Color(.78,.74,.68),roughness:.65,metalness:0,envMapIntensity:.2,side:THREE.DoubleSide});if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.receiveShadow=true;o.castShadow=false}});
+      RR.fg=fg}catch(e){console.error("[frame]",e)}
      /* clear the restroom model's own walls / trims inside the new opening */
      {const tr=[];g.traverse(o=>{if(o.isMesh&&o.visible&&o!==ed&&!/^(floor|ceiling|lights|water)/.test(o.name))tr.push(o)});
       tr.forEach(o=>{if(o.geometry.userData.rrOwn!==1){o.geometry=o.geometry.clone();o.geometry.userData.rrOwn=1}});
