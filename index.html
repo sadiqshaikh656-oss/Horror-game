@@ -2330,6 +2330,11 @@ function lkPlace(){
  if(QST.ex)avoid.push([QST.ex.face,EXR.dz,2.6,0]);if(QST.tblPos)avoid.push([QST.tblPos.x,QST.tblPos.z,2.1,0]);avoid.push([BEDP.x,BEDP.z,1.8,0]);
  const st=BSM.st;
  let cap=99;
+ /* a real wall must be right behind the locker (raycast against tall structure meshes) */
+ const WM=[];const addW=r=>{if(!r)return;r.updateMatrixWorld(true);r.traverse(o=>{if(!o.isMesh||o.isInstancedMesh||!o.visible||!o.geometry||!o.geometry.attributes.position)return;o.geometry.computeBoundingBox();const b=o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);if(b.max.y-b.min.y>1.8)WM.push(o)})};
+ try{addW(typeof HOSPG!=="undefined"?HOSPG:null);addW(LV.b1)}catch(e){}
+ const RC=new THREE.Raycaster();
+ const wallBehind=(x,z,dx,dz,L)=>{if(!WM.length)return true;const y=layerY(L);for(const h of[.5,1.3]){RC.set(_nA.set(x,y+h,z),_nB.set(dx,0,dz));RC.near=0;RC.far=.62;let ok=false;for(const m of WM){try{if(RC.intersectObject(m,false).length){ok=true;break}}catch(e){}}if(!ok)return false}return true};
  const tryAt=(p,spacing)=>{
   if(placed.length>=cap)return false;
   if(placed.some(q=>q.L===p.L&&Math.hypot(q.x-p.x,q.z-p.z)<spacing))return false;
@@ -2342,6 +2347,7 @@ function lkPlace(){
    if(lkBlocked(cx-dx*.04,cz-dz*.04,p.L,.2))continue;
    const fx=cx-dx*.9,fz=cz-dz*.9;if(!nunClear(fx,fz,.35,p.L))continue;
    if(avoid.some(a=>Math.hypot(a[0]-cx,a[1]-cz)<a[2]))continue;
+   if(!wallBehind(cx,cz,dx,dz,p.L))continue;
    if(p.L===0&&cx>st.lx-1&&cx<st.x1+1&&cz>st.z0-1.2&&cz<st.z1+1.2)continue;
    if(placed.some(q=>q.L===p.L&&Math.hypot(q.x-cx,q.z-cz)<Math.max(1.4,spacing*.6)))continue;
    if(s>bs){bs=s;best={x:cx,z:cz,dx,dz,L:p.L}}
@@ -2452,6 +2458,7 @@ function pwLoad(){
   PWS.mx=new THREE.AnimationMixer(sc);for(const c of g.animations)PWS.acts[c.name.toLowerCase().replace(/_rt.*$/,"")]=PWS.mx.clipAction(c);
   const L=new THREE.PointLight(0xffd2b0,0,3.5,2);scene.add(L);PWS.L=L;
   try{const s=PWS.acts.sprint;if(s&&PWS.head){s.play();let best=-1e9;const D=s.getClip().duration;for(let k=0;k<24;k++){s.time=D*k/24;PWS.mx.update(0);G.updateMatrixWorld(true);PWS.head.getWorldPosition(_pv1);if(_pv1.y>best){best=_pv1.y;PWS.bestT=s.time}}s.stop()}}catch(e){}
+  try{G.visible=true;G.position.set(0,-50,0);R.compile(scene,cam);G.visible=false}catch(e){}
   PWS.ready=true;console.log("[pw] ready, clips: "+Object.keys(PWS.acts).join(", "))}catch(e){console.error("[pw]",e)}},e=>console.error("[pw] glb",e))}catch(e){console.error("[pw]",e)}
 }
 function pwZone(){
@@ -2476,8 +2483,8 @@ function pwScare(why){
  const f=_nC.set(0,0,-1).applyQuaternion(cam.quaternion);f.y=0;if(f.lengthSq()<1e-4)return false;f.normalize();
  const lay=typeof plLayer=="function"?plLayer():0;let free=0;for(let s=.4;s<=6.5;s+=.2){if(!nlFree(lay,cam.position.x+f.x*s,cam.position.z+f.z*s))break;free=s}
  if(free<4.5)return false;const d0=clamp(free-.5,4.5,9);
- PWS.on=true;PWS.t=0;PWS.d0=d0;PWS.f=f.clone();PWS.y0=typeof layerY=="function"?layerY(lay):0;PWS.why=why;
- PWS.g.visible=true;PWS.ph=0;PWS.hit=0;for(const k in PWS.acts)PWS.acts[k].stop();const a=PWS.acts.drunk_walk||PWS.acts.sprint;if(a){a.reset();a.timeScale=.25;a.play()}
+ PWS.on=true;PWS.t=0;PWS.d0=d0;PWS.f=f.clone();PWS.o=cam.position.clone();PWS.wp=new THREE.Vector3(cam.position.x+f.x*d0,0,cam.position.z+f.z*d0);PWS.y0=typeof layerY=="function"?layerY(lay):0;PWS.why=why;
+ PWS.g.visible=true;PWS.ph=0;PWS.wp2=null;PWS.hit=0;for(const k in PWS.acts)PWS.acts[k].stop();const a=PWS.acts.drunk_walk||PWS.acts.sprint;if(a){a.reset();a.timeScale=.25;a.play()}
  try{nsbPlay("pwv",1.15);nsbPlay("pw2",.35)}catch(e){}
  return true
 }
@@ -2505,8 +2512,14 @@ function pwStep(dt){
  if(t>=T4-.05&&PWS.ph==3){PWS.ph=4;try{nsbPlay("pw1",1.2);nsbPlay("hit",.9);nsbPlay("pw2",.7)}catch(e){}NUN.flash=.4;try{S.vib&&navigator.vibrate&&navigator.vibrate([250,40,350])}catch(e){}
   const a=PWS.acts.sprint;if(a&&PWS.bestT!=null){a.time=PWS.bestT;a.timeScale=0}}
  PWS.mx.update(dt);
- let dist;if(PWS.ph<2)dist=PWS.d0;else if(PWS.ph==2)dist=PWS.dn;else if(PWS.ph==3)dist=Math.max(.62,PWS.dn-(PWS.dn-.62)*Math.pow(clamp((t-T3)/(T4-T3),0,1),1.15));else dist=.62-Math.min(.12,(t-T4)*.4);
- const x=cam.position.x+f.x*dist,z=cam.position.z+f.z*dist;
+ /* he stands at fixed spots in the world; only the final lunge follows your face */
+ if(PWS.ph==2&&!PWS.wp2){PWS.wp2=new THREE.Vector3(PWS.o.x+f.x*(PWS.d0-PWS.dn),0,PWS.o.z+f.z*(PWS.d0-PWS.dn))}
+ let x,z;
+ if(PWS.ph<2){x=PWS.wp.x;z=PWS.wp.z}
+ else if(PWS.ph==2){x=PWS.wp2.x;z=PWS.wp2.z}
+ else{const tx=cam.position.x,tz=cam.position.z,vx=PWS.wp2.x-tx,vz=PWS.wp2.z-tz,vl=Math.hypot(vx,vz)||1,ux=vx/vl,uz=vz/vl;
+  const dd=PWS.ph==3?Math.max(.62,vl-(vl-.62)*Math.pow(clamp((t-T3)/(T4-T3),0,1),1.15)):.62-Math.min(.12,(t-T4)*.4);
+  if(PWS.ph==4){const cf=_pv3.set(0,0,-1).applyQuaternion(cam.quaternion);cf.y=0;cf.normalize();x=tx+cf.x*dd;z=tz+cf.z*dd}else{x=tx+ux*dd;z=tz+uz*dd}}
  PWS.g.position.set(x,PWS.y0,z);PWS.g.rotation.y=Math.atan2(cam.position.x-x,cam.position.z-z)+(PWS.ph==0?Math.sin(t*1.3)*.05:0);
  PWS.g.rotation.z=PWS.ph==0?.07+Math.sin(t*.9)*.05:PWS.ph==2?.12:0;
  if(PWS.ph==4&&PWS.head){const a=PWS.acts.sprint;if(a)a.time=PWS.bestT+Math.sin(t*44)*.014;PWS.mx.update(0);PWS.g.updateMatrixWorld(true);PWS.head.getWorldPosition(_pv1);
