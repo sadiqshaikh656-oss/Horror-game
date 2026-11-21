@@ -118,3 +118,4 @@ Round 15: washroom entrance uses the user-supplied "toilet exit door" model (ass
 
 Round 16: old doorway patch is now a plane that continues the corridor wall's own texture mapping (sampled by raycast), old frame leftovers hidden; washroom door got a steel frame (jambs, header, threshold) that hides the gaps and cut edges.
 Threshold under the washroom door now continues the washroom's own floor tiles (no grey sill).
+Washroom door frame: wider dark matte jambs/header with casings both sides, corridor wall caps and model trims cut out of the opening (no grey lines), threshold tile plane offset to stop z-fighting.
