@@ -120,3 +120,4 @@ Round 16: old doorway patch is now a plane that continues the corridor wall's ow
 Threshold under the washroom door now continues the washroom's own floor tiles (no grey sill).
 Washroom door frame: wider dark matte jambs/header with casings both sides, corridor wall caps and model trims cut out of the opening (no grey lines), threshold tile plane offset to stop z-fighting.
 Washroom doorway: no black frame - the door reveals use the corridor wall's own material with continuous UVs; the old doorway's caps/frame are cut away behind the wall patch.
+Washroom door now sits in the user's bathroom_door_frame.glb (assets/source/bathroom_door_frame.glb, 'dframe' in questglb.js), fitted to the opening.

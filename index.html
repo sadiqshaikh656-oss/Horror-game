@@ -2579,7 +2579,19 @@ function rrBuild(){
       rrCut(tr,b.min.x+.005,b.max.x-.005,9.6,b.max.z+.6,Y+.03,Y+2.3)}
      {const fm=new THREE.MeshStandardMaterial({color:0x0c1013,roughness:.92,metalness:0,envMapIntensity:0}),z0=9.78,z1=b.max.z+.1,zc=(z0+z1)/2,dz=z1-z0;
       RR.frame=[];const bx=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),fm);m.position.set(x,y,z);m.receiveShadow=true;LV.b1.add(m);RR.frame.push(m);return m};
-      bx(.17,2.44,dz,b.min.x-.075,Y+1.22,zc);bx(.17,2.44,dz,b.max.x+.075,Y+1.22,zc);bx(W+.32,.14,dz,(b.min.x+b.max.x)/2,Y+2.37,zc);{/* threshold = the corridor floor continued under the door (same texture mapping, sampled by raycast) */
+      /* user's bathroom door frame model, fitted so its inner opening = the door opening */
+      if(QST.asset.dframe)try{const fsrc=QST.asset.dframe.clone(true);fsrc.updateMatrixWorld(true);const pts=[],v=new THREE.Vector3();
+       fsrc.traverse(o=>{if(!o.isMesh)return;const P=o.geometry.attributes.position;for(let k=0;k<P.count;k++)pts.push(v.fromBufferAttribute(P,k).applyMatrix4(o.matrixWorld).clone())});
+       const bb=new THREE.Box3().setFromPoints(pts),cz0=(bb.min.z+bb.max.z)/2,Hm=bb.max.y-bb.min.y;
+       let ih=1e9;for(const q of pts){const t=(q.y-bb.min.y)/Hm;if(t>.3&&t<.7)ih=Math.min(ih,Math.abs(q.z-cz0))}
+       let it=1e9;for(const q of pts){if(Math.abs(q.z-cz0)<ih*.6&&q.y-bb.min.y>Hm*.5)it=Math.min(it,q.y-bb.min.y)}
+       if(!(ih<1e8)||!(it<1e8)){ih=(bb.max.z-bb.min.z)*.38;it=Hm*.9}
+       const inner=new THREE.Group;inner.add(fsrc);fsrc.position.set(-(bb.min.x+bb.max.x)/2,-bb.min.y,-cz0);
+       const sw=(W/2+.005)/ih,sh=(2.33)/it,sd=(dz+.06)/Math.max(.001,bb.max.x-bb.min.x);
+       const fg=new THREE.Group;fg.add(inner);inner.scale.set(sd,sh,sw);fg.rotation.y=Math.PI/2;fg.position.set((b.min.x+b.max.x)/2,Y,zc);LV.b1.add(fg);
+       fsrc.traverse(o=>{if(o.isMesh){const m0=o.material;const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,color:new THREE.Color(.72,.72,.7),roughness:.75,metalness:.1,envMapIntensity:.2});if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.receiveShadow=true;o.castShadow=false}});
+       RR.fg=fg}catch(e){console.error("[frame]",e)}
+      if(!RR.fg){bx(.17,2.44,dz,b.min.x-.075,Y+1.22,zc);bx(.17,2.44,dz,b.max.x+.075,Y+1.22,zc);bx(W+.32,.14,dz,(b.min.x+b.max.x)/2,Y+2.37,zc)}{/* threshold = the corridor floor continued under the door (same texture mapping, sampled by raycast) */
        const cand=[];g.traverse(o=>{if(o.isMesh&&/^floor/.test(o.name))cand.push(o)});
        const rc=new THREE.Raycaster(),hit=(x,z)=>{rc.set(new THREE.Vector3(x,Y+1,z),new THREE.Vector3(0,-1,0));rc.far=1.2;let best=null;for(const m of cand){try{const hs=rc.intersectObject(m,false);if(hs.length&&hs[0].uv&&(!best||hs[0].distance<best.distance))best=hs[0]}catch(e){}}return best};
        const x0=b.min.x-.16,x1=b.max.x+.16,za=11.2,h0=hit(x0,za),h1=hit(x0+.5,za),h2=hit(x0,za-.5);
