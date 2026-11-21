@@ -2538,7 +2538,7 @@ function pwStep(dt){
    ===================================================================== */
 const RR={done:false,g:null,lt:null,lm:[]};
 function rrBuild(){
- if(RR.done||!QST.asset||!QST.asset.twc||!LV.ok||!LV.b1)return;RR.done=true;
+ if(RR.done||!QST.asset||!QST.asset.troca||!LV.ok||!LV.b1)return;RR.done=true;
  try{
   const Y=BSM.Y,X0=14.13,X1=19.87,Z0=10.13,Z1=17.87,HT=3.0,DX=17.0,OW=1.2,OH=2.35;
   const g=new THREE.Group;LV.b1.add(g);RR.g=g;RR.lm=[];
@@ -2564,39 +2564,61 @@ function rrBuild(){
   wall(X1-DX-OW/2,HT,(X1+DX+OW/2)/2,Y+HT/2,Z0+e,0);         /* south, right of the doorway */
   wall(OW,HT-OH,DX,Y+OH+(HT-OH)/2,Z0+e,0);                  /* above the doorway */
   /* ---- 3. fixtures ---- */
-  const lit=(root,tint,rough,metal)=>root.traverse(o=>{if(!o.isMesh)return;const m0=o.material;const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,roughnessMap:m0.roughnessMap||null,metalnessMap:m0.metalnessMap||null,color:m0.color?m0.color.clone().multiply(tint):tint.clone(),roughness:rough,metalness:metal,envMapIntensity:.4,transparent:!!m0.transparent,opacity:m0.opacity,side:m0.side});if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true});
-  const place=(src,yaw,sc,pos,wallAxis,wallVal,note)=>{const root=new THREE.Group,inner=src.clone(true);root.add(inner);inner.scale.setScalar(sc);root.rotation.y=yaw;root.updateMatrixWorld(true);
+  const lit=(root,tint,rough,metal)=>root.traverse(o=>{if(!o.isMesh)return;const m0=o.material;const chrome=/metal|chrome|button|fasten/i.test((m0.name||"")+o.name);
+   const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,color:chrome?new THREE.Color(.75,.76,.78):(m0.color?m0.color.clone().multiply(tint):tint.clone()),roughness:chrome?.25:rough,metalness:chrome?.85:metal,envMapIntensity:chrome?.9:.4,side:THREE.DoubleSide});
+   if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true});
+  const box=(x0,x1,z0,z1,h)=>obs.push({x:(x0+x1)/2,z:(z0+z1)/2,hx:(x1-x0)/2,hz:(z1-z0)/2,h:Y+(h||1.4),y0:Y,nc:true,rr:1});
+  /* a model placed on the floor, yaw applied, then snapped so its back touches a wall */
+  const place=(src,yaw,sc,along,wall,side)=>{const root=new THREE.Group,inner=src.clone(true);root.add(inner);inner.scale.setScalar(sc);root.rotation.y=yaw;g.add(root);root.updateMatrixWorld(true);
    const b=new THREE.Box3().setFromObject(root);let dx=0,dz=0;
-   if(wallAxis=="z"){dz=wallVal-b.max.z}else if(wallAxis=="zm"){dz=wallVal-b.min.z}else if(wallAxis=="xm"){dx=wallVal-b.min.x}else dx=wallVal-b.max.x;
-   if(wallAxis=="z"||wallAxis=="zm")dx=pos-(b.min.x+b.max.x)/2;else dz=pos-(b.min.z+b.max.z)/2;
-   root.position.set(dx,Y+.006-b.min.y,dz);g.add(root);root.updateMatrixWorld(true);const fb=new THREE.Box3().setFromObject(root);
-   obs.push({x:(fb.min.x+fb.max.x)/2,z:(fb.min.z+fb.max.z)/2,hx:(fb.max.x-fb.min.x)/2,hz:(fb.max.z-fb.min.z)/2,h:Y+1.2,y0:Y,nc:true,rr:1});return root};
-  RR.wc=place(QST.asset.twc,RR.wcYaw==null?-Math.PI/2:RR.wcYaw,1.0,16.6,"z",Z1-.015);lit(RR.wc,new THREE.Color(.8,.8,.82),.35,0);
-  RR.sink=place(QST.asset.tsink,RR.skYaw==null?Math.PI/2:RR.skYaw,.8,14.0,"xm",X0+.015);lit(RR.sink,new THREE.Color(.8,.8,.82),.45,.1);
-  /* ---- 4. door: the old hospital door goes, the user's frame + door take its opening ---- */
+   if(side=="N")dz=wall-b.max.z;else if(side=="S")dz=wall-b.min.z;else if(side=="W")dx=wall-b.min.x;else dx=wall-b.max.x;
+   if(side=="N"||side=="S")dx=along-(b.min.x+b.max.x)/2;else dz=along-(b.min.z+b.max.z)/2;
+   root.position.set(dx,0,dz);root.position.y=Y+.006-b.min.y;root.updateMatrixWorld(true);return root};
+  /* -- 3a. three toilet cubicles along the north wall, each with a toilet; doors left at different angles -- */
+  const SD=1.6;RR.stalls=[];
+  {const src=QST.asset.tstall;src.updateMatrixWorld(true);let bm=null,dm=null;src.traverse(o=>{if(!o.isMesh)return;if(/^base_base/.test(o.name))bm=o;if(/^door_door/.test(o.name))dm=o});
+   if(bm&&dm){const bg=(bm.geometry.index?bm.geometry.toNonIndexed():bm.geometry.clone()).applyMatrix4(bm.matrixWorld);bg.computeBoundingBox();const B=bg.boundingBox;
+    const dg=(dm.geometry.index?dm.geometry.toNonIndexed():dm.geometry.clone()).applyMatrix4(dm.matrixWorld);dg.computeBoundingBox();const DB=dg.boundingBox;
+    const cx=(B.min.x+B.max.x)/2,W=B.max.x-B.min.x,dep=B.max.z-B.min.z,sz=SD/dep;
+    bg.translate(-cx,-B.min.y,-B.max.z);bg.scale(1,1,sz);
+    const hx=DB.max.x-cx;dg.translate(-DB.max.x,-B.min.y,-B.max.z);dg.scale(1,1,sz);
+    const mk=m0=>{const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,color:new THREE.Color(.62,.66,.68),roughness:.6,metalness:.2,envMapIntensity:.3,side:THREE.DoubleSide});if(m.map)m.map.encoding=THREE.sRGBEncoding;return m};
+    const bmat=mk(bm.material),dmat=mk(dm.material),ang=[1.25,.18,.8];
+    for(let k=0;k<3;k++){const xc=X0+W/2+.02+k*W;
+     const st=new THREE.Group;st.position.set(xc,Y+.006,Z1-.01);st.rotation.y=Math.PI;g.add(st);
+     const hv=new THREE.Group;hv.position.set(hx,0,0);st.add(hv);const dms=new THREE.Mesh(dg,dmat);dms.receiveShadow=true;hv.add(dms);hv.rotation.y=ang[k];
+     RR.stalls.push({st,hv,xc});
+     /* side panels */
+     box(xc+W/2-.03,xc+W/2+.03,Z1-SD,Z1,2);
+     /* toilet inside, back to the wall */
+     const t=place(QST.asset.troca,Math.PI,1.0,xc,Z1-.02,"N");lit(t,new THREE.Color(.85,.85,.85),.25,0);t.updateMatrixWorld(true);const tb=new THREE.Box3().setFromObject(t);box(tb.min.x,tb.max.x,tb.min.z,tb.max.z,.8)}
+    box(X0,X0+.06,Z1-SD,Z1,2);
+    /* full partitions: side panels, front pilasters beside each door, a header rail */
+    const pm=new THREE.MeshStandardMaterial({map:dmat.map,color:new THREE.Color(.62,.66,.68),roughness:.55,metalness:.25,envMapIntensity:.3}),PH=1.95,py=Y+.12+PH/2,dw=DB.max.x-DB.min.x,stub=Math.max(.02,(W-dw)/2);
+    const pb=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),pm);m.position.set(x,y,z);m.receiveShadow=true;g.add(m)};
+    for(let k=0;k<=3;k++){const xb=X0+.02+k*W;if(k>0)pb(.035,PH,SD,xb,py,Z1-SD/2);}
+    for(let k=0;k<3;k++){const xc=X0+W/2+.02+k*W;pb(stub,PH,.035,xc-W/2+stub/2,py,Z1-SD);pb(stub,PH,.035,xc+W/2-stub/2,py,Z1-SD)}
+    pb(3*W,.07,.05,X0+.02+1.5*W,Y+.12+PH+.035,Z1-SD);
+    for(let k=0;k<4;k++){const xb=X0+.02+k*W;if(k>0)pb(.05,.12,.05,xb,Y+.06,Z1-SD+.03)}}}
+  /* -- 3b. four urinals on the east wall -- */
+  RR.urinals=[];
+  for(let k=0;k<4;k++){const z=11.35+k*1.05;const u=place(QST.asset.turinal,RR.urYaw==null?Math.PI/2:RR.urYaw,.2,z,X1-.02,"E");
+   u.position.y+=.32;u.updateMatrixWorld(true);lit(u,new THREE.Color(.92,.92,.9),.2,0);const ub=new THREE.Box3().setFromObject(u);box(ub.min.x,X1,ub.min.z,ub.max.z,1.2);RR.urinals.push(u);
+   if(k<3){const dv=new THREE.Mesh(new THREE.BoxGeometry(.5,1.1,.03),new THREE.MeshStandardMaterial({color:0x9aa3a6,roughness:.5,metalness:.4}));dv.position.set(X1-.27,Y+1.05,z+.525);dv.receiveShadow=true;g.add(dv)}}
+  /* -- 3c. one smaller sink on the west wall, clear of the door swing -- */
+  RR.sink=place(QST.asset.tsink,RR.skYaw==null?Math.PI/2:RR.skYaw,.45,12.9,X0+.015,"W");lit(RR.sink,new THREE.Color(.8,.8,.82),.45,.1);
+  {RR.sink.updateMatrixWorld(true);const sb=new THREE.Box3().setFromObject(RR.sink);box(X0,sb.max.x,sb.min.z,sb.max.z,1)}
+  /* ---- 4. door: the old hospital door goes; the user's toilet door fills the original opening (no frame) ---- */
   const old=HD.find(h=>Math.abs(h.cx-DX)<.3&&Math.abs(h.cz-10)<.3);
   if(old){if(old.pv)old.pv.visible=false;const oi=obs.indexOf(old.box);if(oi>=0)obs.splice(oi,1);HD.splice(HD.indexOf(old),1)}
   for(const h of HD.slice()){if(h!==old&&h.cx>14&&h.cx<20&&h.cz>10.5&&h.cz<17.5){if(h.pv)h.pv.visible=false;const oi=obs.indexOf(h.box);if(oi>=0)obs.splice(oi,1);HD.splice(HD.indexOf(h),1)}}
-  const zc=10.0,FD=.36;
-  /* frame: outer a little bigger than the opening (lips overlap the wall), inner = the leaf */
-  let LW=OW-.2,LH=OH-.12;
-  if(QST.asset.dframe){const fsrc=QST.asset.dframe.clone(true);fsrc.updateMatrixWorld(true);const pts=[],v=new THREE.Vector3();
-   fsrc.traverse(o=>{if(!o.isMesh)return;const P=o.geometry.attributes.position;for(let k=0;k<P.count;k++)pts.push(v.fromBufferAttribute(P,k).applyMatrix4(o.matrixWorld).clone())});
-   const bb=new THREE.Box3().setFromPoints(pts),cz0=(bb.min.z+bb.max.z)/2,Hm=bb.max.y-bb.min.y,Wm=bb.max.z-bb.min.z;
-   let ih=1e9;for(const q of pts){const t=(q.y-bb.min.y)/Hm;if(t>.3&&t<.7)ih=Math.min(ih,Math.abs(q.z-cz0))}
-   let it=1e9;for(const q of pts){if(Math.abs(q.z-cz0)<ih*.6&&q.y-bb.min.y>Hm*.5)it=Math.min(it,q.y-bb.min.y)}
-   if(!(ih<1e8)||!(it<1e8)){ih=Wm*.38;it=Hm*.9}
-   const oW=OW+.16,oH=OH+.08,sw=oW/Wm,sh=oH/Hm,sd=FD/Math.max(.001,bb.max.x-bb.min.x);
-   LW=2*ih*sw-.01;LH=it*sh-.01;
-   const inner=new THREE.Group;inner.add(fsrc);fsrc.position.set(-(bb.min.x+bb.max.x)/2,-bb.min.y,-cz0);
-   const fg=new THREE.Group;fg.add(inner);inner.scale.set(sd,sh,sw);fg.rotation.y=Math.PI/2;fg.position.set(DX,Y,zc);g.add(fg);RR.fg=fg;
-   fsrc.traverse(o=>{if(o.isMesh){const m0=o.material;const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,color:new THREE.Color(1.1,1.05,.95),roughness:.6,metalness:0,envMapIntensity:.25,side:THREE.DoubleSide});if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.receiveShadow=true;o.castShadow=false}})}
+  const zc=10.0,LW=OW-.03,LH=OH-.03;
   const pv=new THREE.Group;pv.position.set(DX+LW/2,Y+.01,zc);g.add(pv);
   if(QST.asset.wdoor){const dsrc=QST.asset.wdoor.clone(true);dsrc.updateMatrixWorld(true);const db=new THREE.Box3().setFromObject(dsrc),ds=db.getSize(new THREE.Vector3());
    const inner=new THREE.Group;inner.add(dsrc);dsrc.position.set(-db.min.x,-db.min.y,-db.max.z);
    const sg=new THREE.Group;sg.add(inner);sg.scale.set(LW/ds.x,LH/ds.y,.05/Math.max(.001,ds.z));sg.rotation.y=Math.PI;sg.position.set(0,0,-.025);pv.add(sg);
    dsrc.traverse(o=>{if(o.isMesh){const m0=o.material;const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,roughnessMap:m0.roughnessMap||null,metalnessMap:m0.metalnessMap||null,color:new THREE.Color(1.5,1.45,1.4),roughness:.6,metalness:.1,envMapIntensity:.3});if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true}})}
-  RR.door={pv,x0:DX-LW/2,x1:DX+LW/2,z:zc,a:0,tgt:0,box:{x:DX,z:zc,hx:LW/2+.06,hz:.08,h:Y+LH,y0:Y,nc:true}};obs.push(RR.door.box);
+  RR.door={pv,x0:DX-LW/2,x1:DX+LW/2,z:zc,a:0,tgt:0,box:{x:DX,z:zc,hx:LW/2+.02,hz:.08,h:Y+LH,y0:Y,nc:true}};obs.push(RR.door.box);
   /* ---- 5. a flickering tube light in the ceiling ---- */
   {const tm=new THREE.MeshStandardMaterial({color:0x111111,emissive:new THREE.Color(0xcfe3da),emissiveIntensity:.9,roughness:.5});const tube=new THREE.Mesh(new THREE.BoxGeometry(1.1,.05,.14),tm);tube.position.set(17,Y+HT-.04,14);g.add(tube);RR.lm.push(tm);
    const t2=tube.clone();t2.position.set(17,Y+HT-.04,12.2);g.add(t2)}
