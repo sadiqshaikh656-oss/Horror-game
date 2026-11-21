@@ -121,3 +121,4 @@ Threshold under the washroom door now continues the washroom's own floor tiles (
 Washroom door frame: wider dark matte jambs/header with casings both sides, corridor wall caps and model trims cut out of the opening (no grey lines), threshold tile plane offset to stop z-fighting.
 Washroom doorway: no black frame - the door reveals use the corridor wall's own material with continuous UVs; the old doorway's caps/frame are cut away behind the wall patch.
 Washroom door now sits in the user's bathroom_door_frame.glb (assets/source/bathroom_door_frame.glb, 'dframe' in questglb.js), fitted to the opening.
+Washroom entrance rebuilt with the user's metal_door_2.glb (frame + leaf + glass + handle, assets/source/metal_door_2.glb, 'mdoor' in questglb.js); previous toilet door and frame models removed. Corridor wall and restroom walls are cut exactly to the door opening and the frame (0.56 m deep) covers both wall faces.
