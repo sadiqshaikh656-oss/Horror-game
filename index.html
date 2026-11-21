@@ -2570,7 +2570,14 @@ function rrBuild(){
     const mk=T=>{const ng=new THREE.BufferGeometry();for(const k of names)ng.setAttribute(k,new THREE.Float32BufferAttribute(T[k],gg.attributes[k].itemSize));ng.computeBoundingSphere();return ng};
     dm.geometry=mk(Bk);dm.visible=true;
     if(!b.isEmpty()){const ed=dm.clone();ed.geometry=mk(A);dm.parent.add(ed);
-     const pv=new THREE.Group;pv.position.set(b.max.x,Y,(b.min.z+b.max.z)/2);g.add(pv);pv.updateMatrixWorld(true);pv.attach(ed);pv.attach(hm);hm.visible=true;ed.visible=true;
+     const pv=new THREE.Group;pv.position.set(b.max.x,Y,(b.min.z+b.max.z)/2);LV.b1.add(pv);
+     ed.visible=false;hm.visible=false;
+     const W=b.max.x-b.min.x,Hh=2.3;
+     if(QST.asset.wdoor){const dsrc=QST.asset.wdoor.clone(true);dsrc.updateMatrixWorld(true);const db=new THREE.Box3().setFromObject(dsrc),ds=db.getSize(new THREE.Vector3());
+      const inner=new THREE.Group;inner.add(dsrc);dsrc.position.set(-db.min.x,-db.min.y,-db.max.z);
+      const sg=new THREE.Group;sg.add(inner);sg.scale.set((W-.02)/ds.x,Hh/ds.y,.05/Math.max(.001,ds.z));sg.rotation.y=Math.PI;sg.position.set(-.01,0,-.03);pv.add(sg);
+      dsrc.traverse(o=>{if(o.isMesh){const m0=o.material;const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,roughnessMap:m0.roughnessMap||null,metalnessMap:m0.metalnessMap||null,color:new THREE.Color(.62,.64,.62),roughness:.7,metalness:.3,envMapIntensity:.3});if(m.map)m.map.encoding=THREE.sRGBEncoding;o.material=m;o.castShadow=false;o.receiveShadow=true}})}
+     else{ed.visible=true;hm.visible=true;pv.attach(ed);pv.attach(hm)}
      RR.door={pv,x0:b.min.x,x1:b.max.x,z:(b.min.z+b.max.z)/2,a:0,tgt:0,box:{x:(b.min.x+b.max.x)/2,z:(b.min.z+b.max.z)/2,hx:(b.max.x-b.min.x)/2,hz:.08,h:Y+2.3,y0:Y,nc:true}};obs.push(RR.door.box)}}
    if(0){const b=null,pv=null;
     RR.door={pv,x0:b.min.x,x1:b.max.x,z:(b.min.z+b.max.z)/2,a:0,tgt:0,box:{x:(b.min.x+b.max.x)/2,z:(b.min.z+b.max.z)/2,hx:(b.max.x-b.min.x)/2,hz:.08,h:Y+2.3,y0:Y,nc:true}};obs.push(RR.door.box)}}
@@ -2582,8 +2589,11 @@ function rrBuild(){
       if(a0<D.x0-.02)obs.push({...o,x:(a0+D.x0-.02)/2,hx:(D.x0-.02-a0)/2});if(a1>D.x1+.02)obs.push({...o,x:(a1+D.x1+.02)/2,hx:(a1-D.x1-.02)/2})}}
     obs.push({x:17,z:10,hx:.6,hz:.13,h:Y+3,y0:Y});
     /* wall-up visual from the corridor side, using the corridor wall's own material */
-    let wmat=null;{const rc=new THREE.Raycaster(new THREE.Vector3(15.6,Y+1.2,9.2),new THREE.Vector3(0,0,1),0,1.2);const ms=[];(typeof HOSPG!=="undefined"&&HOSPG?HOSPG:grp).traverse(o=>{if(o.isMesh)ms.push(o)});for(const m of ms){try{const h=rc.intersectObject(m,false);if(h.length){wmat=Array.isArray(m.material)?m.material[0]:m.material;break}}catch(e){}}}
-    const fill=new THREE.Mesh(new THREE.BoxGeometry(1.24,3,.26),wmat||new THREE.MeshStandardMaterial({color:0x5a6066,roughness:.95}));fill.position.set(17,Y+1.5,10);LV.b1.add(fill);
+    {const cand=[];for(const r of [typeof HOSPG!=="undefined"?HOSPG:null,grp])if(r)r.traverse(o=>{if(!o.isMesh||o.isInstancedMesh)return;for(let q=o;q;q=q.parent)if(q===g)return;cand.push(o)});
+     const rc=new THREE.Raycaster();const matAt=h=>{rc.set(new THREE.Vector3(15.5,Y+h,9.3),new THREE.Vector3(0,0,1));rc.far=1.2;let best=null;for(const m of cand){try{const hs=rc.intersectObject(m,false);if(hs.length&&(!best||hs[0].distance<best.d))best={d:hs[0].distance,m:Array.isArray(m.material)?m.material[0]:m.material}}catch(e){}}return best};
+     const bands=[];for(let h=.05;h<3.1;h+=.1){const r=matAt(h);const m=r&&r.m;const L=bands[bands.length-1];if(L&&L.m===m)L.h1=h+.05;else bands.push({m,h0:Math.max(0,h-.05),h1:h+.05,d:r?r.d:.7})}
+     for(const b of bands){if(!b.m)continue;const hh=b.h1-b.h0;const geo=new THREE.BoxGeometry(1.3,hh,.24);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*1.3/2,uv.getY(i)*hh/2);
+      const f=new THREE.Mesh(geo,b.m);f.position.set(17,Y+b.h0+hh/2,9.3+b.d+.12);f.receiveShadow=true;LV.b1.add(f)}}
     const ms=[];(typeof HOSPG!=="undefined"&&HOSPG?HOSPG:grp).traverse(o=>{if(o.isMesh&&!o.isInstancedMesh)ms.push(o)});LV.b1.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh&&ms.indexOf(o)<0){let q=o;while(q&&q!==g)q=q.parent;if(!q)ms.push(o)}});
     const near=ms.filter(m=>{if(!m.geometry||!m.geometry.attributes.position)return false;m.geometry.computeBoundingBox();const b=m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);return b.max.x>D.x0&&b.min.x<D.x1&&b.max.z>9.7&&b.min.z<10.3&&b.max.y>Y&&b.min.y<Y+2.4});
     near.forEach(m=>{if(m.geometry.userData.rrOwn!==1){m.geometry=m.geometry.clone();m.geometry.userData.rrOwn=1}});
@@ -2625,7 +2635,7 @@ function rrStep(dt){
  if(!RR.done){rrBuild();return}
  const D=RR.door;if(D&&D.pv.parent){
   if(NUN.ok&&D.tgt==0&&Math.abs(NUN.pos.y-BSM.Y)<1&&Math.hypot(NUN.pos.x-(D.x0+D.x1)/2,NUN.pos.z-D.z)<1.4){D.tgt=1;try{snd3("creak",.9,(D.x0+D.x1)/2,BSM.Y+1,D.z,.8,2)}catch(e){}}
-  const pa=D.a;D.a+=(D.tgt-D.a)*Math.min(1,dt*3.2);D.pv.rotation.y=D.a*1.55;
+  D.v=(D.v||0)+((D.tgt-D.a)*28-(D.v||0)*9)*dt;D.a=clamp(D.a+D.v*dt,-.02,1.03);D.pv.rotation.y=D.a*1.5;
   const open=D.a>.55;const i=obs.indexOf(D.box);if(open&&i>=0){obs.splice(i,1);NL.ok=false}else if(!open&&i<0&&D.a<.2){obs.push(D.box);NL.ok=false}}
  if(!RR.lt||!RR.g||!RR.g.parent)return;
  const near=Math.abs(P.pos.y-BSM.Y)<1.5&&P.pos.x>12&&P.pos.x<21&&P.pos.z>8&&P.pos.z<19;
