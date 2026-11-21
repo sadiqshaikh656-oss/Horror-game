@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
-<title>Dusk Protocol</title>
+<title>Dusk Protocol</title><script>/* phones: cap texture size so GPU memory stays low (prevents the browser killing the tab) */(function(){try{var t=matchMedia("(pointer:coarse)").matches,dm=navigator.deviceMemory||4,cap=t?(dm<=4?512:768):0;if(!cap)return;[window.WebGLRenderingContext,window.WebGL2RenderingContext].forEach(function(C){if(!C)return;var g=C.prototype.getParameter;C.prototype.getParameter=function(p){var v=g.call(this,p);return p===3379?Math.min(v,cap):v}})}catch(e){}})();</script>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#f4ead7;--dim:#b7a78c;--amber:#ffb347;--red:#ff4b3a;--bg:#090b10;--panel:rgba(12,14,20,.62);color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -2529,6 +2529,17 @@ function pwStep(dt){
  if(t>=T5){PWS.on=false;PWS.g.visible=false;PWS.L.intensity=0;for(const k in PWS.acts)PWS.acts[k].stop();try{if(fin&&fin.uniforms.glt)fin.uniforms.glt.value=0}catch(e){}pwBlack(1);setTimeout(()=>pwBlack(0),220)}
 }
 
+/* crash guard: if the GPU context is lost (low memory), save and come back to the same moment */
+(function(){try{const cv=$("c");
+ cv.addEventListener("webglcontextlost",e=>{e.preventDefault();try{qSave()}catch(_){}try{sessionStorage.setItem("dpResume","1")}catch(_){}
+  let o=document.getElementById("dprec");if(!o){o=document.createElement("div");o.id="dprec";o.style.cssText="position:fixed;inset:0;z-index:99;background:#000;color:#c9b99a;display:flex;align-items:center;justify-content:center;font:16px serif;letter-spacing:.2em";o.textContent="RECOVERING…";document.body.appendChild(o)}
+  setTimeout(()=>location.reload(),900)},false);
+ window.addEventListener("error",e=>{try{console.error("[guard]",e.message)}catch(_){}});
+ window.addEventListener("unhandledrejection",e=>{try{e.preventDefault()}catch(_){}});
+ /* after a recovery reload, continue the saved run automatically */
+ let r=null;try{r=sessionStorage.getItem("dpResume")}catch(_){}
+ if(r){try{sessionStorage.removeItem("dpResume")}catch(_){}const iv=setInterval(()=>{const b=document.querySelector("#qcont,#qcb,[data-cont]")||window.__dpCont;if(st=="menu"&&!$("load").classList.contains("hide"))return;if(st=="menu"&&qLoadSave()){clearInterval(iv);QST.cont=qLoadSave();startPlay()}},500);setTimeout(()=>clearInterval(iv),60000)}
+}catch(e){}})();
 nunLoad();paraInit();
 if(/[?&]debug/.test(location.search))window.__dpDbg={LV,CM,PW:PWS,pwScare,pwZone,FOGU,NSB,mkChar,play0:play,CL,chr:()=>CHR,spd:v=>{spd0=v},scene,grp,qMkItem,qPlaceHammer,P,NUN,PARA,PEV,QST,NL,CM,cam,HD,nunNoise,nunSpawn,paraEvent,setYaw:v=>{yaw=v},play2:nunPlay,look:nunLook,rayBox,nunClear,nlFree,nunRoute,qUse,qAim,qCaught,qDrop,qPropGeos,qApplySave,qNewGame,qPlankHit,S,gfx:()=>({DIRTY,flushGfx,applyS}),HLK,lkEnter,lkExit,qSave,qLoadSave,nunCatch,jsShow,JS,NSB,T:()=>T,DRW,AXC,BSM,NV,gnY,stairY,
  los:(a,b)=>nlos(new THREE.Vector3(...a),new THREE.Vector3(...b)),sim:(n,dt)=>{for(let i=0;i<n;i++){T+=dt;hdoorStep(dt);nunStep(dt);qStep(dt);qSwingStep(dt);paraStep(dt);if(QST.cine||NUN.st=="catch"){nunCam(dt);qCam(dt)}}},setPitch:v=>{pitch=v},st:()=>st,setSt:v=>{st=v},FL,obs,LV,keys};
