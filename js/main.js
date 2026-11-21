@@ -42,7 +42,7 @@ class Game {
     const report = () => { let s = 0; for (const k in progress) s += progress[k] * sizes[k]; this.ui.setLoading(s / total * 0.9); };
     const assets = {};
     try {
-      await Promise.all(MODELS.map(name => new Promise((res, rej) => loader.load(`assets/models/${name}.glb`, g => { assets[name] = g; progress[name] = 1; report(); res(); },
+      await Promise.all(MODELS.map(name => new Promise((res, rej) => loader.load((window.__MODELS && window.__MODELS[name]) || `assets/models/${name}.glb`, g => { assets[name] = g; progress[name] = 1; report(); res(); },
         e => { if (e.total) { progress[name] = e.loaded / e.total; report(); } }, rej))));
     } catch (e) {
       this.ui.setLoading(0, 'FAILED TO LOAD ASSETS — serve this folder over http(s)');

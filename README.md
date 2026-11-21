@@ -78,3 +78,7 @@ assets/models/*.glb         your models, compressed (meshopt + WebP, about 140 M
 lib/three/                  vendored three.js r170
 tools/animview.html         dev tool for sampling a GLB animation timeline
 ```
+
+## Single-file version
+
+`dist/ironyard.html` is the whole game in one file (code, three.js and models inlined, 7 MB). It opens by double-click with no server, and it can be copied to a phone and opened in Chrome. Rebuild it with `npm i esbuild && node tools/build-single.mjs`.
