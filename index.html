@@ -2575,7 +2575,14 @@ function rrBuild(){
      const W=b.max.x-b.min.x,Hh=2.3;
      {const fm=new THREE.MeshStandardMaterial({color:0x2a2e2d,roughness:.55,metalness:.6,envMapIntensity:.3}),z0=9.84,z1=b.max.z+.05,zc=(z0+z1)/2,dz=z1-z0;
       const bx=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),fm);m.position.set(x,y,z);m.receiveShadow=true;LV.b1.add(m)};
-      bx(.09,2.42,dz,b.min.x-.035,Y+1.21,zc);bx(.09,2.42,dz,b.max.x+.035,Y+1.21,zc);bx(W+.16,.1,dz,(b.min.x+b.max.x)/2,Y+2.35,zc);bx(W+.16,.022,dz+.12,(b.min.x+b.max.x)/2,Y+.011,zc+.02);bx(.03,2.32,.04,b.min.x+.01,Y+1.16,b.max.z+.06)}
+      bx(.09,2.42,dz,b.min.x-.035,Y+1.21,zc);bx(.09,2.42,dz,b.max.x+.035,Y+1.21,zc);bx(W+.16,.1,dz,(b.min.x+b.max.x)/2,Y+2.35,zc);{/* threshold = the corridor floor continued under the door (same texture mapping, sampled by raycast) */
+       const cand=[];g.traverse(o=>{if(o.isMesh&&/^floor/.test(o.name))cand.push(o)});
+       const rc=new THREE.Raycaster(),hit=(x,z)=>{rc.set(new THREE.Vector3(x,Y+1,z),new THREE.Vector3(0,-1,0));rc.far=1.2;let best=null;for(const m of cand){try{const hs=rc.intersectObject(m,false);if(hs.length&&hs[0].uv&&(!best||hs[0].distance<best.distance))best=hs[0]}catch(e){}}return best};
+       const x0=b.min.x-.08,x1=b.max.x+.08,za=11.2,h0=hit(x0,za),h1=hit(x0+.5,za),h2=hit(x0,za-.5);
+       if(h0&&h1&&h2){const m=Array.isArray(h0.object.material)?h0.object.material[0]:h0.object.material;const dudx=(h1.uv.x-h0.uv.x)/.5,dvdx=(h1.uv.y-h0.uv.y)/.5,dudz=(h0.uv.x-h2.uv.x)/.5,dvdz=(h0.uv.y-h2.uv.y)/.5;
+        const zA=9.8,zB=Math.max(z1+.02,10.4),geo=new THREE.PlaneGeometry(x1-x0,zB-zA);geo.rotateX(-Math.PI/2);const P=geo.attributes.position,U=geo.attributes.uv;
+        for(let k=0;k<P.count;k++){const wx=(x0+x1)/2+P.getX(k),wz=(zA+zB)/2+P.getZ(k);U.setXY(k,h0.uv.x+(wx-x0)*dudx+(wz-za)*dudz,h0.uv.y+(wx-x0)*dvdx+(wz-za)*dvdz)}
+        const th=new THREE.Mesh(geo,m);th.position.set((x0+x1)/2,Y+.012,(zA+zB)/2);th.receiveShadow=true;LV.b1.add(th)}}bx(.03,2.32,.04,b.min.x+.01,Y+1.16,b.max.z+.06)}
      if(QST.asset.wdoor){const dsrc=QST.asset.wdoor.clone(true);dsrc.updateMatrixWorld(true);const db=new THREE.Box3().setFromObject(dsrc),ds=db.getSize(new THREE.Vector3());
       const inner=new THREE.Group;inner.add(dsrc);dsrc.position.set(-db.min.x,-db.min.y,-db.max.z);
       const sg=new THREE.Group;sg.add(inner);sg.scale.set((W+.01)/ds.x,Hh/ds.y,.05/Math.max(.001,ds.z));sg.rotation.y=Math.PI;sg.position.set(.005,0,-.03);pv.add(sg);

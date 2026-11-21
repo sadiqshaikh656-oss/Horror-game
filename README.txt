@@ -117,3 +117,4 @@ Round 14: the basement washroom (B-03) is now the user-supplied "the_restroom.gl
 Round 15: washroom entrance uses the user-supplied "toilet exit door" model (assets/source/toilet_exit_door.glb, in questglb.js as "wdoor") on a proper hinge that swings into the room with a damped spring (the previous leaf was parented to the rotated model, so it flew off its hinge). The walled-up old doorway now copies the corridor wall's own materials band by band (plaster + tiles) instead of a grey box.
 
 Round 16: old doorway patch is now a plane that continues the corridor wall's own texture mapping (sampled by raycast), old frame leftovers hidden; washroom door got a steel frame (jambs, header, threshold) that hides the gaps and cut edges.
+Threshold under the washroom door now continues the washroom's own floor tiles (no grey sill).
