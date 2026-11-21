@@ -2574,40 +2574,24 @@ function rrBuild(){
    if(side=="N")dz=wall-b.max.z;else if(side=="S")dz=wall-b.min.z;else if(side=="W")dx=wall-b.min.x;else dx=wall-b.max.x;
    if(side=="N"||side=="S")dx=along-(b.min.x+b.max.x)/2;else dz=along-(b.min.z+b.max.z)/2;
    root.position.set(dx,0,dz);root.position.y=Y+.006-b.min.y;root.updateMatrixWorld(true);return root};
-  /* -- 3a. three toilet cubicles along the north wall, each with a toilet; doors left at different angles -- */
-  const SD=1.6;RR.stalls=[];
-  {const src=QST.asset.tstall;src.updateMatrixWorld(true);let bm=null,dm=null;src.traverse(o=>{if(!o.isMesh)return;if(/^base_base/.test(o.name))bm=o;if(/^door_door/.test(o.name))dm=o});
-   if(bm&&dm){const bg=(bm.geometry.index?bm.geometry.toNonIndexed():bm.geometry.clone()).applyMatrix4(bm.matrixWorld);bg.computeBoundingBox();const B=bg.boundingBox;
-    const dg=(dm.geometry.index?dm.geometry.toNonIndexed():dm.geometry.clone()).applyMatrix4(dm.matrixWorld);dg.computeBoundingBox();const DB=dg.boundingBox;
-    const cx=(B.min.x+B.max.x)/2,W=B.max.x-B.min.x,dep=B.max.z-B.min.z,sz=SD/dep;
-    bg.translate(-cx,-B.min.y,-B.max.z);bg.scale(1,1,sz);
-    const hx=DB.max.x-cx;dg.translate(-DB.max.x,-B.min.y,-B.max.z);dg.scale(1,1,sz);
-    const mk=m0=>{const m=new THREE.MeshStandardMaterial({map:m0.map||null,normalMap:m0.normalMap||null,color:new THREE.Color(.62,.66,.68),roughness:.6,metalness:.2,envMapIntensity:.3,side:THREE.DoubleSide});if(m.map)m.map.encoding=THREE.sRGBEncoding;return m};
-    const bmat=mk(bm.material),dmat=mk(dm.material),ang=[1.25,.18,.8];
-    for(let k=0;k<3;k++){const xc=X0+W/2+.02+k*W;
-     const st=new THREE.Group;st.position.set(xc,Y+.006,Z1-.01);st.rotation.y=Math.PI;g.add(st);
-     const hv=new THREE.Group;hv.position.set(hx,0,0);st.add(hv);const dms=new THREE.Mesh(dg,dmat);dms.receiveShadow=true;hv.add(dms);hv.rotation.y=ang[k];
-     RR.stalls.push({st,hv,xc});
-     /* side panels */
-     box(xc+W/2-.03,xc+W/2+.03,Z1-SD,Z1,2);
-     /* toilet inside, back to the wall */
-     const t=place(QST.asset.troca,Math.PI,1.0,xc,Z1-.02,"N");lit(t,new THREE.Color(.85,.85,.85),.25,0);t.updateMatrixWorld(true);const tb=new THREE.Box3().setFromObject(t);box(tb.min.x,tb.max.x,tb.min.z,tb.max.z,.8)}
-    box(X0,X0+.06,Z1-SD,Z1,2);
-    /* full partitions: side panels, front pilasters beside each door, a header rail */
-    const pm=new THREE.MeshStandardMaterial({map:dmat.map,color:new THREE.Color(.62,.66,.68),roughness:.55,metalness:.25,envMapIntensity:.3}),PH=1.95,py=Y+.12+PH/2,dw=DB.max.x-DB.min.x,stub=Math.max(.02,(W-dw)/2);
-    const pb=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),pm);m.position.set(x,y,z);m.receiveShadow=true;g.add(m)};
-    for(let k=0;k<=3;k++){const xb=X0+.02+k*W;if(k>0)pb(.035,PH,SD,xb,py,Z1-SD/2);}
-    for(let k=0;k<3;k++){const xc=X0+W/2+.02+k*W;pb(stub,PH,.035,xc-W/2+stub/2,py,Z1-SD);pb(stub,PH,.035,xc+W/2-stub/2,py,Z1-SD)}
-    pb(3*W,.07,.05,X0+.02+1.5*W,Y+.12+PH+.035,Z1-SD);
-    for(let k=0;k<4;k++){const xb=X0+.02+k*W;if(k>0)pb(.05,.12,.05,xb,Y+.06,Z1-SD+.03)}}}
-  /* -- 3b. four urinals on the east wall -- */
+  /* -- 3a. the user's 6-cubicle WC row along the east wall, a toilet inside every cubicle -- */
+  RR.stalls=[];
+  {const inner=QST.asset.tstall.clone(true);const drop=[];inner.traverse(o=>{if(o.isMesh&&/^(base_base|door_door)/.test(o.name))drop.push(o)});drop.forEach(o=>o.parent.remove(o));
+   const SC=.87;inner.scale.setScalar(SC);const row=new THREE.Group;row.add(inner);row.rotation.y=-Math.PI/2;g.add(row);row.updateMatrixWorld(true);
+   let b=new THREE.Box3().setFromObject(row);row.position.set(X1-.015-b.max.x,Y+.006-b.min.y,(Z0+Z1)/2+.12-(b.min.z+b.max.z)/2);row.updateMatrixWorld(true);
+   b=new THREE.Box3().setFromObject(row);RR.row=row;
+   lit(row,new THREE.Color(.78,.8,.82),.5,.15);
+   box(b.min.x,b.max.x,b.min.z,b.max.z,2.1);
+   for(const xc of [-.125,1.225,2.575,3.925,5.3,6.7]){const p=inner.localToWorld(new THREE.Vector3(xc,0,-1.72));
+    const t=place(QST.asset.troca,-Math.PI/2,1.0,p.z,p.x,"E");lit(t,new THREE.Color(.85,.85,.85),.25,0);RR.stalls.push(t)}}
+  /* -- 3b. four urinals on the west wall, with dividers -- */
   RR.urinals=[];
-  for(let k=0;k<4;k++){const z=11.35+k*1.05;const u=place(QST.asset.turinal,RR.urYaw==null?Math.PI/2:RR.urYaw,.2,z,X1-.02,"E");
-   u.position.y+=.32;u.updateMatrixWorld(true);lit(u,new THREE.Color(.92,.92,.9),.2,0);const ub=new THREE.Box3().setFromObject(u);box(ub.min.x,X1,ub.min.z,ub.max.z,1.2);RR.urinals.push(u);
-   if(k<3){const dv=new THREE.Mesh(new THREE.BoxGeometry(.5,1.1,.03),new THREE.MeshStandardMaterial({color:0x9aa3a6,roughness:.5,metalness:.4}));dv.position.set(X1-.27,Y+1.05,z+.525);dv.receiveShadow=true;g.add(dv)}}
-  /* -- 3c. one smaller sink on the west wall, clear of the door swing -- */
-  RR.sink=place(QST.asset.tsink,RR.skYaw==null?Math.PI/2:RR.skYaw,.45,12.9,X0+.015,"W");lit(RR.sink,new THREE.Color(.8,.8,.82),.45,.1);
-  {RR.sink.updateMatrixWorld(true);const sb=new THREE.Box3().setFromObject(RR.sink);box(X0,sb.max.x,sb.min.z,sb.max.z,1)}
+  for(let k=0;k<4;k++){const z=12.2+k*1.05;const u=place(QST.asset.turinal,RR.urYaw==null?-Math.PI/2:RR.urYaw,.2,z,X0+.02,"W");
+   u.position.y+=.32;u.updateMatrixWorld(true);lit(u,new THREE.Color(.92,.92,.9),.2,0);const ub=new THREE.Box3().setFromObject(u);box(X0,ub.max.x,ub.min.z,ub.max.z,1.2);RR.urinals.push(u);
+   if(k<3){const dv=new THREE.Mesh(new THREE.BoxGeometry(.5,1.1,.03),new THREE.MeshStandardMaterial({color:0x9aa3a6,roughness:.5,metalness:.4}));dv.position.set(X0+.27,Y+1.05,z+.525);dv.receiveShadow=true;g.add(dv)}}
+  /* -- 3c. a smaller sink on the south wall, west of the door -- */
+  RR.sink=place(QST.asset.tsink,RR.skYaw==null?0:RR.skYaw,.45,15.1,Z0+.015,"S");lit(RR.sink,new THREE.Color(.8,.8,.82),.45,.1);
+  {RR.sink.updateMatrixWorld(true);const sb=new THREE.Box3().setFromObject(RR.sink);box(sb.min.x,sb.max.x,Z0,sb.max.z,1)}
   /* ---- 4. door: the old hospital door goes; the user's toilet door fills the original opening (no frame) ---- */
   const old=HD.find(h=>Math.abs(h.cx-DX)<.3&&Math.abs(h.cz-10)<.3);
   if(old){if(old.pv)old.pv.visible=false;const oi=obs.indexOf(old.box);if(oi>=0)obs.splice(oi,1);HD.splice(HD.indexOf(old),1)}
