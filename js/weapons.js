@@ -183,8 +183,10 @@ export class Viewmodels {
     const interval = 60 / c.rpm;
     const wantsFire = ctx.trigger && !ctx.blockFire;
     if (wantsFire && !this.busy && this.sprint < 0.35) {
-      const can = c.auto ? true : !this.triggerWasDown;
-      if (can && time - this.lastShot >= interval) {
+      // semi-autos repeat while the touch FIRE button is held (at a controlled cadence)
+      const can = c.auto ? true : (!this.triggerWasDown || ctx.holdRepeat);
+      const gap = c.auto || !this.triggerWasDown ? interval : Math.max(interval, 0.22);
+      if (can && time - this.lastShot >= gap) {
         if (this.ammo.mag > 0) {
           if (time - this.lastShot > 0.4) this.spray = 0;
           this.ammo.mag--; this.lastShot = time;

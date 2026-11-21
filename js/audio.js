@@ -153,3 +153,10 @@ export function playUI(kind = 'tap') {
   else if (kind === 'round') { tone(d, t, 0.5, 220, 220, 0.18, 'sawtooth'); tone(d, t, 0.5, 330, 330, 0.12, 'sawtooth'); }
   else if (kind === 'pickup') { tone(d, t, 0.1, 900, 1300, 0.15, 'triangle'); tone(d, t + 0.08, 0.15, 1300, 1800, 0.12, 'triangle'); }
 }
+
+export function playClimb() {
+  if (!ctx) return;
+  const t = ctx.currentTime; const d = out(0);
+  noise(d, t, 0.12, 'bandpass', 900, 1.2, 0.35); noise(d, t + 0.25, 0.1, 'lowpass', 600, 1, 0.3);
+  tone(d, t + 0.25, 0.1, 140, 70, 0.25);
+}

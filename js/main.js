@@ -12,6 +12,7 @@ import { Effects } from './effects.js';
 import { Input } from './input.js';
 import { UI } from './ui.js';
 import * as Audio from './audio.js';
+import { applyLayout, HudEditor } from './hudlayout.js';
 
 const MODELS = ['carbine', 'smg', 'pistol', 'soldier', 'containers', 'dungeon'];
 const ROUND_TIME = 115;
@@ -78,8 +79,13 @@ class Game {
     this.input.onPause = () => this.togglePause();
     this.input.onScore = (on) => this.ui.showScoreboard(on === undefined ? document.getElementById('scoreboard').classList.contains('hidden') : on);
     this.input.onUnlock = () => { if (this.state === 'playing') this.pause(); };
-    addEventListener('resize', () => { this.gfx.resize(); this.applyFov(); });
+    addEventListener('resize', () => { this.gfx.resize(); this.applyFov(); applyLayout(); });
+    this.hudEditor = new HudEditor((saved) => this.closeHudEditor(saved));
+    document.getElementById('mHud').addEventListener('click', () => { Audio.playUI('tap'); this.openHudEditor(); });
+    document.getElementById('pHud').addEventListener('click', () => { Audio.playUI('tap'); this.openHudEditor(); });
+    this.ui.onOpenHud = () => this.openHudEditor();
     this.applyControls();
+    applyLayout();
     this.ui.hideLoading();
     this.toLobby();
     this.last = performance.now();
@@ -177,6 +183,26 @@ class Game {
   applyControls() {
     document.getElementById('btnFire2').classList.toggle('hidden', !settings.controls.leftFire);
     this.applyFov();
+    applyLayout();
+  }
+
+  // ---------- HUD layout editor ----------
+  openHudEditor() {
+    this.editorFrom = this.state;
+    document.getElementById('settings').classList.add('hidden');
+    this.input.enabled = false; this.input.reset();
+    document.exitPointerLock?.();
+    this.hudEditor.open();
+  }
+  closeHudEditor() {
+    applyLayout();
+    if (this.editorFrom === 'menu') {
+      for (const id of ['hud', 'touchLayer']) document.getElementById(id).classList.add('hidden');
+      this.ui.refreshMenuStats();
+    } else {
+      document.getElementById('touchLayer').classList.toggle('hidden', !this.input.isTouch);
+      if (this.editorFrom === 'paused') document.getElementById('pause').classList.remove('hidden');
+    }
   }
 
   // ---------- combat ----------
@@ -210,13 +236,13 @@ class Game {
     }
     const end = origin.clone().addScaledVector(dir, maxT);
     const muzzle = this.vm.muzzleWorld(cam);
-    // tracers on every 2nd round for autos, every round for the pistol
-    if (!c.auto || this.vm.spray % 2 === 1) this.effects.tracer(muzzle, end, c.tracer);
+    // visible bullet travelling from the muzzle to the crosshair hit point
+    this.effects.tracer(muzzle, end, c.tracer);
     this.effects.flashLight(muzzle, 8);
     this.effects.muzzleSmoke(muzzle, dir);
     // shell ejection to the right
-    const ej = new THREE.Vector3(0.14, -0.06, -0.35).applyMatrix4(cam.matrixWorld);
-    this.effects.shell(c.shell, ej, right.clone().multiplyScalar(2 + Math.random()).addScaledVector(up, 1.5 + Math.random()).add(this.player.vel));
+    const ej = new THREE.Vector3(0.2, -0.16, -0.75).applyMatrix4(cam.matrixWorld);
+    this.effects.shell(c.shell, ej, right.clone().multiplyScalar(1.6 + Math.random() * 0.8).addScaledVector(up, 0.6 + Math.random() * 0.5).add(this.player.vel));
     this.player.applyRecoil(shot.recoilUp, shot.recoilSide);
     if (enemyHit) {
       const e = enemyHit.e;
@@ -294,6 +320,17 @@ class Game {
     this.gfx.render(t, this.vm.ads, dt);
   }
 
+  updateButtonStates() {
+    const P = this.player, inp = this.input, $ = (id) => document.getElementById(id);
+    $('btnAds').classList.toggle('on', inp.ads);
+    $('btnCrouch').classList.toggle('on', P.crouched);
+    $('btnSprint').classList.toggle('on', P.sprinting || inp.sprintBtn || inp.sprintLock);
+    const climb = !!(P.ledge && P.ledge.rise > 1.0 && P.alive);
+    $('btnJump').classList.toggle('climb', climb);
+    $('climbHint').classList.toggle('on', climb && this.input.isTouch);
+    $('climbHint').textContent = this.input.isTouch ? 'CLIMB' : 'SPACE · CLIMB';
+  }
+
   simulate(dt, t) {
     const inp = this.input, P = this.player, vm = this.vm;
     inp.poll();
@@ -306,8 +343,8 @@ class Game {
       if (inp.inspect) { vm.inspect(); inp.inspect = false; }
       vm.adsWanted = inp.ads;
       if (vm.reloading || P.sprinting) { if (this.input.isTouch && vm.reloading) inp.ads = false; }
-      document.getElementById('btnAds').classList.toggle('on', inp.ads);
     }
+    this.updateButtonStates();
     // look
     let [lx, ly] = inp.consumeLook();
     const adsMul = THREE.MathUtils.lerp(1, settings.controls.adsSensitivity / vm.cfg.zoom * 1.4, vm.ads);
@@ -323,7 +360,7 @@ class Game {
     // viewmodel
     const sunView = this.world.sunDir.clone().transformDirection(this.camera.matrixWorldInverse);
     const shots = vm.update(dt, t, {
-      trigger: playing && inp.fire, blockFire: !playing, sprinting: P.sprinting, moveSpeed: P.moveSpeed, grounded: P.grounded,
+      trigger: playing && inp.fire, blockFire: !playing || !!P.mantle, holdRepeat: inp.isTouch, sprinting: P.sprinting || !!P.mantle, moveSpeed: P.moveSpeed, grounded: P.grounded,
       lookDX: lx * 1000 / Math.max(dt * 60, 0.5), lookDY: ly * 1000 / Math.max(dt * 60, 0.5), strafe: P.strafe, crouchBlend: P.crouchBlend, crouched: P.crouched, sunDirView: sunView,
     });
     for (const s of shots) this.fireShot(s);

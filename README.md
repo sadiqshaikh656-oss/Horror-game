@@ -47,6 +47,21 @@ Presets: **Low / Medium / High / Ultra / Cinematic**. Every option can also be s
 
 Lighting comes from a physically based sky. It is used for image-based lighting (PMREM) and for the sun's shadows, which follow the player.
 
+## Mobile HUD
+
+- **FIRE** (red, right side, plus an optional left FIRE): hold to fire. Automatic weapons keep firing while held, and the pistol repeats at a controlled rate. Firing stops the moment you lift your finger. Each shot uses one round, shows a muzzle flash and recoil, plays the gunshot sound, and sends a visible bullet tracer to the crosshair point. Hits on head, body and legs do different damage. Dragging on the FIRE button also turns the camera.
+- **CROUCH**: tap to crouch, tap again to stand. Height, camera and speed change smoothly. You stay crouched if there is no room to stand.
+- **JUMP**: a normal jump with gravity and collisions. Near a container, crate, barrier or other ledge up to about 2.4 m, the button turns into **CLIMB** and pulls you up on top. You can climb onto every container.
+- **AIM**: toggles aim-down-sights and zoom. **RELOAD**: reloads the current weapon. **SPRINT**: toggles sprint, and runs forward on its own if you aren't touching the stick. **Weapon slots**: tap to switch guns. **PAUSE** and **SCORES**.
+- **Move stick**: has a fixed home position, or floats to wherever you touch on the left side. Push it past the top to lock sprint.
+
+**HUD layout editor**: open it from Lobby → HUD LAYOUT, Pause → CUSTOMIZE HUD, or Settings → Controls.
+- Drag any control to move it, including the stick, the FIRE button and the weapon slots.
+- Tap a control, then use the sliders to change its size and opacity.
+- If a drop would overlap another control or the minimap, score bar or health bar, the control moves back.
+- RESET restores the default layout. SAVE 1–3 and LOAD 1–3 store and recall layouts. SAVE & EXIT keeps the layout permanently (localStorage, the same storage as the other settings).
+- Positions are stored as fractions of the screen, and sizes scale with screen height, so a layout adapts to any Android screen. On very small screens, an automatic pass pushes apart any controls that would overlap.
+
 ## Controls
 
 **Touch**
@@ -56,7 +71,7 @@ Lighting comes from a physically based sky. It is used for image-based lighting 
 - Buttons: ADS, jump, crouch, reload, inspect, weapon slots, scoreboard and pause.
 
 **Desktop**
-- WASD to move, Shift to sprint, Space to jump, C to crouch.
+- WASD to move, Shift to sprint, Space to jump (or climb near a ledge), C to crouch.
 - Left mouse to fire, right mouse to aim.
 - R reload, F inspect, 1/2/3 or the mouse wheel to switch weapons.
 - Tab for the scoreboard, Esc to pause.
@@ -73,6 +88,7 @@ js/graphics.js              render pipeline and post-processing
 js/effects.js               particles, tracers, decals, shells, debris
 js/player.js, js/input.js   movement, collision, touch, keyboard and mouse
 js/ui.js, js/settings.js    HUD, menus, settings and presets
+js/hudlayout.js             touch control layout, persistence and the HUD editor
 js/audio.js                 synthesized sound (no audio files)
 assets/models/*.glb         your models, compressed (meshopt + WebP, about 140 MB → 4.6 MB)
 lib/three/                  vendored three.js r170

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import * as Audio from './audio.js';
 
-const RADIUS = 0.33, STAND = 1.75, CROUCH = 1.15, EYE_STAND = 1.62, EYE_CROUCH = 1.05, STEP = 0.48;
+const RADIUS = 0.33, STAND = 1.75, CROUCH = 1.15, EYE_STAND = 1.62, EYE_CROUCH = 1.05, STEP = 0.48, MAX_CLIMB = 2.45;
 
 export class Player {
   constructor(camera, world) {
@@ -15,16 +15,15 @@ export class Player {
     this.grounded = true; this.crouched = false; this.crouchBlend = 0; this.sprinting = false;
     this.height = STAND; this.eye = EYE_STAND;
     this.health = 100; this.armor = 50; this.alive = true;
-    this.bobPhase = 0; this.stepDist = 0; this.landDip = 0; this.shake = 0;
+    this.bobPhase = 0; this.stepDist = 0; this.landDip = 0; this.shake = 0; this.climbDip = 0; this.mantle = null; this.ledge = null;
     this.moveSpeed = 0; this.strafe = 0;
     this.hurtDirs = [];
   }
 
   reset(spawn) {
     this.pos.copy(spawn); this.vel.set(0, 0, 0);
-    this.yaw = Math.atan2(spawn.x, spawn.z) ; // face roughly toward centre
-    this.yaw = Math.atan2(-(0 - spawn.x), -(0 - spawn.z));
-    this.pitch = 0; this.health = 100; this.armor = 50; this.alive = true; this.crouched = false;
+    this.yaw = Math.atan2(spawn.x, spawn.z); // face toward the centre
+    this.pitch = 0; this.health = 100; this.armor = 50; this.alive = true; this.crouched = false; this.crouchBlend = 0; this.mantle = null; this.climbDip = 0;
   }
 
   look(dx, dy) {
@@ -34,8 +33,53 @@ export class Player {
 
   applyRecoil(up, side) { this.recoilPitch += up; this.recoilYaw += side; this.pitch += up; this.yaw += side; this.pitch = Math.min(this.pitch, 1.45); }
 
+  // Ledge in front of the player that can be climbed (containers, crates, barriers, props)?
+  findLedge() {
+    const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    let best = null;
+    for (const d of [0.42, 0.62, 0.85]) {
+      const px = this.pos.x + fx * d, pz = this.pos.z + fz * d;
+      for (const c of this.world.colliders) {
+        if (px < c.min.x - 0.02 || px > c.max.x + 0.02 || pz < c.min.z - 0.02 || pz > c.max.z + 0.02) continue;
+        const rise = c.max.y - this.pos.y;
+        if (rise < 0.5 || rise > MAX_CLIMB) continue;
+        if (c.max.x - c.min.x < RADIUS * 1.6 && c.max.z - c.min.z < RADIUS * 1.6) continue; // too small to stand on
+        // stand-up spot on top of the ledge, pulled inside the box
+        const tx = THREE.MathUtils.clamp(px + fx * (RADIUS + 0.15), c.min.x + RADIUS * 0.9, c.max.x - RADIUS * 0.9);
+        const tz = THREE.MathUtils.clamp(pz + fz * (RADIUS + 0.15), c.min.z + RADIUS * 0.9, c.max.z - RADIUS * 0.9);
+        let clear = true;
+        for (const o of this.world.colliders) if (o !== c && this.overlaps(o, tx, c.max.y + 0.02, tz, CROUCH)) { clear = false; break; }
+        if (!clear) continue;
+        if (!best || rise < best.rise) best = { rise, top: c.max.y, to: new THREE.Vector3(tx, c.max.y, tz) };
+      }
+      if (best) break;
+    }
+    return best;
+  }
+
+  startClimb(ledge) {
+    this.mantle = { t: 0, dur: 0.38 + ledge.rise * 0.2, from: this.pos.clone(), to: ledge.to, rise: ledge.rise };
+    this.vel.set(0, 0, 0); this.grounded = false;
+    Audio.playClimb && Audio.playClimb();
+  }
+
+  updateClimb(dt) {
+    const m = this.mantle;
+    m.t += dt / m.dur;
+    const t = Math.min(1, m.t);
+    // phase 1: pull up (ease-out) — phase 2: roll forward onto the top
+    const up = 1 - Math.pow(1 - Math.min(1, t / 0.65), 2.2);
+    const fwd = THREE.MathUtils.smoothstep(t, 0.45, 1);
+    this.pos.y = m.from.y + (m.to.y - m.from.y) * up;
+    this.pos.x = m.from.x + (m.to.x - m.from.x) * fwd;
+    this.pos.z = m.from.z + (m.to.z - m.from.z) * fwd;
+    this.climbDip = Math.sin(t * Math.PI) * 0.18; // camera dips toward the ledge like a pull-up
+    if (t >= 1) { this.mantle = null; this.grounded = true; this.vel.set(0, 0, 0); this.climbDip = 0; this.landDip = 0.05; this.landed = 2; }
+  }
+
   update(dt, input, weaponMoveMul, adsAmount) {
     if (!this.alive) { this.updateCamera(dt); return; }
+    if (this.mantle) { input.jump = false; input.crouchToggle = false; this.updateClimb(dt); this.moveSpeed = 0; this.sprinting = false; this.ledge = null; this.updateCamera(dt); return; }
     // crouch / height
     if (input.crouchToggle) { this.crouched = !this.crouched; input.crouchToggle = false; }
     if (!this.crouched && this.height < STAND - 0.01 && this.blockedAbove(STAND)) this.crouched = true;
@@ -46,8 +90,9 @@ export class Player {
     // wish direction
     const f = input.moveY, s = input.moveX;
     const len = Math.hypot(f, s);
+    // sprinting from a crouch stands the player up first (if there is headroom)
+    if (input.sprint && this.crouched && f > 0.5 && !this.blockedAbove(STAND)) this.crouched = false;
     this.sprinting = input.sprint && f > 0.5 && !this.crouched && adsAmount < 0.3 && len > 0.6;
-    if (this.sprinting && this.crouched) this.crouched = false;
     let speed = this.sprinting ? 6.6 : (this.crouched ? 2.3 : 4.3);
     speed *= weaponMoveMul * (1 - adsAmount * 0.4);
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
@@ -57,7 +102,12 @@ export class Player {
     const accel = this.grounded ? 14 : 3;
     this.vel.x += (wish.x - this.vel.x) * Math.min(1, accel * dt);
     this.vel.z += (wish.z - this.vel.z) * Math.min(1, accel * dt);
-    if (input.jump && this.grounded) { this.vel.y = 6.4; this.grounded = false; input.jump = false; if (this.crouched) this.crouched = false; }
+    this.ledge = this.grounded ? this.findLedge() : null;
+    if (input.jump && this.grounded) {
+      input.jump = false;
+      if (this.ledge && !this.blockedAbove(CROUCH)) { this.crouched = false; this.startClimb(this.ledge); this.updateCamera(dt); return; }
+      this.vel.y = 6.4; this.grounded = false; if (this.crouched && !this.blockedAbove(STAND)) this.crouched = false;
+    }
     input.jump = false;
     this.vel.y -= 20 * dt;
 
@@ -134,12 +184,12 @@ export class Player {
     const bx = Math.cos(this.bobPhase) * 0.02 * bobAmt;
     const cam = this.camera;
     const eye = this.alive ? this.eye : 0.4;
-    cam.position.set(this.pos.x, this.pos.y + eye + by - this.landDip, this.pos.z);
+    cam.position.set(this.pos.x, this.pos.y + eye + by - this.landDip - this.climbDip, this.pos.z);
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     cam.position.addScaledVector(right, bx);
     const sh = this.shake;
     const roll = -this.strafe * 0.02 + Math.sin(this.bobPhase) * 0.004 * bobAmt + (this.alive ? 0 : 0.5);
-    cam.rotation.set(this.pitch + (Math.random() - 0.5) * sh * 0.02, this.yaw + (Math.random() - 0.5) * sh * 0.02, roll, 'YXZ');
+    cam.rotation.set(this.pitch - this.climbDip * 0.6 + (Math.random() - 0.5) * sh * 0.02, this.yaw + (Math.random() - 0.5) * sh * 0.02, roll, 'YXZ');
     cam.updateMatrixWorld();
   }
 

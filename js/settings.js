@@ -35,6 +35,8 @@ const DEFAULTS = {
   graphics: { ...PRESETS.medium, fpsLimit: 1, showFps: 1 },
   controls: { sensitivity: 1.0, adsSensitivity: 0.7, fov: 78, invertY: false, autoFire: false, leftFire: true, gyro: false },
   audio: { master: 0.8, sfx: 1.0 },
+  hudLayout: null,
+  hudSaved: {},
 };
 
 const KEY = 'ironyard.settings.v1';
@@ -53,6 +55,8 @@ function load() {
       Object.assign(s.graphics, d.graphics || {});
       Object.assign(s.controls, d.controls || {});
       Object.assign(s.audio, d.audio || {});
+      if (d.hudLayout) s.hudLayout = d.hudLayout;   // customised touch HUD (js/hudlayout.js)
+      if (d.hudSaved) s.hudSaved = d.hudSaved;      // Save/Load layout slots 1-3
     } else {
       // First launch: pick a sensible preset for the device.
       s.preset = guessPreset();

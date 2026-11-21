@@ -104,9 +104,10 @@ export class UI {
       const [s, e] = c.clips[vm.clipName];
       $('reloadArc').style.strokeDashoffset = 106.8 * (1 - Math.min(1, (vm.t - s) / ((e - s) * c.reloadAt[vm.clipName])));
     } else rr.classList.remove('on');
-    document.querySelectorAll('.slot').forEach((el, i) => {
-      el.classList.toggle('on', SLOTS[i] === (vm.pendingId || vm.currentId));
-      el.querySelector('.ammo').textContent = vm.state[SLOTS[i]].mag;
+    document.querySelectorAll('.slot').forEach((el) => {
+      const id = SLOTS[+el.dataset.i];
+      el.classList.toggle('on', id === (vm.pendingId || vm.currentId));
+      el.querySelector('.ammo').textContent = vm.state[id].mag;
     });
     // crosshair spread
     const ch = $('crosshair');
@@ -230,8 +231,10 @@ export class UI {
     const slider = (key, label, min, max, step, obj, fmt = v => v.toFixed(2)) => `<div class="optRow"><label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" data-o="${obj}" data-k="${key}"><span class="val" data-v="${key}"></span></div>`;
     const toggle = (key, label, obj) => `<div class="optRow"><label>${label}</label><div class="seg" data-o="${obj}" data-tk="${key}" style="flex:0 1 200px"><button data-i="0">OFF</button><button data-i="1">ON</button></div></div>`;
     $('ctlList').innerHTML = slider('sensitivity', 'Look Sensitivity', 0.2, 3, 0.05, 'controls') + slider('adsSensitivity', 'ADS / Scope Sensitivity', 0.2, 1.5, 0.05, 'controls') + slider('fov', 'Field of View', 60, 100, 1, 'controls') + toggle('invertY', 'Invert Look', 'controls') + toggle('leftFire', 'Left Fire Button (touch)', 'controls') +
-      `<div class="optHint">KEYBOARD: WASD move · SHIFT sprint · SPACE jump · C crouch · R reload · F inspect · 1/2/3 weapons · RMB aim · TAB scores · ESC pause</div>
+      `<div class="optRow"><label>Touch HUD Layout</label><button class="hudBtn" id="openHud">CUSTOMIZE HUD LAYOUT</button></div>
+       <div class="optHint">KEYBOARD: WASD move · SHIFT sprint · SPACE jump / climb · C crouch · R reload · F inspect · 1/2/3 weapons · RMB aim · TAB scores · ESC pause</div>
        <div class="optHint">TOUCH: left side = move stick (push to top to lock sprint) · drag right side to look · fire buttons also steer</div>`;
+    $('openHud').addEventListener('click', () => { playUI('tap'); this.onOpenHud && this.onOpenHud(); });
     $('audList').innerHTML = slider('master', 'Master Volume', 0, 1, 0.05, 'audio') + slider('sfx', 'Effects Volume', 0, 1, 0.05, 'audio');
     for (const list of ['ctlList', 'audList']) {
       $(list).querySelectorAll('input[type=range]').forEach(inp => inp.addEventListener('input', () => {
