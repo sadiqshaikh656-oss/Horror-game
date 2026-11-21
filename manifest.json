@@ -1,0 +1,10 @@
+{
+  "name": "Ironyard: Tactical Ops",
+  "short_name": "Ironyard",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07090b",
+  "theme_color": "#0b0d10",
+  "icons": []
+}

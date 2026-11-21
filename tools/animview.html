@@ -1,0 +1,22 @@
+<!doctype html><html><head><script type="importmap">{"imports":{"three":"../lib/three/three.module.js","three/addons/":"../lib/three/addons/"}}</script></head>
+<body style="margin:0;background:#333"><script type="module">
+// Dev tool: samples a model's animation at given times (used to find clip ranges).
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
+const q=new URLSearchParams(location.search);
+const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setSize(320,240);document.body.appendChild(r.domElement);
+const s=new THREE.Scene();s.background=new THREE.Color(0x667788);s.add(new THREE.HemisphereLight(0xffffff,0x444444,3));
+const cam=new THREE.PerspectiveCamera(60,320/240,0.01,1000);
+const l=new GLTFLoader();l.setMeshoptDecoder(MeshoptDecoder);
+l.load('../assets/models/'+q.get('m')+'.glb',g=>{
+ s.add(g.scene);g.scene.updateMatrixWorld(true);
+ const info=[];g.scene.traverse(o=>{if(o.isMesh){const b=new THREE.Box3().setFromObject(o);info.push([o.name,o.isSkinnedMesh?1:0,b.min.toArray().map(v=>+v.toFixed(2)),b.max.toArray().map(v=>+v.toFixed(2))])}});
+ const box=new THREE.Box3().setFromObject(g.scene);
+ window.INFO={info,box:[box.min.toArray(),box.max.toArray()],anims:g.animations.map(a=>[a.name,a.duration])};
+ const mixer=new THREE.AnimationMixer(g.scene);
+ if(g.animations[0]){mixer.clipAction(g.animations[0]).play();}
+ window.render=(t,p,tg)=>{mixer.setTime(t);cam.position.fromArray(p);cam.lookAt(...tg);r.render(s,cam);return r.domElement.toDataURL('image/jpeg',0.7)};
+ window.READY=true;
+});
+</script></body></html>

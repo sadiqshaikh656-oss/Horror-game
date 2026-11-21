@@ -1,0 +1,80 @@
+# Ironyard: Tactical Ops
+
+A mobile-first browser FPS built with Three.js. It runs on phones (touch controls, landscape) and on desktop (keyboard + mouse).
+
+## Run it
+
+The game is a set of static files, but browsers block loading ES modules and `.glb` models from `file://`, so serve the folder over http:
+
+```bash
+python3 -m http.server 8000
+# open http://localhost:8000 on this machine, or http://<your-LAN-IP>:8000 on a phone on the same Wi-Fi
+```
+
+For a public link, enable **GitHub Pages** for this repository (Settings → Pages → deploy from branch). Fullscreen and landscape lock need https, which Pages provides.
+
+## What's in it
+
+**Weapons (first-person arms + gun models)**: M4 Carbine (scoped AR), MP45 SMG and P92 Pistol.
+- Each GLB has a single baked animation timeline. `js/weapons.js` splits it into clips by time range: draw, holster, fire, tactical reload, empty reload (with bolt/slide), inspect and idle.
+- Procedural layers run on top of the clips: walk bob (figure-eight), a separate **sprint** pose and cycle, aim-down-sights with live sight alignment, recoil springs, look sway, strafe roll, landing dip, crouch offset and breathing.
+- Recoil climbs in a CS-style pattern and partly recovers like PUBG. Spread blooms while you fire, so firing on the move is less accurate. A muzzle flash lights the hands, shells eject using the casing models from the dungeon pack, and there are tracers, impacts and decals.
+
+**Enemies**: the trooper model ships unrigged, so `js/enemies.js` builds a skeleton and skin weights in code. Two-bone IK puts the hands on a rifle made from the carbine parts. The soldiers walk and run, aim up and down, flinch when hit and fall when killed. Head, torso and legs are separate hitboxes with damage multipliers. The AI patrols on an A* grid, reacts to sight and to gunfire, strafes while firing in bursts and searches the last place it saw you.
+
+**Map**: a container depot built from the containers/barrels pack and the dungeon props (crates, barrels, chests, tables, health and ammo boxes). It has jersey barriers, raised platforms with stairs, cranes and background buildings, and wooden crates you can destroy on Ultra and Cinematic.
+
+**Mode**: CS-style elimination over 10 rounds. Each round brings more enemies and better aim. Health and ammo pickups respawn.
+
+**UI**: compass, rotating radar minimap, round bar with timer, kill feed with headshot icons, dynamic crosshair, hit and kill markers, damage-direction arcs, health and armor bars, weapon slots, an ammo panel with a reload ring and a scoreboard.
+
+## Graphics settings
+
+Presets: **Low / Medium / High / Ultra / Cinematic**. Every option can also be set on its own:
+
+| Option | Levels |
+|---|---|
+| Frame Rate | 30 / 60 / 90 / 120 / Max |
+| Render Resolution | 50–125 % |
+| Shadow Quality | Off → Ultra (4096 soft shadows) |
+| Anti-Aliasing | Off / FXAA / SMAA / MSAA 4x |
+| Ambient Occlusion | Off / GTAO / GTAO High |
+| Reflections | Off / Environment (IBL) / Planar wet-ground / Planar Ultra |
+| Texture Quality | Low → Ultra (texture resolution and anisotropic filtering) |
+| Prop Quality | how many props are placed (barrels, furniture, lamps with lights, cranes, skyline) |
+| Prop Structure | prop shadows, decal count, shell lifetime, destructible crates |
+| View Distance, Effects, Bloom, Post Processing (filmic grade, grain, chromatic aberration), Sun Lens Flare, Show FPS | |
+
+Lighting comes from a physically based sky. It is used for image-based lighting (PMREM) and for the sun's shadows, which follow the player.
+
+## Controls
+
+**Touch**
+- Left side: floating joystick. Push it past the top to lock sprint.
+- Right side: drag to look.
+- The fire buttons also steer while held, and the left fire button can be turned off.
+- Buttons: ADS, jump, crouch, reload, inspect, weapon slots, scoreboard and pause.
+
+**Desktop**
+- WASD to move, Shift to sprint, Space to jump, C to crouch.
+- Left mouse to fire, right mouse to aim.
+- R reload, F inspect, 1/2/3 or the mouse wheel to switch weapons.
+- Tab for the scoreboard, Esc to pause.
+
+## Project layout
+
+```
+index.html, css/style.css   UI shell and styling
+js/main.js                  bootstrap, game loop, rounds, hit resolution
+js/weapons.js               viewmodels, clip table, procedural animation, weapon stats
+js/enemies.js               procedural rig, IK pose, AI, hitboxes
+js/world.js                 map, sky/IBL/sun, wet-ground reflections, colliders, nav grid
+js/graphics.js              render pipeline and post-processing
+js/effects.js               particles, tracers, decals, shells, debris
+js/player.js, js/input.js   movement, collision, touch, keyboard and mouse
+js/ui.js, js/settings.js    HUD, menus, settings and presets
+js/audio.js                 synthesized sound (no audio files)
+assets/models/*.glb         your models, compressed (meshopt + WebP, about 140 MB → 4.6 MB)
+lib/three/                  vendored three.js r170
+tools/animview.html         dev tool for sampling a GLB animation timeline
+```
