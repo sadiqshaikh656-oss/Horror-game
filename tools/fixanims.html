@@ -1,0 +1,101 @@
+<!doctype html><html><head><script type="importmap">{"imports":{"three":"../lib/three/three.module.js","three/addons/":"../lib/three/addons/"}}</script></head>
+<body><script type="module">
+// Corrects retargeted rifle animations (e.g. from Mesh2Motion) so the rifle is held properly:
+//  * right wrist re-aimed per frame: clip-specific barrel pitch, the clip's own heading, optic up
+//  * left hand locked onto the handguard with two-bone IK (released automatically when the clip
+//    moves the hand away, e.g. the magazine swap in a reload)
+//  * both hands keep the gripping finger curl of the rig's rest pose
+// Output (window.RESULT): baked 30 fps keyframes per bone, to be written into the GLB by tools/add-anims.mjs
+// ?rig=<T-pose glb>&anim=<glb with clips>&grip=<grip json>
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+const q=new URLSearchParams(location.search);
+const V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z), Q=()=>new THREE.Quaternion();
+const L=new GLTFLoader();
+const g=await L.loadAsync('../'+q.get('rig'));
+const clips=(await L.loadAsync('../'+q.get('anim'))).animations;
+const G=await (await fetch('../'+q.get('grip'))).json();
+const O=new THREE.Matrix4().fromArray(G.rifleInHand), LG=new THREE.Matrix4().fromArray(G.leftGrip);
+const qO=Q(); O.decompose(V(),qO,V());
+const sc=g.scene; sc.updateMatrixWorld(true);
+const B={}; sc.traverse(o=>{if(o.isBone)B[o.name.replace('mixamorig','')]=o;});
+const rest={}; for(const k in B) rest[k]=B[k].quaternion.clone();
+const fingers=Object.keys(B).filter(k=>/Hand(Thumb|Index|Middle|Ring|Pinky)/.test(k));
+// per-clip barrel pitch (degrees) — Fire/Walk aim, Idle/Run/Reload low-ready
+const PITCH={Fire:0,Walk:-5,Idle:-38,Run:-28,Reload:-25};
+const pitchFor=n=>{for(const k in PITCH) if(n.includes(k)) return PITCH[k]; return -20;};
+const UP=V(0,1,0);
+const setWorldQuat=(b,qw)=>{const pw=b.parent.getWorldQuaternion(Q());b.quaternion.copy(pw.invert().multiply(qw));b.updateMatrixWorld(true);};
+const aimBone=(b,from,to)=>{const w=b.getWorldQuaternion(Q());setWorldQuat(b,Q().setFromUnitVectors(from,to).multiply(w));};
+function solveArm(side,tp,tq,pole){
+  const up=B[side+'Arm'],lo=B[side+'ForeArm'],hd=B[side+'Hand'];
+  const a=up.getWorldPosition(V()),b=lo.getWorldPosition(V()),c=hd.getWorldPosition(V());
+  const la=a.distanceTo(b),lb=b.distanceTo(c);const toT=tp.clone().sub(a);
+  const d=THREE.MathUtils.clamp(toT.length(),Math.abs(la-lb)+1e-4,la+lb-1e-4);const dir=toT.normalize();
+  const cosA=THREE.MathUtils.clamp((la*la+d*d-lb*lb)/(2*la*d),-1,1);
+  const perp=pole.clone().sub(dir.clone().multiplyScalar(pole.dot(dir))).normalize();
+  const e=a.clone().addScaledVector(dir,la*cosA).addScaledVector(perp,la*Math.sqrt(1-cosA*cosA));
+  aimBone(up,b.clone().sub(a).normalize(),e.clone().sub(a).normalize());
+  const b2=lo.getWorldPosition(V()),c2=hd.getWorldPosition(V());
+  aimBone(lo,c2.clone().sub(b2).normalize(),a.clone().addScaledVector(dir,d).sub(b2).normalize());
+  setWorldQuat(hd,tq);
+  return a.clone().addScaledVector(dir,d).distanceTo(tp); // residual if out of reach
+}
+const mixer=new THREE.AnimationMixer(sc);
+const out=[]; const report={};
+for(const clip of clips){
+  mixer.stopAllAction(); mixer.clipAction(clip).reset().play();
+  const fps=30, n=Math.max(2,Math.round(clip.duration*fps)+1), times=[];
+  const tracks={}; for(const k in B) tracks[k]=[]; const hips=[];
+  const pitch=THREE.MathUtils.degToRad(pitchFor(clip.name));
+  let wSum=0,resid=0,wristMax=0,slideMax=0;
+  for(let i=0;i<n;i++){
+    const t=Math.min(clip.duration,i/fps); times.push(t);
+    mixer.setTime(t); sc.updateMatrixWorld(true);
+    // animation's intended left-hand placement (before we touch anything)
+    const animLeft=B.LeftHand.getWorldPosition(V()), animElbow=B.LeftForeArm.getWorldPosition(V()), lShoulder=B.LeftArm.getWorldPosition(V());
+    // 1) fingers -> gripping curl
+    for(const k of fingers) B[k].quaternion.copy(rest[k]);
+    sc.updateMatrixWorld(true);
+    // 2) right wrist: keep heading, set clip pitch, optic up
+    const rq=B.RightHand.getWorldQuaternion(Q());
+    const bar=V(0,1,0).applyQuaternion(rq.clone().multiply(qO));
+    let h=bar.clone(); h.y=0; if(h.lengthSq()<1e-4){h=V(0,0,1).applyQuaternion(B.Spine2.getWorldQuaternion(Q()));h.y=0;} h.normalize();
+    const d=h.clone().multiplyScalar(Math.cos(pitch)).addScaledVector(UP,Math.sin(pitch)).normalize();
+    const optic=UP.clone().sub(d.clone().multiplyScalar(UP.dot(d))).normalize();
+    // rifle local basis: +Y barrel, -Z optic
+    const x=V().crossVectors(d,optic.clone().negate()).normalize();
+    const Qd=Q().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,d,optic.clone().negate()));
+    const handQ=Qd.clone().multiply(qO.clone().invert());
+    wristMax=Math.max(wristMax,THREE.MathUtils.radToDeg(rq.angleTo(handQ)));
+    // spread the correction: 35% into the forearm twist/bend, the rest into the wrist
+    const corr=handQ.clone().multiply(rq.clone().invert());
+    const fq=B.RightForeArm.getWorldQuaternion(Q());
+    setWorldQuat(B.RightForeArm,Q().slerp(corr,0.35).multiply(fq));
+    setWorldQuat(B.RightHand,handQ);
+    // 3) left hand onto the handguard
+    const F=B.RightHand.matrixWorld.clone().multiply(O);
+    const target=F.clone().multiply(LG); const tp=V(),tq=Q(); target.decompose(tp,tq,V());
+    // if the (retargeted, shorter) arm can't reach, slide the grip back along the handguard
+    { const a=B.LeftArm.getWorldPosition(V()); const R=(B.LeftArm.getWorldPosition(V()).distanceTo(B.LeftForeArm.getWorldPosition(V()))+B.LeftForeArm.getWorldPosition(V()).distanceTo(B.LeftHand.getWorldPosition(V())))*0.985;
+      if(tp.distanceTo(a)>R){ // solve |tp - s*d - a| = R for the smallest s>0
+        const m=tp.clone().sub(a); const bq=-2*m.dot(d), cq=m.lengthSq()-R*R; const disc=bq*bq-4*cq;
+        const sl=disc>0?Math.min(0.22,(-bq-Math.sqrt(disc))/2):0.22; if(sl>0) tp.addScaledVector(d,-sl); slideMax=Math.max(slideMax,sl);} }
+    let w=1;
+    if(/Reload/.test(clip.name)) w=1-THREE.MathUtils.smoothstep(animLeft.distanceTo(tp),0.16,0.32);
+    if(w>0.001){
+      const before={arm:B.LeftArm.quaternion.clone(),fore:B.LeftForeArm.quaternion.clone(),hand:B.LeftHand.quaternion.clone()};
+      const pole=animElbow.clone().sub(lShoulder).normalize().add(V(0,-0.5,0)).normalize();
+      resid=Math.max(resid,solveArm('Left',tp,tq,pole)*w);
+      if(w<1){B.LeftArm.quaternion.copy(before.arm.clone().slerp(B.LeftArm.quaternion,w));B.LeftForeArm.quaternion.copy(before.fore.clone().slerp(B.LeftForeArm.quaternion,w));B.LeftHand.quaternion.copy(before.hand.clone().slerp(B.LeftHand.quaternion,w));sc.updateMatrixWorld(true);}
+    }
+    wSum+=w;
+    for(const k in B) tracks[k].push(...B[k].quaternion.toArray());
+    hips.push(...B.Hips.position.toArray());
+  }
+  out.push({name:clip.name.replace(/_RT$/,''),times,tracks,hips});
+  report[clip.name]={frames:n,leftHandLockedAvg:+(wSum/n).toFixed(2),maxLeftReachGap_cm:+(resid*100).toFixed(1),maxWristCorrection_deg:+wristMax.toFixed(0),maxGripSlideBack_cm:+(slideMax*100).toFixed(1)};
+}
+window.RESULT={clips:out,report};
+window.READY=true;
+</script></body></html>

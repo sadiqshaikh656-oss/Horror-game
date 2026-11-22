@@ -1,0 +1,37 @@
+<!doctype html><html><head><script type="importmap">{"imports":{"three":"../lib/three/three.module.js","three/addons/":"../lib/three/addons/"}}</script></head>
+<body style="margin:0;background:#fff"><script type="module">
+// Plays retargeted clips on the exported character and re-seats the rifle with a new grip offset,
+// rendering a grid (row per clip, front + side). ?f=<glb>&anim=<glb with clips>&old=&new=<grip json>&t=<phases>
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+const q=new URLSearchParams(location.search);
+const g=await new GLTFLoader().loadAsync('../'+q.get('f'));
+if(q.get('anim')) g.animations=(await new GLTFLoader().loadAsync('../'+q.get('anim'))).animations; // play clips from another file on this rig
+const sc=g.scene; sc.updateMatrixWorld(true);
+const B={}; sc.traverse(o=>{if(o.isBone)B[o.name.replace('mixamorig','')]=o;});
+if(q.get('new')){
+  const O0=new THREE.Matrix4().fromArray((await (await fetch('../'+q.get('old'))).json()).rifleInHand);
+  const O1=new THREE.Matrix4().fromArray((await (await fetch('../'+q.get('new'))).json()).rifleInHand);
+  // work in bind space: bone bind matrix = inverse(boneInverse); vertex bind position = bindMatrix * v
+  sc.traverse(o=>{if(o.isSkinnedMesh&&/^Rifle/.test(o.name)){
+    const i=o.skeleton.bones.indexOf(B.RightHand);const H0=o.skeleton.boneInverses[i].clone().invert();
+    const M=H0.clone().multiply(O1).multiply(O0.clone().invert()).multiply(H0.clone().invert());
+    o.geometry.applyMatrix4(o.bindMatrixInverse.clone().multiply(M).multiply(o.bindMatrix));}});
+}
+const W=1500,clips=g.animations,H=330*clips.length;
+const r=new THREE.WebGLRenderer({antialias:true});r.setSize(W,H);r.setScissorTest(true);document.body.appendChild(r.domElement);r.outputColorSpace=THREE.SRGBColorSpace;
+const s=new THREE.Scene();s.background=new THREE.Color(0xdde3ea);s.add(new THREE.HemisphereLight(0xffffff,0x667788,2.4));const dl=new THREE.DirectionalLight(0xffffff,2.2);dl.position.set(1,3,4);s.add(dl);s.add(sc);
+const mixer=new THREE.AnimationMixer(sc);
+const phases=(q.get('t')||'0.3').split(',').map(Number);
+clips.forEach((c,row)=>{
+  phases.forEach((ph,k)=>{
+    mixer.stopAllAction();mixer.clipAction(c).reset().play();mixer.setTime(c.duration*ph);sc.updateMatrixWorld(true);
+    const hip=B.Hips.getWorldPosition(new THREE.Vector3());
+    const views=[[0,0.25,2.6],[2.4,0.3,0.6]];
+    views.forEach((v,vi)=>{const cam=new THREE.PerspectiveCamera(30,(W/(2*phases.length))/330,0.05,50);cam.position.set(hip.x+v[0],hip.y+v[1],hip.z+v[2]);cam.lookAt(hip.x,hip.y+0.25,hip.z);
+      const x=(k*2+vi)*W/(2*phases.length);r.setViewport(x,H-(row+1)*330,W/(2*phases.length),330);r.setScissor(x,H-(row+1)*330,W/(2*phases.length),330);r.render(s,cam);});
+  });
+  const d=document.createElement('div');d.textContent=c.name;d.style.cssText=`position:absolute;left:4px;top:${row*330+4}px;font:bold 15px sans-serif`;document.body.appendChild(d);
+});
+window.READY=true;
+</script></body></html>

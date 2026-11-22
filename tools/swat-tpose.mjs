@@ -39,7 +39,15 @@ const localAnim = (n) => {
 };
 const worldAnim = (n) => { const m = localAnim(n); let p = parentOf(n); while (p) { m.premultiply(localAnim(p)); p = parentOf(p); } return m; };
 const rifleNode = root.listNodes().find(n => n.getName() === 'part_2_low_101');
-const rifleInHand = worldAnim(J.RightHand.node).invert().multiply(worldAnim(rifleNode));
+let rifleInHand = worldAnim(J.RightHand.node).invert().multiply(worldAnim(rifleNode));
+// optional: grip offset fitted to a set of retargeted animations (see tools/fitgrip.html)
+const GRIP_FILE = process.env.GRIP_JSON;
+if (GRIP_FILE) rifleInHand = M4().fromArray(JSON.parse((await import('fs')).readFileSync(GRIP_FILE, 'utf8')).rifleInHand);
+if (process.env.DUMP_GRIP) {
+  // also the artist's left-hand grip on the handguard, expressed in rifle space
+  const leftGrip = worldAnim(rifleNode).invert().multiply(worldAnim(J.LeftHand.node));
+  (await import('fs')).writeFileSync(process.env.DUMP_GRIP, JSON.stringify({ rifleInHand: rifleInHand.toArray(), leftGrip: leftGrip.toArray() }));
+}
 const extras = [['Circle_102', null], ['Plane_103', 'Spine2']].map(([name, bone]) => ({ node: root.listNodes().find(n => n.getName() === name), bone }));
 for (const e of extras) {
   if (!e.node) continue;

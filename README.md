@@ -110,3 +110,15 @@ tools/animview.html         dev tool for sampling a GLB animation timeline
 - The source's single baked animation is removed.
 
 Rebuild it with `node tools/swat-tpose.mjs <source.glb> <out.glb> [pose.json]` (needs `@gltf-transform/core`, `@gltf-transform/extensions` and `three`). `tools/rigview.html?f=<glb>&posefile=tools/swat_rifle_pose.json` previews the export with the original rifle-holding pose applied.
+
+### Rifle animations with a proper grip
+
+`models-export/SWAT_Operator_Rifle_Animations.glb` (28 MB) is the same T-pose character plus five rifle clips: **Rifle_Fire, Rifle_Idle, Rifle_Reload, Rifle_Run and Rifle_Walk**. They come from the Mesh2Motion retarget of that rig, with the rifle grip corrected on every frame (30 fps):
+
+- Mesh2Motion's retarget changes the right-hand angle by 20–40° between clips and makes the left arm too short for the handguard. No single gun position in the hand can look right in all clips, so the clips themselves are corrected.
+- **Right wrist** (about 35% of the change goes into the forearm) is re-aimed so the barrel has the right pitch for each clip (Fire 0°, Walk −5°, Run −28°, Reload −25°, Idle −38°). It keeps the clip's own heading, and the optic stays up. Correction is at most 23°.
+- **Left hand** is locked to the handguard with two-bone IK, using the artist's own left-hand grip. If the arm can't reach, the grip slides back along the handguard (up to 22 cm). During the reload's magazine swap the lock fades out automatically.
+- **Fingers** keep the gripping curl of the rest pose.
+- Preview: `models-export/SWAT_Operator_Rifle_Animations_preview.png`.
+
+Pipeline: `tools/fixanims.html?rig=<T-pose glb>&anim=<retargeted glb>&grip=<grip json>` bakes the corrected keyframes, and `node tools/add-anims.mjs <rig.glb> <keys.json> <out.glb>` writes them into the full-quality GLB. `tools/fitgrip.html` and `tools/m2mview.html` are the measurement and preview tools. The grip JSON comes from `DUMP_GRIP=<file> node tools/swat-tpose.mjs …`.
