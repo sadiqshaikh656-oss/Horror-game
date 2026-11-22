@@ -1,6 +1,6 @@
 # Ironyard: Tactical Ops
 
-> **Third person:** the player is the SWAT Operator, seen over the shoulder like PUBG, with the M4 carbine. The first-person hands are no longer drawn. The `Viewmodels` class still runs invisibly as the weapon system (ammo, fire rate, spread, recoil, reload timing). See `js/tpsplayer.js`.
+> **First-person body:** you play the Ch15 operator (Mixamo rig) and see your own animated body and the M4 in its hands. `js/fpsbody.js` drives 43 Mixamo clips (8-way walk/run/crouch-walk, sprint, aim and relaxed idles, fire, reload, jump up/loop/land, run-to-stop, 6 directional deaths), with left-hand IK on the handguard and IK aim-down-sights. The `Viewmodels` class still runs invisibly as the weapon system (ammo, fire rate, spread, recoil, reload timing). The map has no clutter props and a clean concrete ground.
 
 A mobile-first browser FPS built with Three.js. It runs on phones (touch controls, landscape) and on desktop (keyboard + mouse).
 
@@ -124,3 +124,13 @@ Rebuild it with `node tools/swat-tpose.mjs <source.glb> <out.glb> [pose.json]` (
 - Preview: `models-export/SWAT_Operator_Rifle_Animations_preview.png`.
 
 Pipeline: `tools/fixanims.html?rig=<T-pose glb>&anim=<retargeted glb>&grip=<grip json>` bakes the corrected keyframes, and `node tools/add-anims.mjs <rig.glb> <keys.json> <out.glb>` writes them into the full-quality GLB. `tools/fitgrip.html` and `tools/m2mview.html` are the measurement and preview tools. The grip JSON comes from `DUMP_GRIP=<file> node tools/swat-tpose.mjs …`.
+
+## Player animations (Mixamo → Ch15)
+
+The Mixamo FBX packs (Rifle 8-Way Locomotion, Shooter Pack, Running To Stop) are retargeted onto the Ch15 rig and baked into `assets/models/player.glb`:
+
+1. `tools/retarget.html?target=<ch15 glb>` (job list in the runner) does rest-pose-relative retargeting at 30 fps and produces the keyframes JSON.
+2. `tools/fitgrip.html` fits the M4 inside `mixamorig:RightHand` to the rifle clips (right palm on the grip, left palm on the handguard, aim clips pointing forward, optic up).
+3. `node tools/build-player.mjs <Ch15_player_source.glb> <SWAT T-pose glb> <swat grip json> <ch15 grip json> <keys json> <out.glb>` assembles Ch15, the M4 and all the clips. Then run `gltf-transform optimize` (WebP and meshopt).
+
+The Ch15 source model (from your build) is kept at `models-export/Ch15_player_source.glb`.

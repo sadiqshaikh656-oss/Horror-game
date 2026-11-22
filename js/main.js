@@ -13,10 +13,10 @@ import { Input } from './input.js';
 import { UI } from './ui.js';
 import * as Audio from './audio.js';
 import { applyLayout, HudEditor } from './hudlayout.js';
-import { TPSPlayer } from './tpsplayer.js';
+import { FPSBody } from './fpsbody.js';
 
 const MODELS = ['carbine', 'smg', 'pistol', 'soldier', 'containers', 'dungeon', 'player'];
-const TPS_ZOOM = 1.3; // camera zoom while aiming in third person
+const ADS_ZOOM = 1.5; // camera zoom while aiming down the M4's optic
 const ROUND_TIME = 115;
 const MAX_ROUNDS = 10;
 
@@ -64,7 +64,7 @@ class Game {
     this.player = new Player(this.camera, this.world);
     // third-person SWAT operator replaces the first-person hands (the Viewmodels class stays as the
     // invisible weapon system: ammo, fire rate, spread, recoil, reload timing)
-    this.tps = new TPSPlayer(assets.player, this.world.scene, this.effects.flashTex);
+    this.body = new FPSBody(assets.player, this.world.scene, this.effects.flashTex);
     for (const id of ['touchSlots', 'slots', 'btnInspect']) document.getElementById(id).classList.add('hidden');
     this.gfx.setup(this.world, this.camera, this.vm);
     this.world.applyQuality(this.camera);
@@ -243,14 +243,14 @@ class Game {
       if (h && h.t < maxT) { maxT = h.t; enemyHit = { e, ...h }; }
     }
     const end = origin.clone().addScaledVector(dir, maxT);
-    const muzzle = this.tps.muzzleWorld();
-    this.tps.onShot();
+    const muzzle = this.body.muzzleWorld();
+    this.body.onShot();
     // visible bullet travelling from the muzzle to the crosshair hit point
     this.effects.tracer(muzzle, end, c.tracer);
     this.effects.flashLight(muzzle, 8);
     this.effects.muzzleSmoke(muzzle, dir);
     // shell ejection to the right
-    const ej = muzzle.clone().addScaledVector(this.tps.barrelWorld(), -0.55);
+    const ej = muzzle.clone().addScaledVector(this.body.barrelWorld(), -0.55);
     this.effects.shell(c.shell, ej, right.clone().multiplyScalar(1.6 + Math.random() * 0.8).addScaledVector(up, 0.6 + Math.random() * 0.5).add(this.player.vel));
     this.player.applyRecoil(shot.recoilUp, shot.recoilSide);
     if (enemyHit) {
@@ -309,6 +309,9 @@ class Game {
     const limit = gnum('fpsLimit');
     if (limit < 1000 && now - this.last < 1000 / limit - 1.5) return;
     let dt = Math.min(0.05, (now - this.last) / 1000);
+    // smooth frame-time spikes so movement / animation / camera don't stutter on uneven frames
+    this.dtS = this.dtS ? this.dtS + (dt - this.dtS) * 0.3 : dt;
+    dt = this.dtS;
     this.last = now;
     this.time += dt;
     const t = this.time;
@@ -321,7 +324,8 @@ class Game {
       for (const e of this.enemies) e.update(dt, t, { player: { pos: new THREE.Vector3(0, -100, 0), head: new THREE.Vector3(0, -100, 0), alive: false, camera: this.camera }, enemies: this.enemies });
       this.world.update(dt, t, new THREE.Vector3());
       this.effects.update(dt, this.camera);
-      this.tps.update(dt, { P: this.player, camera: this.camera, aiming: false, firing: false, reloading: false, reloadTime: 2, moveSpeed: 0, sprinting: false, crouch: 0, grounded: true, alive: true, vel: this.player.vel });
+      this.body.update(dt, { P: this.player, camQuat: this.camera.quaternion, ads: 0, firing: false, reloading: false, reloadTime: 2, crouch: 0, grounded: true, alive: true, wantStop: false });
+      this.body.setHead(true);
       this.gfx.render(t, 0, dt);
       return;
     }
@@ -356,15 +360,27 @@ class Game {
     this.updateButtonStates();
     // look
     let [lx, ly] = inp.consumeLook();
-    const adsMul = THREE.MathUtils.lerp(1, settings.controls.adsSensitivity / TPS_ZOOM * 1.4, vm.ads);
+    if (inp.isTouch) { // light smoothing of finger look input: apply 60% of the pending turn per frame (total preserved)
+      this.lookRx = (this.lookRx || 0) + lx; this.lookRy = (this.lookRy || 0) + ly;
+      lx = this.lookRx * 0.6; ly = this.lookRy * 0.6; this.lookRx -= lx; this.lookRy -= ly;
+    }
+    const adsMul = THREE.MathUtils.lerp(1, settings.controls.adsSensitivity / ADS_ZOOM * 1.4, vm.ads);
     if (playing) P.look(lx * adsMul, ly * adsMul);
     // firing while sprinting cancels sprint
     if (inp.fire && P.sprinting) inp.cancelSprintLock();
     P.update(dt, playing ? inp : { moveX: 0, moveY: 0, sprint: false, jump: false }, vm.cfg.moveMul, vm.ads);
     if (P.landed) { vm.onLand(P.landed); P.landed = 0; }
-    this.tps.updateCamera(dt, P, this.camera, this.world, vm.ads);
+    // first-person body: pose for this frame, then the eye camera (+ ADS / left-hand IK)
+    const rc = vm.cfg.clips[vm.clipName];
+    const camQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(P.pitch, P.yaw, 0, 'YXZ'));
+    this.body.update(dt, {
+      P, camQuat, ads: vm.ads, firing: playing && inp.fire && !vm.reloading && !P.mantle,
+      reloading: vm.reloading, reloadTime: rc ? (rc[1] - rc[0]) / (vm.clipSpeed || 1) : 2,
+      crouch: P.crouchBlend, grounded: P.grounded || !!P.mantle, alive: P.alive, wantStop: Math.hypot(inp.moveX, inp.moveY) < 0.1,
+    });
+    this.body.updateCamera(dt, P, this.camera, vm.ads, P.alive);
     // FOV zoom while aiming
-    const fov = this.baseFov / THREE.MathUtils.lerp(1, TPS_ZOOM, vm.ads) * (P.sprinting ? 1.06 : 1);
+    const fov = this.baseFov / THREE.MathUtils.lerp(1, ADS_ZOOM, vm.ads) * (1 + 0.06 * P.sprintRamp);
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 14);
     this.camera.updateProjectionMatrix();
     // viewmodel
@@ -375,12 +391,6 @@ class Game {
     });
     for (const s of shots) this.fireShot(s);
     // third-person body animation
-    const rc = vm.cfg.clips[vm.clipName];
-    this.tps.update(dt, {
-      P, camera: this.camera, aiming: playing && vm.ads > 0.15, firing: playing && inp.fire && !vm.reloading && !P.mantle,
-      reloading: vm.reloading, reloadTime: rc ? (rc[1] - rc[0]) / (vm.clipSpeed || 1) : 2,
-      moveSpeed: P.moveSpeed, sprinting: P.sprinting, crouch: P.crouchBlend, grounded: P.grounded || !!P.mantle, alive: P.alive, vel: P.vel,
-    });
     // enemies
     for (const e of this.enemies) { e.update(dt, t, this); e.spottedT = Math.max(0, (e.spottedT || 0) - dt); }
     // spot enemies the player can see (for minimap)

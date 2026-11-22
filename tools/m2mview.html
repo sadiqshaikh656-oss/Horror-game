@@ -18,7 +18,7 @@ if(q.get('new')){
     const M=H0.clone().multiply(O1).multiply(O0.clone().invert()).multiply(H0.clone().invert());
     o.geometry.applyMatrix4(o.bindMatrixInverse.clone().multiply(M).multiply(o.bindMatrix));}});
 }
-const W=1500,clips=g.animations,H=330*clips.length;
+const sel=q.get('clips');const W=1500,clips=sel?sel.split(',').map(n=>g.animations.find(a=>a.name===n)).filter(Boolean):g.animations,H=330*clips.length;
 const r=new THREE.WebGLRenderer({antialias:true});r.setSize(W,H);r.setScissorTest(true);document.body.appendChild(r.domElement);r.outputColorSpace=THREE.SRGBColorSpace;
 const s=new THREE.Scene();s.background=new THREE.Color(0xdde3ea);s.add(new THREE.HemisphereLight(0xffffff,0x667788,2.4));const dl=new THREE.DirectionalLight(0xffffff,2.2);dl.position.set(1,3,4);s.add(dl);s.add(sc);
 const mixer=new THREE.AnimationMixer(sc);

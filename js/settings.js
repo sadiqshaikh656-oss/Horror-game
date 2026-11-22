@@ -6,10 +6,10 @@ export const OPTIONS = {
   shadows:      { label: 'Shadow Quality', values: ['Off', 'Low', 'Medium', 'High', 'Ultra'] },
   antiAliasing: { label: 'Anti-Aliasing', values: ['Off', 'FXAA', 'SMAA', 'MSAA 4x'] },
   ambientOcclusion: { label: 'Ambient Occlusion', values: ['Off', 'GTAO', 'GTAO High'] },
-  reflections:  { label: 'Reflections', values: ['Off', 'Environment', 'Planar', 'Planar Ultra'] },
+  reflections:  { label: 'Reflections', values: ['Off', 'Environment'] },
   textures:     { label: 'Texture Quality', values: ['Low', 'Medium', 'High', 'Ultra'] },
   propDensity:  { label: 'Prop Quality', values: ['Low', 'Medium', 'High', 'Ultra'] },
-  propDetail:   { label: 'Prop Structure', values: ['Low', 'Medium', 'High', 'Ultra'] },
+  propDetail:   { label: 'Detail Quality', values: ['Low', 'Medium', 'High', 'Ultra'] },
   viewDistance: { label: 'View Distance', values: ['Near', 'Medium', 'Far', 'Epic'] },
   effects:      { label: 'Effects Quality', values: ['Low', 'Medium', 'High', 'Ultra'] },
   bloom:        { label: 'Bloom', values: ['Off', 'On', 'Cinematic'] },
@@ -25,9 +25,9 @@ export const PRESET_LABELS = { low: 'Low', medium: 'Medium', high: 'High', ultra
 export const PRESETS = {
   low:       { renderScale: 1, shadows: 0, antiAliasing: 0, ambientOcclusion: 0, reflections: 0, textures: 0, propDensity: 0, propDetail: 0, viewDistance: 0, effects: 0, bloom: 0, postFx: 0, lensFlare: 0 },
   medium:    { renderScale: 2, shadows: 1, antiAliasing: 1, ambientOcclusion: 0, reflections: 1, textures: 1, propDensity: 1, propDetail: 1, viewDistance: 1, effects: 1, bloom: 1, postFx: 1, lensFlare: 0 },
-  high:      { renderScale: 2, shadows: 2, antiAliasing: 1, ambientOcclusion: 1, reflections: 2, textures: 2, propDensity: 2, propDetail: 2, viewDistance: 2, effects: 2, bloom: 1, postFx: 2, lensFlare: 1 },
-  ultra:     { renderScale: 3, shadows: 3, antiAliasing: 2, ambientOcclusion: 1, reflections: 2, textures: 3, propDensity: 3, propDetail: 3, viewDistance: 3, effects: 3, bloom: 1, postFx: 2, lensFlare: 1 },
-  cinematic: { renderScale: 3, shadows: 4, antiAliasing: 3, ambientOcclusion: 2, reflections: 3, textures: 3, propDensity: 3, propDetail: 3, viewDistance: 3, effects: 3, bloom: 2, postFx: 3, lensFlare: 1 },
+  high:      { renderScale: 2, shadows: 2, antiAliasing: 1, ambientOcclusion: 1, reflections: 1, textures: 2, propDensity: 2, propDetail: 2, viewDistance: 2, effects: 2, bloom: 1, postFx: 2, lensFlare: 1 },
+  ultra:     { renderScale: 3, shadows: 3, antiAliasing: 2, ambientOcclusion: 1, reflections: 1, textures: 3, propDensity: 3, propDetail: 3, viewDistance: 3, effects: 3, bloom: 1, postFx: 2, lensFlare: 1 },
+  cinematic: { renderScale: 3, shadows: 4, antiAliasing: 3, ambientOcclusion: 2, reflections: 1, textures: 3, propDensity: 3, propDetail: 3, viewDistance: 3, effects: 3, bloom: 2, postFx: 3, lensFlare: 1 },
 };
 
 const DEFAULTS = {
@@ -63,6 +63,8 @@ function load() {
       Object.assign(s.graphics, PRESETS[s.preset]);
     }
   } catch (e) { /* storage unavailable: defaults */ }
+  // clamp values saved by older versions (e.g. planar reflections that no longer exist)
+  for (const k in OPTIONS) if (typeof s.graphics[k] === 'number') s.graphics[k] = Math.max(0, Math.min(OPTIONS[k].values.length - 1, s.graphics[k]));
   const match = PRESET_NAMES.find(p => Object.keys(PRESETS[p]).every(k => PRESETS[p][k] === s.graphics[k]));
   s.preset = match || 'custom';
   return s;

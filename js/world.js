@@ -2,11 +2,9 @@
 // physically based sky + IBL, sun shadows, wet-ground planar reflections, colliders and nav grid.
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { Reflector } from 'three/addons/objects/Reflector.js';
 import { settings } from './settings.js';
 
 export const ARENA = 36;          // half size of the playable square
-const PUDDLE_EXTENT = 80;         // puddle mask covers [-40,40]
 
 export class World {
   constructor(renderer, assets) {
@@ -93,10 +91,10 @@ export class World {
   buildTextures() {
     const q = settings.graphics.textures;
     const size = [512, 1024, 1024, 2048][q];
-    this.textures.ground = makeConcrete(size, 0x8a8780, 0.55, true);
+    // clean concrete: low-contrast grain, no stains / cracks / puddles
+    this.textures.ground = makeConcrete(size, 0x8f8c86, 0.22, false, false, true, true);
     this.textures.wall = makeConcrete(size / 2, 0x7d7a74, 0.45, false, true);
     this.textures.barrier = makeConcrete(size / 4, 0xb8b2a4, 0.35, false, false, true);
-    this.puddleTex = makePuddleMask(256);
   }
 
   setTextureQuality() {
@@ -159,20 +157,9 @@ export class World {
 
   buildGround() {
     const t = this.textures.ground;
-    const mat = new THREE.MeshStandardMaterial({ map: t.map, normalMap: t.normal, roughnessMap: t.rough, roughness: 1, metalness: 0, normalScale: new THREE.Vector2(1.2, 1.2) });
-    const rep = 260 / 6;
+    const mat = new THREE.MeshStandardMaterial({ map: t.map, normalMap: t.normal, roughnessMap: t.rough, roughness: 1, metalness: 0, normalScale: new THREE.Vector2(0.55, 0.55) });
+    const rep = 260 / 8;
     for (const tx of [t.map, t.normal, t.rough]) { tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(rep, rep); }
-    // Wet patches: darken + lower roughness using a world-space puddle mask.
-    mat.onBeforeCompile = (sh) => {
-      sh.uniforms.tPuddle = { value: this.puddleTex };
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
-        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWPos = (modelMatrix * vec4(transformed,1.0)).xyz;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform sampler2D tPuddle;')
-        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-          float wet = texture2D(tPuddle, vWPos.xz / ${PUDDLE_EXTENT.toFixed(1)} + 0.5).r;
-          roughnessFactor = mix(roughnessFactor, 0.06, wet);
-          diffuseColor.rgb *= mix(1.0, 0.45, wet);`);
-    };
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(260, 260), mat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -180,36 +167,11 @@ export class World {
     this.scene.add(ground);
     this.ground = ground;
 
-    // Painted lane markings
-    const lineMat = new THREE.MeshStandardMaterial({ color: 0xd9b23a, roughness: 0.7, transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-    const addLine = (x, z, w, l, r = 0) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, l), lineMat);
-      m.rotation.set(-Math.PI / 2, 0, r); m.position.set(x, 0.01, z); m.receiveShadow = true; this.scene.add(m);
-    };
-    for (let i = -30; i <= 30; i += 4) { addLine(-17, i, 0.15, 2.2); addLine(17, i, 0.15, 2.2); }
-    addLine(0, 17.5, 30, 0.15); addLine(0, -17.5, 30, 0.15);
   }
 
   buildReflections() {
+    // planar puddle reflections were removed together with the puddles (clean ground, faster)
     if (this.reflector) { this.scene.remove(this.reflector); this.reflector.dispose(); this.reflector = null; }
-    const r = settings.graphics.reflections;
-    if (r < 2) return;
-    const scale = r === 3 ? 1.0 : 0.5;
-    const pr = this.renderer.getPixelRatio();
-    const geo = new THREE.PlaneGeometry(PUDDLE_EXTENT, PUDDLE_EXTENT);
-    const refl = new Reflector(geo, {
-      textureWidth: Math.floor(innerWidth * pr * scale), textureHeight: Math.floor(innerHeight * pr * scale),
-      clipBias: 0.003, shader: PuddleShader, multisample: r === 3 ? 4 : 0,
-    });
-    refl.material.uniforms.tPuddle = { value: this.puddleTex };
-    refl.material.uniforms.uTime = { value: 0 };
-    refl.material.transparent = true;
-    refl.material.depthWrite = false;
-    refl.rotation.x = -Math.PI / 2;
-    refl.position.y = 0.012;
-    refl.renderOrder = 1;
-    this.scene.add(refl);
-    this.reflector = refl;
   }
 
   buildWalls() {
@@ -311,6 +273,9 @@ export class World {
       this.dynamic.remove(m);
     }
     this.lamps = [];
+    // Clear ground: no crates, barrels, furniture, lamp posts or skyline props any more.
+    // Containers, walls, concrete barriers, platforms and pickups (built elsewhere) remain.
+    if (!this.withProps) return;
     const P = this.prefabs, d = settings.graphics.propDensity, detail = settings.graphics.propDetail;
     const rnd = mulberry(1337);
     const add = (p, x, z, rot, o = {}) => this.placePrefab(p, x, o.y || 0, z, rot, { parent: this.dynamic, cast: detail >= 1, ...o });
@@ -613,7 +578,7 @@ function valueNoise(size, scale, seed) {
   return out;
 }
 
-function makeConcrete(size, base, contrast, cracks = false, panels = false, smooth = false) {
+function makeConcrete(size, base, contrast, cracks = false, panels = false, smooth = false, clean = false) {
   const n1 = valueNoise(size, 8, 11), n2 = valueNoise(size, 32, 7), n3 = valueNoise(size, 128, 3);
   const h = new Float32Array(size * size);
   const rnd = mulberry(99 + size);
@@ -628,7 +593,7 @@ function makeConcrete(size, base, contrast, cracks = false, panels = false, smoo
   }
   ctx.putImageData(img, 0, 0);
   // stains
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < (clean ? 0 : 18); i++) {
     const x = rnd() * size, y = rnd() * size, r = size * (0.03 + rnd() * 0.12);
     const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
     gr.addColorStop(0, `rgba(30,25,20,${0.12 + rnd() * 0.2})`); gr.addColorStop(1, 'rgba(30,25,20,0)');
@@ -661,48 +626,4 @@ function makeConcrete(size, base, contrast, cracks = false, panels = false, smoo
   return { map, normal, rough };
 }
 
-function makePuddleMask(size) {
-  const n = valueNoise(size, 10, 42), n2 = valueNoise(size, 40, 5);
-  const data = new Uint8Array(size * size * 4);
-  for (let i = 0; i < size * size; i++) {
-    const v = n[i] * 0.8 + n2[i] * 0.2;
-    const m = THREE.MathUtils.smoothstep(v, 0.66, 0.72);
-    data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = m * 255; data[i * 4 + 3] = 255;
-  }
-  const t = new THREE.DataTexture(data, size, size);
-  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.needsUpdate = true;
-  return t;
-}
 
-const PuddleShader = {
-  name: 'PuddleShader',
-  uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null } },
-  vertexShader: /* glsl */`
-    uniform mat4 textureMatrix;
-    varying vec4 vUv; varying vec3 vWPos;
-    #include <common>
-    #include <logdepthbuf_pars_vertex>
-    void main() {
-      vUv = textureMatrix * vec4(position, 1.0);
-      vWPos = (modelMatrix * vec4(position, 1.0)).xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      #include <logdepthbuf_vertex>
-    }`,
-  fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse; uniform sampler2D tPuddle; uniform float uTime;
-    varying vec4 vUv; varying vec3 vWPos;
-    #include <logdepthbuf_pars_fragment>
-    void main() {
-      #include <logdepthbuf_fragment>
-      float m = texture2D(tPuddle, vWPos.xz / ${PUDDLE_EXTENT.toFixed(1)} + 0.5).r;
-      if (m < 0.02) discard;
-      vec3 V = normalize(cameraPosition - vWPos);
-      float fres = 0.12 + 0.88 * pow(1.0 - clamp(V.y, 0.0, 1.0), 5.0);
-      vec2 rip = vec2(sin(vWPos.x * 7.0 + uTime * 1.3) + sin(vWPos.z * 9.0 - uTime), cos(vWPos.z * 6.0 + uTime * 1.1)) * 0.006;
-      vec4 uv = vUv; uv.xy += rip * uv.w;
-      vec3 refl = texture2DProj(tDiffuse, uv).rgb;
-      gl_FragColor = vec4(refl * 0.9, m * fres);
-      #include <tonemapping_fragment>
-      #include <colorspace_fragment>
-    }`,
-};

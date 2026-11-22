@@ -24,7 +24,8 @@ const basis=(a,b)=>{const x=a.clone().normalize();const y=b.clone().sub(x.clone(
 const A=basis(dLocal,upLocal), Ainv=A.clone().transpose();
 const mixer=new THREE.AnimationMixer(sc);
 const frames=[]; // {clip, qHand, R, Lp}
-for(const clip of g.animations){
+const SKIP=new RegExp(q.get('skip')||'^$','i'), AIMC=new RegExp(q.get('aim')||'Fire','i'), RELC=/reload/i;
+for(const clip of g.animations.filter(c=>!SKIP.test(c.name))){
   mixer.stopAllAction(); const act=mixer.clipAction(clip); act.reset().play();
   for(let t=0;t<=clip.duration+1e-6;t+=1/30){
     mixer.setTime(t); sc.updateMatrixWorld(true);
@@ -70,8 +71,8 @@ const cost=(qq)=>{const O=makeO(qq);let c=0;const per={};
   for(const f of sub){const F=f.R.clone().multiply(O);const ws=new THREE.Vector3().setFromMatrixScale(F).x;const Fi=F.clone().invert();
     const lp=f.Lp.clone().applyMatrix4(Fi);const d=segDist(lp)*ws;
     const rq=new THREE.Quaternion();F.decompose(V(),rq,V());const barrel=V(0,1,0).applyQuaternion(rq),optic=V(0,0,-1).applyQuaternion(rq);
-    let k=0; if(!/Reload/.test(f.clip)) k+=Math.min(d,0.3); else k+=0.3*Math.min(d,0.3);
-    if(/Fire/.test(f.clip)) k+=0.35*barrel.angleTo(fwdW);
+    let k=0; if(!RELC.test(f.clip)) k+=Math.min(d,0.3); else k+=0.3*Math.min(d,0.3);
+    if(AIMC.test(f.clip)) k+=0.35*barrel.angleTo(fwdW);
     k+=0.12*Math.max(0,0.8-optic.y);
     per[f.clip]=(per[f.clip]||0)+k/sub.filter(x=>x.clip===f.clip).length;}
   for(const k in per)c+=per[k];return c;};
@@ -80,7 +81,7 @@ for(const step of [0.4,0.2,0.1,0.05,0.025,0.012]){let improved=true;let it=0;
   while(improved&&it++<12){improved=false;
     for(const ax of [V(1,0,0),V(0,1,0),V(0,0,1)])for(const sg of [1,-1]){const cand=best.clone().multiply(new THREE.Quaternion().setFromAxisAngle(ax,step*sg));const cc=cost(cand);if(cc<bc-1e-6){bc=cc;best=cand;improved=true;}}}}
 const O2=makeO(best);
-const fireAim=(()=>{const fs=frames.filter(f=>/Fire/.test(f.clip));let a=0,u=0;for(const f of fs){const rq=new THREE.Quaternion();f.R.clone().multiply(O2).decompose(V(),rq,V());a+=THREE.MathUtils.radToDeg(V(0,1,0).applyQuaternion(rq).angleTo(fwdW));u+=V(0,0,-1).applyQuaternion(rq).y;}return {barrelVsForward_deg:+(a/fs.length).toFixed(1),opticUp_dot:+(u/fs.length).toFixed(2)};})();
+const fireAim=(()=>{const fs=frames.filter(f=>AIMC.test(f.clip));let a=0,u=0;for(const f of fs){const rq=new THREE.Quaternion();f.R.clone().multiply(O2).decompose(V(),rq,V());a+=THREE.MathUtils.radToDeg(V(0,1,0).applyQuaternion(rq).angleTo(fwdW));u+=V(0,0,-1).applyQuaternion(rq).y;}return {barrelVsForward_deg:+(a/fs.length).toFixed(1),opticUp_dot:+(u/fs.length).toFixed(2)};})();
 window.RESULT={perClip,before:evalO(O0),after:evalO(O1),refined:evalO(O2),fireAim,rifleInHand:O2.toArray()};
 window.READY=true;
 </script></body></html>

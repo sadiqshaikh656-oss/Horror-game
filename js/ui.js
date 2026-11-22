@@ -115,7 +115,7 @@ export class UI {
     const gap = 4 + spreadPx;
     ch.children[0].style.transform = `translateX(${-gap - 9}px)`; ch.children[1].style.transform = `translateX(${gap}px)`;
     ch.children[2].style.transform = `translateY(${-gap - 9}px)`; ch.children[3].style.transform = `translateY(${gap}px)`;
-    ch.style.opacity = P.sprinting ? 0 : 1; // third person: crosshair stays while aiming
+    ch.style.opacity = vm.ads > 0.6 || P.sprinting ? 0 : 1; // aiming down sights: the optic's reticle is the aim
     // hitmarker
     if (this.hitT > 0) { this.hitT -= dt; $('hitmarker').style.opacity = Math.min(1, this.hitT * 5); }
     // hurt direction arcs
@@ -220,7 +220,7 @@ export class UI {
     pr.innerHTML = PRESET_NAMES.map((n, i) => `<button class="preset ${n === 'cinematic' ? 'cine' : ''}" data-p="${n}"><div class="bars">${[0, 1, 2, 3, 4].map(k => `<i class="${k <= i ? 'f' : ''}" style="height:${5 + k * 3}px"></i>`).join('')}</div><b>${PRESET_LABELS[n].toUpperCase()}</b><small>${['Battery saver', 'Balanced', 'HD', 'Ultra HD', 'Max fidelity'][i]}</small></button>`).join('');
     pr.querySelectorAll('.preset').forEach(b => b.addEventListener('click', () => { playUI('tap'); applyPreset(b.dataset.p); this.renderSettings(); this.game.applyGraphics(); }));
     // graphics options
-    const order = ['fpsLimit', 'renderScale', 'shadows', 'antiAliasing', 'ambientOcclusion', 'reflections', 'textures', 'propDensity', 'propDetail', 'viewDistance', 'effects', 'bloom', 'postFx', 'lensFlare', 'showFps'];
+    const order = ['fpsLimit', 'renderScale', 'shadows', 'antiAliasing', 'ambientOcclusion', 'reflections', 'textures', 'propDetail', 'viewDistance', 'effects', 'bloom', 'postFx', 'lensFlare', 'showFps'];
     $('gfxList').innerHTML = order.map(k => `<div class="optRow"><label>${OPTIONS[k].label}</label><div class="seg" data-k="${k}">${OPTIONS[k].values.map((v, i) => `<button data-i="${i}">${v.toUpperCase()}</button>`).join('')}</div></div>`).join('');
     $('gfxList').querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;

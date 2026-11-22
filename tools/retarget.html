@@ -1,0 +1,65 @@
+<!doctype html><html><head><script type="importmap">{"imports":{"three":"../lib/three/three.module.js","three/addons/":"../lib/three/addons/"}}</script></head>
+<body><script type="module">
+// Rest-pose-relative retargeting of Mixamo-named animations onto a Mixamo-named rig, baked at 30 fps.
+//   target_world(bone) = source_world(bone) * inverse(source_rest_world(bone)) * target_rest_world(bone)
+//   hips translation: offset from the source rest hips, scaled by the hips-height ratio
+// window.JOBS = [{name, url, clip?}]  (FBX or GLB sources; `clip` picks a clip by name in a GLB)
+// ?target=<glb>   ->  window.RESULT = {clips:[{name,times,tracks:{Bone:[x,y,z,w,...]},hips:[x,y,z,...]}], info}
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
+const q=new URLSearchParams(location.search);
+const V=()=>new THREE.Vector3(), Q=()=>new THREE.Quaternion();
+const key=n=>n.replace(/^mixamorig:?/,'');
+const tgt=(await new GLTFLoader().loadAsync('../'+q.get('target'))).scene;
+tgt.updateMatrixWorld(true);
+const TB={}, order=[]; tgt.traverse(o=>{if(o.isBone){TB[key(o.name)]=o;order.push(key(o.name));}});
+const tRestLocal={}, tRestWorldQ={}; for(const k of order){tRestLocal[k]=TB[k].quaternion.clone();tRestWorldQ[k]=TB[k].getWorldQuaternion(Q());}
+const tRestHips=TB.Hips.getWorldPosition(V());
+const cache={};
+async function source(url){
+  if(cache[url]) return cache[url];
+  const isFbx=/\.fbx$/i.test(url);
+  const obj=isFbx?await new FBXLoader().loadAsync('../'+url):await new GLTFLoader().loadAsync('../'+url);
+  const root=isFbx?obj:obj.scene; const anims=isFbx?obj.animations:obj.animations;
+  root.updateMatrixWorld(true);
+  const SB={}; root.traverse(o=>{if(o.isBone)SB[key(o.name)]=o;});
+  const restQ={}; for(const k in SB) restQ[k]=SB[k].getWorldQuaternion(Q());
+  return cache[url]={root,anims,SB,restQ,restHips:SB.Hips.getWorldPosition(V())};
+}
+const out=[], info={};
+for(const job of window.JOBS){
+  const S=await source(job.url);
+  const clip=job.clip?S.anims.find(c=>c.name===job.clip):S.anims[0];
+  const mixer=new THREE.AnimationMixer(S.root); mixer.clipAction(clip).play();
+  const k=tRestHips.y/S.restHips.y;
+  const fps=30,n=Math.max(2,Math.round(clip.duration*fps)+1),times=[],tracks={},hips=[];
+  for(const b of order) tracks[b]=[];
+  for(let i=0;i<n;i++){
+    const t=Math.min(clip.duration,i/fps); times.push(t);
+    mixer.setTime(t); S.root.updateMatrixWorld(true);
+    for(const b of order){
+      const tb=TB[b];
+      if(S.SB[b]){
+        const sw=S.SB[b].getWorldQuaternion(Q());
+        const w=sw.multiply(S.restQ[b].clone().invert()).multiply(tRestWorldQ[b]);
+        const pw=tb.parent.getWorldQuaternion(Q());
+        tb.quaternion.copy(pw.invert().multiply(w));
+      } else tb.quaternion.copy(tRestLocal[b]);
+      if(b==='Hips'){
+        const sp=S.SB.Hips.getWorldPosition(V()).sub(S.restHips).multiplyScalar(k).add(tRestHips);
+        tb.position.copy(tb.parent.worldToLocal(sp));
+      }
+      tb.updateMatrixWorld(true);
+      tracks[b].push(...tb.quaternion.toArray());
+    }
+    hips.push(...TB.Hips.position.toArray());
+  }
+  out.push({name:job.name,times,tracks,hips});
+  info[job.name]={src:job.url.split('/').pop(),dur:+clip.duration.toFixed(2),frames:n,hipsScale:+k.toFixed(4),srcRestHipsY:+S.restHips.y.toFixed(1)};
+  // reset target to rest for the next job
+  for(const b of order){TB[b].quaternion.copy(tRestLocal[b]);} TB.Hips.position.copy(TB.Hips.parent.worldToLocal(tRestHips.clone())); tgt.updateMatrixWorld(true);
+}
+window.RESULT={clips:out,info};
+window.READY=true;
+</script></body></html>

@@ -15,7 +15,7 @@ export class Player {
     this.grounded = true; this.crouched = false; this.crouchBlend = 0; this.sprinting = false;
     this.height = STAND; this.eye = EYE_STAND;
     this.health = 100; this.armor = 50; this.alive = true;
-    this.bobPhase = 0; this.stepDist = 0; this.landDip = 0; this.shake = 0; this.climbDip = 0; this.mantle = null; this.ledge = null;
+    this.bobPhase = 0; this.sprintRamp = 0; this.stepDist = 0; this.landDip = 0; this.shake = 0; this.climbDip = 0; this.mantle = null; this.ledge = null;
     this.moveSpeed = 0; this.strafe = 0;
     this.hurtDirs = [];
     this.head = new THREE.Vector3(0, 1.6, 32); // world head position (enemies aim here; camera is behind in 3rd person)
@@ -94,13 +94,17 @@ export class Player {
     // sprinting from a crouch stands the player up first (if there is headroom)
     if (input.sprint && this.crouched && f > 0.5 && !this.blockedAbove(STAND)) this.crouched = false;
     this.sprinting = input.sprint && f > 0.5 && !this.crouched && adsAmount < 0.3 && len > 0.6;
-    let speed = this.sprinting ? 6.6 : (this.crouched ? 2.3 : 4.3);
+    // sprint ramps up gradually and eases off quicker (smoother speed changes)
+    this.sprintRamp += ((this.sprinting ? 1 : 0) - this.sprintRamp) * Math.min(1, dt * (this.sprinting ? 2.2 : 6));
+    let speed = this.crouched ? 2.3 : 4.3 + (6.6 - 4.3) * this.sprintRamp;
     speed *= weaponMoveMul * (1 - adsAmount * 0.4);
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const wish = new THREE.Vector3(-sin * f + cos * s, 0, -cos * f - sin * s);
     if (len > 1) wish.divideScalar(len);
     wish.multiplyScalar(speed);
-    const accel = this.grounded ? 14 : 3;
+    // softer acceleration / deceleration on the ground, little air control
+    const targetV = Math.hypot(wish.x, wish.z), curV = Math.hypot(this.vel.x, this.vel.z);
+    const accel = this.grounded ? (targetV > curV ? 9 : 6.5) : 2.4;
     this.vel.x += (wish.x - this.vel.x) * Math.min(1, accel * dt);
     this.vel.z += (wish.z - this.vel.z) * Math.min(1, accel * dt);
     this.ledge = this.grounded ? this.findLedge() : null;
@@ -131,7 +135,7 @@ export class Player {
       const g = this.groundBelow();
       if (this.pos.y - g < STEP * 0.6) { this.pos.y = g; this.vel.y = 0; this.grounded = true; }
     }
-    if (this.grounded && !wasGrounded && fallV < -3) { this.landDip = Math.min(0.12, -fallV * 0.012); Audio.playLand(); this.landed = -fallV; }
+    if (this.grounded && !wasGrounded && fallV < -3) { this.landDip = Math.min(0.12, -fallV * 0.012); Audio.playLand(); this.landed = -fallV; if (fallV < -6) { this.vel.x *= 0.55; this.vel.z *= 0.55; } }
     // keep in arena
     this.pos.x = THREE.MathUtils.clamp(this.pos.x, -35.5, 35.5); this.pos.z = THREE.MathUtils.clamp(this.pos.z, -35.5, 35.5);
 
@@ -180,7 +184,10 @@ export class Player {
   updateCamera(dt, hs = 0) {
     this.landDip *= Math.max(0, 1 - dt * 8);
     this.shake *= Math.max(0, 1 - dt * 6);
-    const bobAmt = this.grounded ? Math.min(1, hs / 5) : 0;
+    // bob amplitude fades in/out instead of snapping
+    const bobTarget = this.grounded ? Math.min(1, hs / 5) : 0;
+    this.bobAmp = (this.bobAmp || 0) + (bobTarget - (this.bobAmp || 0)) * Math.min(1, dt * 8);
+    const bobAmt = this.bobAmp;
     const by = Math.sin(this.bobPhase * 2) * 0.035 * bobAmt * (this.sprinting ? 1.5 : 1);
     const bx = Math.cos(this.bobPhase) * 0.02 * bobAmt;
     const cam = this.camera;
@@ -202,6 +209,7 @@ export class Player {
     this.health -= amount - absorbed;
     this.shake = Math.min(1.5, this.shake + 0.6);
     Audio.playHurt();
+    if (fromPos) this.lastHitDir = this.pos.clone().sub(fromPos).setY(0).normalize(); // shooter -> player (death direction)
     if (fromPos) {
       const ang = Math.atan2(fromPos.x - this.pos.x, fromPos.z - this.pos.z);
       this.hurtDirs.push({ ang, t: 1.2 });

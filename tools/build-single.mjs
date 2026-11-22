@@ -17,9 +17,10 @@ let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'css/style.css'), 'utf8');
 html = html.replace(/<script type="importmap">[\s\S]*?<\/script>\n/, '')
   .replace('<link rel="manifest" href="manifest.json">\n', '')
-  .replace('<link rel="stylesheet" href="css/style.css">', `<style>${css}</style>`)
+  .replace('<link rel="stylesheet" href="css/style.css">', () => `<style>${css}</style>`)
   .replace('<script type="module" src="js/main.js"></script>',
-    `<script>window.__MODELS=${JSON.stringify(models)};</script>\n<script>${js}</script>`);
+    // function replacement: the bundle may contain "$'" / "$&", which a string replacement would expand
+    () => `<script>window.__MODELS=${JSON.stringify(models)};</script>\n<script>${js}</script>`);
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/ironyard.html'), html);
 console.log('dist/ironyard.html', (html.length / 1e6).toFixed(1), 'MB');
