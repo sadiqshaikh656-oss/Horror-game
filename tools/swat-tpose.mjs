@@ -10,6 +10,7 @@
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import * as THREE from 'three';
+import { prune } from '@gltf-transform/functions';
 
 const [IN, OUT] = process.argv.slice(2);
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
@@ -163,13 +164,15 @@ const remapped = new Set();
 for (const mesh of root.listMeshes()) for (const prim of mesh.listPrimitives()) {
   const Ja = prim.getAttribute('JOINTS_0'); if (!Ja || remapped.has(Ja)) continue; remapped.add(Ja);
   const n = Ja.getCount(), arr = new Uint16Array(n * 4);
-  for (let i = 0; i < n; i++) { const e = Ja.getElement(i, []); for (let k = 0; k < 4; k++) arr[i * 4 + k] = Math.max(0, e[k] - 1); }
+  const Wa = prim.getAttribute('WEIGHTS_0');
+  for (let i = 0; i < n; i++) { const e = Ja.getElement(i, []), w = Wa.getElement(i, []); for (let k = 0; k < 4; k++) arr[i * 4 + k] = w[k] > 0 ? Math.max(0, e[k] - 1) : 0; }
   Ja.setArray(arr);
 }
 rootJoint.setName('Armature');
 for (const j of newJoints) j.setName('mixamorig:' + short(j.getName()));
 for (const a of root.listAnimations()) a.dispose();
 skin.setName('Armature');
+await doc.transform(prune({ keepLeaves: true, keepAttributes: true }));
 await io.write(OUT, doc);
 // optional: export the artist's original "rifle held" pose as world rotations (for verification)
 if (process.argv[4]) {
