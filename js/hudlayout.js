@@ -90,7 +90,8 @@ export function collision(id, l, layout) {
   return null;
 }
 
-export function isActive(id) { return id !== 'fire2' || settings.controls.leftFire; }
+// weapon slots / inspect are hidden in the third-person single-rifle loadout
+export function isActive(id) { if (id === 'slots' || id === 'inspect') return false; return id !== 'fire2' || settings.controls.leftFire; }
 
 // Small/odd screens can squeeze a saved layout so controls touch: push overlapping ones apart
 // (minimum-penetration axis), keeping everything on screen. Operates on a copy for display only.

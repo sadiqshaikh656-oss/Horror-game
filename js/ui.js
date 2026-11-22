@@ -115,7 +115,7 @@ export class UI {
     const gap = 4 + spreadPx;
     ch.children[0].style.transform = `translateX(${-gap - 9}px)`; ch.children[1].style.transform = `translateX(${gap}px)`;
     ch.children[2].style.transform = `translateY(${-gap - 9}px)`; ch.children[3].style.transform = `translateY(${gap}px)`;
-    ch.style.opacity = vm.ads > 0.6 || P.sprinting ? 0 : 1;
+    ch.style.opacity = P.sprinting ? 0 : 1; // third person: crosshair stays while aiming
     // hitmarker
     if (this.hitT > 0) { this.hitT -= dt; $('hitmarker').style.opacity = Math.min(1, this.hitT * 5); }
     // hurt direction arcs

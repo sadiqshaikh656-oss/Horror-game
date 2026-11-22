@@ -18,6 +18,7 @@ export class Player {
     this.bobPhase = 0; this.stepDist = 0; this.landDip = 0; this.shake = 0; this.climbDip = 0; this.mantle = null; this.ledge = null;
     this.moveSpeed = 0; this.strafe = 0;
     this.hurtDirs = [];
+    this.head = new THREE.Vector3(0, 1.6, 32); // world head position (enemies aim here; camera is behind in 3rd person)
   }
 
   reset(spawn) {
@@ -184,6 +185,7 @@ export class Player {
     const bx = Math.cos(this.bobPhase) * 0.02 * bobAmt;
     const cam = this.camera;
     const eye = this.alive ? this.eye : 0.4;
+    this.head.set(this.pos.x, this.pos.y + (this.alive ? this.eye : 0.5), this.pos.z);
     cam.position.set(this.pos.x, this.pos.y + eye + by - this.landDip - this.climbDip, this.pos.z);
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     cam.position.addScaledVector(right, bx);

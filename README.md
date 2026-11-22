@@ -1,5 +1,7 @@
 # Ironyard: Tactical Ops
 
+> **Third person:** the player is the SWAT Operator, seen over the shoulder like PUBG, with the M4 carbine. The first-person hands are no longer drawn. The `Viewmodels` class still runs invisibly as the weapon system (ammo, fire rate, spread, recoil, reload timing). See `js/tpsplayer.js`.
+
 A mobile-first browser FPS built with Three.js. It runs on phones (touch controls, landscape) and on desktop (keyboard + mouse).
 
 ## Run it

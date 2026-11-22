@@ -211,6 +211,7 @@ body.hud-editing #pause, body.hud-editing #menu, body.hud-editing #settings { di
 .lw { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-top: 1px solid rgba(255,255,255,.06); }
 .lw:first-of-type { border-top: 0; }
 .lw svg { width: 74px; height: 24px; color: #e8ecf0; flex: none; }
+.lw .opIcon { width: 74px; text-align: center; color: var(--accent); font-size: 18px; flex: none; }
 .lw b { display: block; font: 700 14px Rajdhani; letter-spacing: 1px; }
 .lw span { font: 600 11px Rajdhani; color: var(--dim); }
 .menuRight { position: absolute; right: calc(22px + var(--safe-r)); bottom: calc(22px + var(--safe-b)); display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: min(300px, 38vw); }

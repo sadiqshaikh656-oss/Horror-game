@@ -191,7 +191,7 @@ export class Enemy {
     const P = game.player;
     if (!this.alive) { this.animateDeath(dt); return; }
     const toP = P.pos.clone().sub(this.pos); const dist = Math.hypot(toP.x, toP.z);
-    const eye = this.eye(); const pHead = P.camera.position.clone();
+    const eye = this.eye(); const pHead = P.head.clone();
     const facing = Math.atan2(toP.x, toP.z);
     const angDiff = Math.abs(wrap(facing - this.yaw));
     let sees = false;
@@ -291,7 +291,7 @@ export class Enemy {
     let acc = THREE.MathUtils.clamp(0.62 - dist * 0.011, 0.1, 0.62) * this.difficulty;
     if (P.moveSpeed > 3) acc *= 0.7; if (P.crouched) acc *= 0.8; if (!P.grounded) acc *= 0.6;
     acc *= Math.min(1, 0.6 + this.reaction * 0.3);
-    const target = P.camera.position.clone().add(V(0, -0.35, 0));
+    const target = P.head.clone().add(V(0, -0.35, 0));
     const hit = Math.random() < acc;
     let end;
     if (hit) {
@@ -304,8 +304,8 @@ export class Enemy {
       end = h ? h.point : from.clone().addScaledVector(dir, 80);
       if (h) this.effects.impact(h.point, h.normal, h.surface, dir);
       // whiz if it passed near the head
-      const closest = V(); new THREE.Ray(from, dir).closestPointToPoint(P.camera.position, closest);
-      if (closest.distanceTo(P.camera.position) < 1.5) Audio.playWhiz(game.panFor(this.pos));
+      const closest = V(); new THREE.Ray(from, dir).closestPointToPoint(P.head, closest);
+      if (closest.distanceTo(P.head) < 1.5) Audio.playWhiz(game.panFor(this.pos));
     }
     this.effects.tracer(from, end, 0xff9a60);
     this.effects.flashLight(from, 5);

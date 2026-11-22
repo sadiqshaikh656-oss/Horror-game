@@ -13,8 +13,10 @@ import { Input } from './input.js';
 import { UI } from './ui.js';
 import * as Audio from './audio.js';
 import { applyLayout, HudEditor } from './hudlayout.js';
+import { TPSPlayer } from './tpsplayer.js';
 
-const MODELS = ['carbine', 'smg', 'pistol', 'soldier', 'containers', 'dungeon'];
+const MODELS = ['carbine', 'smg', 'pistol', 'soldier', 'containers', 'dungeon', 'player'];
+const TPS_ZOOM = 1.3; // camera zoom while aiming in third person
 const ROUND_TIME = 115;
 const MAX_ROUNDS = 10;
 
@@ -38,7 +40,7 @@ class Game {
   async load() {
     const manager = new THREE.LoadingManager();
     const loader = new GLTFLoader(manager); loader.setMeshoptDecoder(MeshoptDecoder);
-    const progress = {}; const sizes = { carbine: 0.8, smg: 0.7, pistol: 0.7, soldier: 1.1, containers: 0.3, dungeon: 1.1 };
+    const progress = {}; const sizes = { carbine: 0.8, smg: 0.7, pistol: 0.7, soldier: 1.1, containers: 0.3, dungeon: 1.1, player: 3.5 };
     const total = Object.values(sizes).reduce((a, b) => a + b);
     const report = () => { let s = 0; for (const k in progress) s += progress[k] * sizes[k]; this.ui.setLoading(s / total * 0.9); };
     const assets = {};
@@ -60,6 +62,10 @@ class Game {
     await nextFrame();
     this.soldierTemplate = buildSoldierTemplate(assets.soldier, assets.carbine);
     this.player = new Player(this.camera, this.world);
+    // third-person SWAT operator replaces the first-person hands (the Viewmodels class stays as the
+    // invisible weapon system: ammo, fire rate, spread, recoil, reload timing)
+    this.tps = new TPSPlayer(assets.player, this.world.scene, this.effects.flashTex);
+    for (const id of ['touchSlots', 'slots', 'btnInspect']) document.getElementById(id).classList.add('hidden');
     this.gfx.setup(this.world, this.camera, this.vm);
     this.world.applyQuality(this.camera);
     this.gfx.rebuild();
@@ -114,7 +120,7 @@ class Game {
     for (const id of ['menu', 'death', 'pause']) document.getElementById(id).classList.add('hidden');
     document.getElementById('hud').classList.remove('hidden');
     document.getElementById('touchLayer').classList.toggle('hidden', !this.input.isTouch);
-    this.vm.scene.visible = true;
+    this.vm.scene.visible = false;
     this.stats = newStats();
     this.round = 1;
     this.vm.resetAmmo();
@@ -224,7 +230,9 @@ class Game {
     const r = shot.spread * Math.sqrt(Math.random()), a = Math.random() * Math.PI * 2;
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
     const dir = fwd.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
-    const origin = cam.position.clone();
+    // third person: start the ray at the player's depth so nothing between camera and player is hit
+    const pivot = this.player.head;
+    const origin = cam.position.clone().addScaledVector(dir, Math.max(0, pivot.clone().sub(cam.position).dot(dir)));
     const worldHit = this.world.raycast(origin, dir, 300);
     let maxT = worldHit ? worldHit.dist : 300;
     let enemyHit = null;
@@ -235,13 +243,14 @@ class Game {
       if (h && h.t < maxT) { maxT = h.t; enemyHit = { e, ...h }; }
     }
     const end = origin.clone().addScaledVector(dir, maxT);
-    const muzzle = this.vm.muzzleWorld(cam);
+    const muzzle = this.tps.muzzleWorld();
+    this.tps.onShot();
     // visible bullet travelling from the muzzle to the crosshair hit point
     this.effects.tracer(muzzle, end, c.tracer);
     this.effects.flashLight(muzzle, 8);
     this.effects.muzzleSmoke(muzzle, dir);
     // shell ejection to the right
-    const ej = new THREE.Vector3(0.2, -0.16, -0.75).applyMatrix4(cam.matrixWorld);
+    const ej = muzzle.clone().addScaledVector(this.tps.barrelWorld(), -0.55);
     this.effects.shell(c.shell, ej, right.clone().multiplyScalar(1.6 + Math.random() * 0.8).addScaledVector(up, 0.6 + Math.random() * 0.5).add(this.player.vel));
     this.player.applyRecoil(shot.recoilUp, shot.recoilSide);
     if (enemyHit) {
@@ -309,9 +318,10 @@ class Game {
       this.camera.fov = 55; this.camera.updateProjectionMatrix();
       this.camera.position.set(Math.sin(a) * 26, 6 + Math.sin(a * 0.7) * 2, Math.cos(a) * 26);
       this.camera.lookAt(0, 2.5, 0);
-      for (const e of this.enemies) e.update(dt, t, { player: { pos: new THREE.Vector3(0, -100, 0), alive: false, camera: this.camera }, enemies: this.enemies });
+      for (const e of this.enemies) e.update(dt, t, { player: { pos: new THREE.Vector3(0, -100, 0), head: new THREE.Vector3(0, -100, 0), alive: false, camera: this.camera }, enemies: this.enemies });
       this.world.update(dt, t, new THREE.Vector3());
       this.effects.update(dt, this.camera);
+      this.tps.update(dt, { P: this.player, camera: this.camera, aiming: false, firing: false, reloading: false, reloadTime: 2, moveSpeed: 0, sprinting: false, crouch: 0, grounded: true, alive: true, vel: this.player.vel });
       this.gfx.render(t, 0, dt);
       return;
     }
@@ -337,24 +347,24 @@ class Game {
     const playing = this.state === 'playing' && P.alive;
     // weapon switching / actions
     if (playing) {
-      if (inp.switchTo !== null) { vm.equip(SLOTS[inp.switchTo]); inp.switchTo = null; }
-      if (inp.wheel) { const i = (SLOTS.indexOf(vm.pendingId || vm.currentId) + inp.wheel + 3) % 3; vm.equip(SLOTS[i]); inp.wheel = 0; }
+      inp.switchTo = null; inp.wheel = 0; // single rifle loadout in third person
       if (inp.reload) { vm.reload(); inp.reload = false; }
-      if (inp.inspect) { vm.inspect(); inp.inspect = false; }
+      inp.inspect = false;
       vm.adsWanted = inp.ads;
       if (vm.reloading || P.sprinting) { if (this.input.isTouch && vm.reloading) inp.ads = false; }
     }
     this.updateButtonStates();
     // look
     let [lx, ly] = inp.consumeLook();
-    const adsMul = THREE.MathUtils.lerp(1, settings.controls.adsSensitivity / vm.cfg.zoom * 1.4, vm.ads);
+    const adsMul = THREE.MathUtils.lerp(1, settings.controls.adsSensitivity / TPS_ZOOM * 1.4, vm.ads);
     if (playing) P.look(lx * adsMul, ly * adsMul);
     // firing while sprinting cancels sprint
     if (inp.fire && P.sprinting) inp.cancelSprintLock();
     P.update(dt, playing ? inp : { moveX: 0, moveY: 0, sprint: false, jump: false }, vm.cfg.moveMul, vm.ads);
     if (P.landed) { vm.onLand(P.landed); P.landed = 0; }
+    this.tps.updateCamera(dt, P, this.camera, this.world, vm.ads);
     // FOV zoom while aiming
-    const fov = this.baseFov / THREE.MathUtils.lerp(1, vm.cfg.zoom, vm.ads) * (P.sprinting ? 1.06 : 1);
+    const fov = this.baseFov / THREE.MathUtils.lerp(1, TPS_ZOOM, vm.ads) * (P.sprinting ? 1.06 : 1);
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 14);
     this.camera.updateProjectionMatrix();
     // viewmodel
@@ -364,6 +374,13 @@ class Game {
       lookDX: lx * 1000 / Math.max(dt * 60, 0.5), lookDY: ly * 1000 / Math.max(dt * 60, 0.5), strafe: P.strafe, crouchBlend: P.crouchBlend, crouched: P.crouched, sunDirView: sunView,
     });
     for (const s of shots) this.fireShot(s);
+    // third-person body animation
+    const rc = vm.cfg.clips[vm.clipName];
+    this.tps.update(dt, {
+      P, camera: this.camera, aiming: playing && vm.ads > 0.15, firing: playing && inp.fire && !vm.reloading && !P.mantle,
+      reloading: vm.reloading, reloadTime: rc ? (rc[1] - rc[0]) / (vm.clipSpeed || 1) : 2,
+      moveSpeed: P.moveSpeed, sprinting: P.sprinting, crouch: P.crouchBlend, grounded: P.grounded || !!P.mantle, alive: P.alive, vel: P.vel,
+    });
     // enemies
     for (const e of this.enemies) { e.update(dt, t, this); e.spottedT = Math.max(0, (e.spottedT || 0) - dt); }
     // spot enemies the player can see (for minimap)
