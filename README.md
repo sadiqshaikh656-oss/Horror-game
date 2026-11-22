@@ -98,3 +98,15 @@ tools/animview.html         dev tool for sampling a GLB animation timeline
 ## Single-file version
 
 `dist/ironyard.html` is the whole game in one file (code, three.js and models inlined, 7 MB). It opens by double-click with no server, and it can be copied to a phone and opened in Chrome. Rebuild it with `npm i esbuild && node tools/build-single.mjs`.
+
+## SWAT Operator: retarget-ready T-pose export
+
+`models-export/SWAT_Operator_TPose_Mixamo.glb` (28 MB, original textures) is the SWAT Operator model converted for retargeting (Mesh2Motion, Mixamo-style tools). It is not used by the game yet.
+
+- **T-pose** rest pose (arms horizontal, legs straight). The mesh is re-baked, so rest pose = bind pose.
+- **Mixamo bone names** (`mixamorig:Hips` … `mixamorig:RightHandPinky4`), 65 joints, with `mixamorig:Hips` as the skeleton root under an `Armature` node.
+- **The rifle is part of the skin**, weighted 100% to `mixamorig:RightHand`. In the source file the rifle wasn't attached to any bone, so it floated or sank into the body when other animations were applied. The two cloth patches are skinned to their bones the same way.
+- The grip offset and finger curl come from the artist's original "holding the rifle" frame, so the gun sits correctly in the hand. In T-pose the barrel lines up with the forearm, as it does in a real grip; a rifle animation brings it forward.
+- The source's single baked animation is removed.
+
+Rebuild it with `node tools/swat-tpose.mjs <source.glb> <out.glb> [pose.json]` (needs `@gltf-transform/core`, `@gltf-transform/extensions` and `three`). `tools/rigview.html?f=<glb>&posefile=tools/swat_rifle_pose.json` previews the export with the original rifle-holding pose applied.

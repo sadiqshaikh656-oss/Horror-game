@@ -1,0 +1,39 @@
+<!doctype html><html><head><script type="importmap">{"imports":{"three":"../lib/three/three.module.js","three/addons/":"../lib/three/addons/"}}</script></head>
+<body style="margin:0;background:#fff"><script type="module">
+// Dev tool: views a rigged GLB in its rest pose (or a test pose) from several angles + lists bones.
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
+const q=new URLSearchParams(location.search);
+const W=1600,H=520;
+const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setSize(W,H);r.setScissorTest(true);document.body.appendChild(r.domElement);
+r.outputColorSpace=THREE.SRGBColorSpace;
+const s=new THREE.Scene();s.background=new THREE.Color(0xdde3ea);s.add(new THREE.HemisphereLight(0xffffff,0x667788,2.2));
+const dl=new THREE.DirectionalLight(0xffffff,2.5);dl.position.set(2,4,3);s.add(dl);
+const l=new GLTFLoader();l.setMeshoptDecoder(MeshoptDecoder);
+l.load('../'+q.get('f'),async g=>{
+ s.add(g.scene);
+ const bones={};g.scene.traverse(o=>{if(o.isBone)bones[o.name.replace('mixamorig','')]=o;});
+ window.BONES=Object.keys(bones);
+ if(q.get('pose')==='rifle'){ // crude "hold rifle" test pose: only rotate arm bones, the gun must follow the hand
+   const rot=(b,ax,a)=>{const qq=new THREE.Quaternion().setFromAxisAngle(ax,a);b.quaternion.premultiply(qq)};
+   g.scene.updateMatrixWorld(true);
+   const set=(name,axis,ang)=>{const b=bones[name];const pw=b.parent.getWorldQuaternion(new THREE.Quaternion());const w=b.getWorldQuaternion(new THREE.Quaternion());const d=new THREE.Quaternion().setFromAxisAngle(axis,ang);b.quaternion.copy(pw.invert().multiply(d.multiply(w)));b.updateMatrixWorld(true);};
+   set('RightArm',new THREE.Vector3(0,0,1),-1.25); set('RightArm',new THREE.Vector3(0,1,0),-0.6);
+   set('RightForeArm',new THREE.Vector3(0,1,0),-1.5);
+   set('LeftArm',new THREE.Vector3(0,0,1),1.2); set('LeftArm',new THREE.Vector3(0,1,0),0.9);
+   set('LeftForeArm',new THREE.Vector3(0,1,0),1.2);
+ }
+ if(q.get('posefile')){ // apply world rotations of a reference pose, parents first
+   const P0=await (await fetch('../'+q.get('posefile'))).json(); const P={}; for(const k in P0) P[k.replace(':','')]=P0[k];
+   const list=[];g.scene.traverse(o=>{if(o.isBone&&P[o.name])list.push(o)});
+   g.scene.updateMatrixWorld(true);
+   const hipsA=new THREE.Quaternion().fromArray(P['mixamorigHips']).invert(), hipsNow=bones['Hips'].getWorldQuaternion(new THREE.Quaternion());
+   for(const b of list){ if(b.name==='mixamorigHips'||/Hand(Thumb|Index|Middle|Ring|Pinky)/.test(b.name)) continue; const w=hipsNow.clone().multiply(hipsA.clone().multiply(new THREE.Quaternion().fromArray(P[b.name]))); const pw=b.parent.getWorldQuaternion(new THREE.Quaternion()); b.quaternion.copy(pw.invert().multiply(w)); b.updateMatrixWorld(true);}
+ }
+ g.scene.updateMatrixWorld(true);
+ const views=[[[0,1.0,3.6],[0,1.0,0]],[[3.6,1.0,0.01],[0,1.0,0]],[[-0.2,1.7,1.4],[-0.6,1.35,0.1]],[[1.6,2.2,2.2],[0,1.1,0]]];
+ views.forEach(([p,t],i)=>{const cam=new THREE.PerspectiveCamera(i==2?30:35,(W/4)/H,0.01,50);cam.position.fromArray(p);cam.lookAt(...t);r.setViewport(i*W/4,0,W/4,H);r.setScissor(i*W/4,0,W/4,H);r.render(s,cam);});
+ window.READY=true;
+});
+</script></body></html>
