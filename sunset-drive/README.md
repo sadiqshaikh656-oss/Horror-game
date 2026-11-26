@@ -2,6 +2,12 @@
 
 Single-file open-city game (three.js r170, every model, animation and texture embedded). Open `index.html` in Chrome / Safari (needs internet for three.js from jsDelivr).
 
+## Detailed shop building
+The supplied `Building.obj` (4 floors, window grills, AC units, roof vents, railing, roof shed and 10 ground-floor shops) is placed on about half the lots in the mid-city ring, about 230 buildings.
+- AC units and roof vents use the supplied *ventilation* PBR textures (colour, normal, AO, roughness, metallic).
+- The building and shop textures were not supplied, so `tools/bake_b.py` and `tools/bake_s.py` bake them onto the model's own UVs, matched to the reference renders: weathered grey concrete with water stains, teal small-pane glass with a steel grid, rusty awnings and railing, corrugated shed roof, and coloured roll-up shutters and glass shop doors. `tools/conv.py` packs the OBJ into the compact binary embedded in the page.
+- The 14 nearest buildings are full detail; the rest are a textured box rendered from the model at load time.
+
 ## What changed in v3
 - **Weapon icons are renders of the real in-game 3D models** (Glock, M4, M4 with scope, grenade), made at load time with lighting and a soft shadow. Unarmed uses a front-on punching-fist icon (from an image you supplied). Empty slots say EMPTY.
 - The grenade is now a segmented "pineapple" frag model (body, fuse, spoon lever and pull ring) in the hand, when thrown, and in its icon.
