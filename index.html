@@ -2587,24 +2587,29 @@ function pwKnife(b64){if(!b64)return;const B={};PWS.inner.traverse(o=>{if(o.isBo
   const kn=I1.clone().add(M1).add(R1).add(P1).multiplyScalar(.25);if(T1.clone().sub(kn).dot(N)<0)N.negate();          /* palm side = thumb side */
   const P=kn.clone().addScaledVector(F,.032*u).addScaledVector(N,.026*u);
   /* 3. curl the four fingers round the grip point (precomputed local rotations, assigned every frame) */
-  const fing=["Index","Middle","Ring","Pinky"],ang=[1.25,1.45,1.15];PWS.curl=[];
+  const fing=["Index","Middle","Ring","Pinky"],ang=[1.45,1.6,1.3];PWS.curl=[];
   const tryCurl=(sg,apply)=>{const out=[];for(const f of fing)for(let j=1;j<=3;j++){const b=B["RightHand"+f+j];if(!b)continue;b.updateWorldMatrix(true,false);
     const axW=A.clone().transformDirection(hand.matrixWorld),pq=b.parent.getWorldQuaternion(new THREE.Quaternion()).invert(),axL=axW.applyQuaternion(pq).normalize();
     const q=new THREE.Quaternion().setFromAxisAngle(axL,sg*ang[j-1]).multiply(b.quaternion);out.push([b,q,b.quaternion.clone()]);if(apply)b.quaternion.copy(q)}return out};
   const tipD=()=>{const t=B.RightHandMiddle4||B.RightHandMiddle3;hand.updateWorldMatrix(true,true);return loc(t.name.replace("mixamorig","")).distanceTo(P)};
   let best=null;for(const sg of[1,-1]){const r=tryCurl(sg,true);const d=tipD();for(const [b,,q0] of r.slice().reverse())b.quaternion.copy(q0);hand.updateWorldMatrix(true,true);if(!best||d<best.d)best={sg,d}}
-  PWS.curl=tryCurl(best.sg,true).map(([b,q])=>[b,q]);for(const [b] of PWS.curl)b.quaternion.copy(b.quaternion);
+  PWS.curl=tryCurl(best.sg,true).map(([b,q])=>[b,q]);hand.updateWorldMatrix(true,true);
+  /* the handle goes through the middle of the closed fingers: centre of each finger's joint loop */
+  {const c=new THREE.Vector3();let n=0;for(const f of fing)for(let j=1;j<=4;j++){const b=B["RightHand"+f+j];if(b){c.add(loc("RightHand"+f+j));n++}}c.multiplyScalar(1/n);
+   /* pull slightly toward the palm so it is held, not resting on the fingertips */
+   P.copy(c).lerp(kn,.15);PWS.gdbg={P:P.clone(),kn:kn.clone(),A:A.clone(),N:N.clone()}}
+  const curled=PWS.curl.map(([b,q])=>[b,q]);for(const [b,q0] of curled){}
   /* thumb closes over the fingers */
   for(const j of[2,3]){const b=B["RightHandThumb"+j];if(!b)continue;b.updateWorldMatrix(true,false);const axW=F.clone().transformDirection(hand.matrixWorld),pq=b.parent.getWorldQuaternion(new THREE.Quaternion()).invert(),axL=axW.applyQuaternion(pq).normalize();
    const q1=new THREE.Quaternion().setFromAxisAngle(axL,.5).multiply(b.quaternion),q2=new THREE.Quaternion().setFromAxisAngle(axL,-.5).multiply(b.quaternion);const q0=b.quaternion.clone();
    b.quaternion.copy(q1);hand.updateWorldMatrix(true,true);const d1=loc(b.name.replace("mixamorig","")).distanceTo(P);b.quaternion.copy(q2);hand.updateWorldMatrix(true,true);const d2=loc(b.name.replace("mixamorig","")).distanceTo(P);
    PWS.curl.push([b,d1<d2?q1:q2]);b.quaternion.copy(q0)}
   /* 4. place the knife: tip toward the thumb side, blade width along the fingers, handle centre at P, 0.31 m long */
-  const sc=.31/L*u,R0=new THREE.Matrix4().makeBasis(A,F,new THREE.Vector3().crossVectors(A,F)),Kb=new THREE.Matrix4().makeBasis(Kt,Kw,Kn).invert(),Rm=R0.multiply(Kb);
+  const sc=.31/L*u,nA=A.clone().negate(),R0=new THREE.Matrix4().makeBasis(nA,F,new THREE.Vector3().crossVectors(nA,F)),Kb=new THREE.Matrix4().makeBasis(Kt,Kw,Kn).invert(),Rm=R0.multiply(Kb);
   const wrap=new THREE.Group;wrap.matrixAutoUpdate=false;const pos=new THREE.Vector3(...hc).applyMatrix4(Rm).multiplyScalar(-sc).add(P);
   wrap.matrix.copy(Rm).scale(new THREE.Vector3(sc,sc,sc)).setPosition(pos);wrap.add(k);
   k.traverse(o=>{if(o.isMesh){o.frustumCulled=false;o.castShadow=false;[].concat(o.material).forEach(m=>{if(m){m.envMapIntensity=.5;try{m.envMap=metalEnv()}catch(e){}m.needsUpdate=true}})}});
-  hand.add(wrap);PWS.knife=wrap;console.log("[pw] knife ready (grip sign "+best.sg+")")}catch(e){console.error("[pw] knife",e)}},e=>console.error("[pw] knife glb",e))}
+  hand.add(wrap);PWS.knife=wrap;PWS.gripA=A.clone();{const tip=new THREE.Vector3(...hc);tip.setComponent(la,handleLow?mx[la]:mn[la]);const butt=new THREE.Vector3(...hc);butt.setComponent(la,handleLow?mn[la]:mx[la]);PWS.kdbg={tip,butt,hc:new THREE.Vector3(...hc)}}console.log("[pw] knife ready (grip sign "+best.sg+")")}catch(e){console.error("[pw] knife",e)}},e=>console.error("[pw] knife glb",e))}
 function pwGrip(){if(!PWS.curl)return;for(const [b,q] of PWS.curl)b.quaternion.copy(q)}
 function pwKnifePose(){}
 function pwScare(why){
@@ -2877,6 +2882,13 @@ function clArm(k){
  const dir=new THREE.Vector3(fx*Math.cos(ang)-rx*.18,Math.sin(ang),fz*Math.cos(ang)-rz*.18).normalize();
  clAimBone(B.RightArm,B.RightForeArm,dir);
  const fdir=dir.clone().add(new THREE.Vector3(fx,0,fz).multiplyScalar(k<.5?.35:.1)).normalize();clAimBone(B.RightForeArm,B.RightHand,fdir);
+ /* turn the wrist so the blade (out of the pinky side) points at you: forward, and down while striking */
+ if(PWS.gripA){const fa=B.RightForeArm,hd=B.RightHand;hd.updateWorldMatrix(true,false);fa.updateWorldMatrix(true,false);
+  const ax=hd.getWorldPosition(new THREE.Vector3()).sub(fa.getWorldPosition(new THREE.Vector3())).normalize();
+  const cur=PWS.gripA.clone().transformDirection(hd.matrixWorld).negate();const want=new THREE.Vector3(fx,k<.5?.1:-.5,fz).normalize();
+  cur.addScaledVector(ax,-cur.dot(ax));want.addScaledVector(ax,-want.dot(ax));if(cur.lengthSq()>1e-6&&want.lengthSq()>1e-6){cur.normalize();want.normalize();
+   let an=Math.acos(clamp(cur.dot(want),-1,1));if(new THREE.Vector3().crossVectors(cur,want).dot(ax)<0)an=-an;
+   const qw=new THREE.Quaternion().setFromAxisAngle(ax,an),fw=fa.getWorldQuaternion(new THREE.Quaternion());fw.premultiply(qw);fa.quaternion.copy(fa.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(fw))}}
  /* lean into the blow */
  if(B.Spine2){const lean=k<.5?-.12*k/.5:-.12+(k-.5)/.5*.45;B.Spine2.rotateX(lean)}
 }
