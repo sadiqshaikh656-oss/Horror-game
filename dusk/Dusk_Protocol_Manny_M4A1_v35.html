@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Dusk Protocol - Manny Test Map v34</title>
+<title>Dusk Protocol - Manny Test Map v35</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
 :root{--ac:#6ea8ff;--bg:rgba(12,16,22,.78);--bd:rgba(255,255,255,.12);--sa:env(safe-area-inset-left,0px);--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--sr:env(safe-area-inset-right,0px)}
@@ -627,7 +627,8 @@ function update(dt){
   applyPose();
   applyRifle(dt);
   applyAim(S.aimW*bm);
-  bodyRecoil();
+  player.position.copy(S.pos);player.rotation.y=S.face;player.updateMatrixWorld(true);
+  bodyRecoil();aimSpine();
   
   player.position.copy(S.pos);player.rotation.y=S.face;player.updateMatrixWorld(true);
   updateWeapons(dt);
@@ -753,6 +754,18 @@ function applyRifle(dt){
     _mq.set(mq[k],mq[k+1],mq[k+2],mq[k+3]);
     bones[i].quaternion.copy(_mq.slerp(_rq,sm(m)));}
   if(RF.wF>.002&&pw){const w=sm(RF.wF);bones[0].position.set(p0x+(pw[0]-p0x)*w,p0y+(pw[1]-p0y)*w,p0z+(pw[2]-p0z)*w);}
+}
+const _asq=new THREE.Quaternion(),_asq2=new THREE.Quaternion(),_asf=new THREE.Vector3(),_ast=new THREE.Vector3(),_asI=new THREE.Quaternion();
+function aimSpine(){ // gun ki disha ko camera ki disha par laane ke liye spine/chest ghumao (haath + gun saath ghoomte hain)
+  const aw=S.aimW*attachW()*(1-relEnv());if(aw<.01||!handW()||S.trav)return;
+  const cp=Math.cos(S.pitch);_ast.set(Math.sin(S.camYaw)*cp,Math.sin(S.pitch),Math.cos(S.camYaw)*cp);
+  for(let it=0;it<3;it++){
+    player.updateMatrixWorld(true);
+    bones[39].getWorldQuaternion(_asq);_asq.multiply(GOFF_Q);_asf.set(0,0,1).applyQuaternion(_asq);
+    _asq2.setFromUnitVectors(_asf,_ast);
+    let ang=2*Math.acos(Math.min(1,Math.abs(_asq2.w)));if(ang>1.3)_asq2.slerp(_asI,1-1.3/ang);
+    _asq2.slerp(_asI,1-aw*.5);
+    rotW(bones[2],_asq2);rotW(bones[3],_asq2);rotW(bones[4],_asq2);}
 }
 const _rqk=new THREE.Quaternion(),_rax=new THREE.Vector3();
 function bodyRecoil(){ // har goli par seena/kandhe halka peeche + upar (gun aur dono haath saath jaate hain)
@@ -893,7 +906,7 @@ const attachW=()=>ST.view==='fp'?0:sm(clamp(Math.max(RF.wF,RF.wU),0,1));
 function gunOnHand(w){
   bones[39].matrixWorld.decompose(_hpp,_hq,_gs);
   _gq.copy(_hq).multiply(GOFF_Q);_gp.copy(GOFF_P).applyQuaternion(_hq).add(_hpp);
-  const re=relEnv(),aw=S.aimW*(S.trav?0:1)*(1-re);
+  const re=relEnv(),aw=0;
   if(aw>.01){ // muzzle crosshair ke point ki taraf
     _at.set(0,0,-1).applyQuaternion(camera.quaternion).multiplyScalar(40).add(camera.position);
     _af.set(0,0,1).applyQuaternion(_gq);_at.sub(_gp).normalize();
@@ -901,7 +914,7 @@ function gunOnHand(w){
   if(re>.001){ // reload: gun grip ke gird tirchhi + muzzle thoda upar, magazine left haath ki taraf
     _piv.copy(GRIP_L).applyQuaternion(_gq).add(_gp);_aq.setFromEuler(_reu.set(-.22*re,.12*re,-.55*re));_gq.multiply(_aq);
     _gp.copy(_piv).sub(_v3.copy(GRIP_L).applyQuaternion(_gq));_gp.y-=.03*re;}
-  if(w.rec>0){_aq.setFromAxisAngle(_X,-.075*w.rec);_gq.multiply(_aq);_gp.addScaledVector(_af.set(0,0,1).applyQuaternion(_gq),-.035*w.rec);}
+  if(w.rec>0){_aq.setFromAxisAngle(_X,-.04*w.rec);_gq.multiply(_aq);_gp.addScaledVector(_af.set(0,0,1).applyQuaternion(_gq),-.02*w.rec);}
 }
 const _piv=new V3(),GRIP_L=new V3(-.03,-.054,.25),_reu=new THREE.Euler();
 const _q0=new QT(),GOFF_QI=GOFF_Q.clone().invert();
@@ -1001,6 +1014,7 @@ let ikW=0,lastIK=null;
 const ARM_R=[37,38,39],ARM_L=[10,11,12];
 const FING_R=[[41,42,43],[45,46,47],[49,50,51],[53,54,55]],FING_L=[[14,15,16],[18,19,20],[22,23,24],[26,27,28]];
 const THU_R=[56,57,58],THU_L=[29,30,31],CLAV=[36,9];
+const LSET=new Set([9,...ARM_L,...FING_L.flat(),...THU_L]);
 const RSET=new Set([36,...ARM_R,...FING_R.flat(),...THU_R]);
 const IKB=[...ARM_R,...ARM_L,...FING_R.flat(),...FING_L.flat(),...THU_R,...THU_L,...CLAV],ikSave=IKB.map(()=>new QT()),rProc=IKB.map(()=>new QT());
 const _P0=new V3(),_P1=new V3(),_P2=new V3(),_E=new V3(),_T=new V3(),_pl=new V3(),_dv=new V3(),_go=new V3();
@@ -1110,19 +1124,10 @@ function applyArmIK(hw,dt){
   aimBone(bones[56],bones[57],tR);aimBone(bones[57],bones[58],tR.clone().addScaledVector(_nR,.32).normalize());aimTip(bones[58],bones[58].position.clone().normalize(),tR.clone().addScaledVector(_nR,.75).normalize());
   const tL=fw.clone().multiplyScalar(.85).addScaledVector(_nL,.35+ST.gThumb).addScaledVector(_fL,.15).normalize();
   aimBone(bones[29],bones[30],tL);aimBone(bones[30],bones[31],tL.clone().addScaledVector(_nL,-.05).normalize());aimTip(bones[31],bones[31].position.clone().normalize(),tL.clone().addScaledVector(_nL,-.3).addScaledVector(_fL,.25).normalize());
-  // 3rd person: gun right hand se judi hai -> right haath anim wali grip (GOFF) se hi gun par lagta hai; kandha/ungliyan anim ki.
-  // Aim-correction / recoil se gun thodi hile to bazu IK se saath jaata hai (haath grip se alag nahi hota).
-  {const wa=attachW();if(wa>.001){
-    IKB.forEach((b,i)=>{if(RSET.has(b)){rProc[i].copy(bones[b].quaternion);bones[b].quaternion.copy(ikSave[i]);}});
-    bones[36].updateMatrixWorld(true);
-    _hq.copy(q).multiply(GOFF_QI);_hpp.copy(GOFF_P).applyQuaternion(_hq);_hpp.subVectors(P,_hpp);
-    bones[37].getWorldPosition(_P0);bones[38].getWorldPosition(_P1);bones[39].getWorldPosition(_P2);
-    const pole=_P1.clone().sub(_P0.clone().add(_P2).multiplyScalar(.5));
-    solveArm(ARM_R,_hpp,pole);
-    {const h=bones[39];h.parent.getWorldQuaternion(_tq);_tq.invert();h.quaternion.copy(_tq.multiply(_hq));h.updateMatrixWorld(true);}
-    spreadTwist(ARM_R,ST.gTw);
-    if(wa<.999)IKB.forEach((b,i)=>{if(RSET.has(b))bones[b].quaternion.slerpQuaternions(rProc[i],bones[b].quaternion,wa);});
-  }}
+  // 3rd person: gun right hand se judi hai aur dono haath anim ke asli rifle-grip pose mein rehte hain (koi twist/pinch nahi); left IK sirf reload mein
+  {const wa=attachW();if(wa>.001){const lw=clamp(relEnv()*ST.gRel*3,0,1);
+    IKB.forEach((b,i)=>{const keep=LSET.has(b)?wa*(1-lw):wa;if(keep>.001)bones[b].quaternion.slerpQuaternions(bones[b].quaternion,ikSave[i],keep);});
+    if(lw<.5)spreadTwist(ARM_L,1);spreadTwist(ARM_R,1);}}
   if(ikW<.999)IKB.forEach((b,i)=>{bones[b].quaternion.slerpQuaternions(ikSave[i],bones[b].quaternion,ikW);});
   bones[37].updateMatrixWorld(true);bones[10].updateMatrixWorld(true);
 }
