@@ -2499,7 +2499,7 @@ function pwLoad(){
   PWS.mx=new THREE.AnimationMixer(sc);for(const c of g.animations)PWS.acts[c.name.toLowerCase().replace(/_rt.*$/,"")]=PWS.mx.clipAction(c);
   PWS.L={intensity:0,position:new THREE.Vector3()};
   try{const s=PWS.acts.sprint;if(s&&PWS.head){s.play();let best=-1e9;const D=s.getClip().duration;for(let k=0;k<24;k++){s.time=D*k/24;PWS.mx.update(0);G.updateMatrixWorld(true);PWS.head.getWorldPosition(_pv1);if(_pv1.y>best){best=_pv1.y;PWS.bestT=s.time}}s.stop()}}catch(e){}
-  try{G.visible=true;G.position.set(0,-50,0);R.compile(scene,cam);G.visible=false}catch(e){}
+  try{pwGlow(false)}catch(e){}try{G.visible=true;G.position.set(0,-50,0);R.compile(scene,cam);G.visible=false}catch(e){}
   PWS.ready=true;console.log("[pw] ready, clips: "+Object.keys(PWS.acts).join(", "))}catch(e){console.error("[pw]",e)}},e=>console.error("[pw] glb",e))}catch(e){console.error("[pw]",e)}
 }
 function pwZone(){
@@ -2521,16 +2521,22 @@ function pwDark(dt){
  const d=Math.hypot(P.pos.x-z.x,P.pos.z-z.z),k=clamp((z.r-d)/2.2,0,1);PWS.dk+=(k-PWS.dk)*Math.min(1,dt*3);
  if(PWS.dk>.01){lamps.forEach(l=>{const ld=Math.hypot(l.position.x-z.x,l.position.z-z.z);if(ld<z.r+4)l.intensity*=1-.95*PWS.dk});HEMI.intensity=Math.min(HEMI.intensity,.62*(1-.9*PWS.dk))}
 }
+function pwGlow(on){
+ if(!PWS.inner)return;
+ if(!PWS.gm){PWS.gm=[];PWS.inner.traverse(o=>{if(o.isMesh)[].concat(o.material).forEach(m=>{if(!m||!m.emissive||!m.map||/Eye_Iris|DeadLights/.test(m.name)||PWS.gm.indexOf(m)>=0)return;m.emissiveMap=m.map;m.emissive.setRGB(0,0,0);m.needsUpdate=true;PWS.gm.push(m)})})}
+ for(const m of PWS.gm){if(on)m.emissive.setRGB(.05,.045,.042);else m.emissive.setRGB(0,0,0)}PWS.glow=on}
 function pwScare(why){
  if(!PWS.ready||PWS.on)return false;
  const f=_nC.set(0,0,-1).applyQuaternion(cam.quaternion);f.y=0;if(f.lengthSq()<1e-4)return false;f.normalize();
  const lay=typeof plLayer=="function"?plLayer():0;let free=0;for(let s=.4;s<=6.5;s+=.2){if(!nlFree(lay,cam.position.x+f.x*s,cam.position.z+f.z*s))break;free=s}
  if(free<4.5)return false;const d0=clamp(free-.5,4.5,9);
  PWS.on=true;PWS.t=0;PWS.d0=d0;PWS.f=f.clone();PWS.o=cam.position.clone();PWS.wp=new THREE.Vector3(cam.position.x+f.x*d0,0,cam.position.z+f.z*d0);PWS.y0=typeof layerY=="function"?layerY(lay):0;PWS.why=why;
- PWS.g.visible=true;PWS.ph=0;PWS.wp2=null;PWS.hit=0;for(const k in PWS.acts)PWS.acts[k].stop();const a=PWS.acts.drunk_walk||PWS.acts.sprint;if(a){a.reset();a.timeScale=.25;a.play()}
+ PWS.g.visible=true;PWS.ph=0;PWS.wp2=null;PWS.hit=0;pwAllOff();const a=PWS.acts.drunk_walk||PWS.acts.sprint;if(a){a.reset();a.setEffectiveWeight(1);a.timeScale=.25;a.play()}
  try{nsbPlay("pw2",.45)}catch(e){}
  return true
 }
+/* switch every clip off WITHOUT stop(): stop() snaps the skeleton back to its T-pose */
+function pwAllOff(){for(const k in PWS.acts){const a=PWS.acts[k];a.enabled=false;a.setEffectiveWeight(0)}}
 const _pv1=new THREE.Vector3(),_pv2=new THREE.Vector3(),_pv3=new THREE.Vector3(),_pq1=new THREE.Quaternion(),_pq2=new THREE.Quaternion(),_pq3=new THREE.Quaternion();
 function pwBlack(on){let e=document.getElementById("pwblk");if(!e){e=document.createElement("div");e.id="pwblk";e.style.cssText="position:fixed;inset:0;background:#000;z-index:13;pointer-events:none;opacity:0";document.body.appendChild(e)}e.style.opacity=on?"1":"0"}
 function pwStep(dt){
@@ -2551,11 +2557,12 @@ function pwStep(dt){
  /* no voice line: the face hits at 2.2 s */
  const T1=.85,T2=1.15,T3=1.75,T4=2.25,T5=2.8;
  if(t>=T1&&PWS.ph==0){PWS.ph=1;pwBlack(1);try{snd("click",.5);nsbPlay("pwl",1.1)}catch(e){}}
- if(t>=T2&&PWS.ph==1){PWS.ph=2;pwBlack(0);PWS.dn=Math.min(3.2,PWS.d0*.5);for(const k in PWS.acts)PWS.acts[k].stop();const a=PWS.acts.sprint;if(a&&PWS.bestT!=null){a.reset();a.play();a.time=PWS.bestT;a.timeScale=0}}
+ if(t>=T2&&PWS.ph==1){PWS.ph=2;pwBlack(0);PWS.dn=Math.min(3.2,PWS.d0*.5);pwAllOff();const a=PWS.acts.sprint;if(a&&PWS.bestT!=null){a.reset();a.setEffectiveWeight(1);a.play();a.time=PWS.bestT;a.timeScale=0}}
  if(PWS.ph==2){pwBlack(Math.random()<.18?1:0)}
  if(t>=T3&&PWS.ph==2){PWS.ph=3;pwBlack(0);const a=PWS.acts.sprint;if(a){a.timeScale=1.9}}
  if(t>=T4-.05&&PWS.ph==3){PWS.ph=4;try{nsbPlay("pw1",1.2);nsbPlay("hit",.9);nsbPlay("pw2",.7)}catch(e){}NUN.flash=.4;try{S.vib&&navigator.vibrate&&navigator.vibrate([250,40,350])}catch(e){}
   const a=PWS.acts.sprint;if(a&&PWS.bestT!=null){a.time=PWS.bestT;a.timeScale=0}}
+ if(PWS.ph>=3&&!PWS.glow)pwGlow(true);
  PWS.mx.update(dt);
  /* he stands at fixed spots in the world; only the final lunge follows your face */
  if(PWS.ph==2&&!PWS.wp2){PWS.wp2=new THREE.Vector3(PWS.o.x+f.x*(PWS.d0-PWS.dn),0,PWS.o.z+f.z*(PWS.d0-PWS.dn))}
@@ -2563,15 +2570,15 @@ function pwStep(dt){
  if(PWS.ph<2){x=PWS.wp.x;z=PWS.wp.z}
  else if(PWS.ph==2){x=PWS.wp2.x;z=PWS.wp2.z}
  else{const tx=cam.position.x,tz=cam.position.z,vx=PWS.wp2.x-tx,vz=PWS.wp2.z-tz,vl=Math.hypot(vx,vz)||1,ux=vx/vl,uz=vz/vl;
-  const dd=PWS.ph==3?Math.max(.62,vl-(vl-.62)*Math.pow(clamp((t-T3)/(T4-T3),0,1),1.15)):.62-Math.min(.12,(t-T4)*.4);
+  const dd=PWS.ph==3?Math.max(.8,vl-(vl-.8)*Math.pow(clamp((t-T3)/(T4-T3),0,1),1.15)):.8-Math.min(.1,(t-T4)*.35);
   if(PWS.ph==4){const cf=_pv3.set(0,0,-1).applyQuaternion(cam.quaternion);cf.y=0;cf.normalize();x=tx+cf.x*dd;z=tz+cf.z*dd}else{x=tx+ux*dd;z=tz+uz*dd}}
  PWS.g.position.set(x,PWS.y0,z);PWS.g.rotation.y=Math.atan2(cam.position.x-x,cam.position.z-z)+(PWS.ph==0?Math.sin(t*1.3)*.05:0);
  PWS.g.rotation.z=PWS.ph==0?.07+Math.sin(t*.9)*.05:PWS.ph==2?.12:0;
  if(PWS.ph==4&&PWS.head){const a=PWS.acts.sprint;if(a)a.time=PWS.bestT+Math.sin(t*44)*.014;PWS.mx.update(0);PWS.g.updateMatrixWorld(true);PWS.head.getWorldPosition(_pv1);
-  PWS.g.position.y+=Math.min(.9,Math.max(0,cam.position.y-.06-_pv1.y));
+  PWS.g.position.y+=Math.min(.9,Math.max(0,cam.position.y-.16-_pv1.y));
   shake=Math.max(shake,.09);try{if(fin&&fin.uniforms.glt)fin.uniforms.glt.value=Math.random()<.35?.32:.05}catch(e){}NUN.fear=Math.max(NUN.fear,1)}
  if(PWS.ph==4){PWS.L.position.set(cam.position.x+f.x*.2,cam.position.y-.15,cam.position.z+f.z*.2);PWS.L.intensity=1.1}else{PWS.L.position.set(x,PWS.y0+1.6,z);PWS.L.intensity=PWS.ph==1?0:.3}
- if(t>=T5){PWS.on=false;PWS.g.visible=false;PWS.L.intensity=0;for(const k in PWS.acts)PWS.acts[k].stop();try{if(fin&&fin.uniforms.glt)fin.uniforms.glt.value=0}catch(e){}pwBlack(1);setTimeout(()=>pwBlack(0),220);if(PWS.why=="catch"){PWS.why="";try{qCaught("clown")}catch(e){console.error(e)}}}
+ if(t>=T5){if(PWS.glow)pwGlow(false);PWS.on=false;PWS.g.visible=false;PWS.L.intensity=0;pwAllOff();try{if(fin&&fin.uniforms.glt)fin.uniforms.glt.value=0}catch(e){}pwBlack(1);setTimeout(()=>pwBlack(0),220);if(PWS.why=="catch"){PWS.why="";try{qCaught("clown")}catch(e){console.error(e)}}}
 }
 /* =====================================================================
    BASEMENT WASHROOM (user-supplied "the_restroom.glb") replaces the old box washroom
@@ -2701,7 +2708,7 @@ function rrStep(dt){
 const CL2={st:"off",t:0,cd:30,x:0,z:0,L:0,seen:0,life:0,stuck:0,lx:0,lz:0,F:null,step:0,gig:0,face:0,lost:0,nz:null,atk:0};
 function clOn(){return (ENEMY=="both"||ENEMY=="clown")&&!DIFF.off}
 function clReset(){CL2.st="off";CL2.cd=ENEMY=="clown"?12:35;CL2.seen=0;CL2.nz=null;if(PWS.g&&!PWS.on)PWS.g.visible=false}
-function clHide(cd){clLaughStop();CL2.st="off";CL2.cd=cd;CL2.nz=null;if(!PWS.on&&PWS.g)PWS.g.visible=false;for(const k in PWS.acts)PWS.acts[k].stop()}
+function clHide(cd){clLaughStop();CL2.st="off";CL2.cd=cd;CL2.nz=null;if(!PWS.on&&PWS.g)PWS.g.visible=false;pwAllOff()}
 /* he hears what the nun hears: dropped items, planks, doors, running */
 function clHear(x,z,r,y){
  if(!PWS.ready||PWS.on||!clOn()||st!="play")return;const L=(y!=null?y:0)<-1.9?1:0;
@@ -2714,7 +2721,7 @@ function clLaugh(v,force){
   if(PWS.lh){try{PWS.lh.g.gain.setTargetAtTime(0,now,.05);PWS.lh.s.stop(now+.2)}catch(e){}}
   const r=nsbPlay("pwl",v,.92+Math.random()*.12);if(r){PWS.lh=r;PWS.lhEnd=now+r.s.buffer.duration/r.s.playbackRate.value}}catch(e){}}
 function clLaughStop(){try{if(PWS.lh&&AC){PWS.lh.g.gain.setTargetAtTime(0,AC.currentTime,.08);PWS.lh.s.stop(AC.currentTime+.3)}}catch(e){}PWS.lh=null;PWS.lhEnd=0}
-function clPlay(n,ts){const a=PWS.acts[n];if(!a)return;if(PWS.cur!==n){for(const k in PWS.acts)if(k!==n)PWS.acts[k].fadeOut(.25);a.reset();a.fadeIn(.25);a.play();PWS.cur=n}a.timeScale=ts}
+function clPlay(n,ts){const a=PWS.acts[n];if(!a)return;if(PWS.cur!==n){for(const k in PWS.acts)if(k!==n)PWS.acts[k].fadeOut(.25);a.reset();a.setEffectiveWeight(1);a.fadeIn(.25);a.play();PWS.cur=n}a.timeScale=ts}
 /* can he see you? (his own eyes, not the camera's) */
 function clSees(){
  const dx=P.pos.x-CL2.x,dz=P.pos.z-CL2.z,d=Math.hypot(dx,dz);if(d>17||plLayer()!==CL2.L||HLK.hide)return false;
@@ -2746,24 +2753,36 @@ function clMoveTo(gx,gz,spd,dt){
 }
 /* one-handed slash: the right arm swings up and across before the face scare */
 const _cq1=new THREE.Quaternion(),_cq2=new THREE.Quaternion(),_cq3=new THREE.Quaternion(),_cax=new THREE.Vector3();
+/* the most upright frame of any clip (head highest above the hips) */
+function clUpright(){
+ if(PWS.up)return PWS.up;let best={n:"sprint",t:PWS.bestT||0},bv=-1e9;const B={};PWS.inner.traverse(b=>{if(b.isBone)B[b.name.replace("mixamorig","")]=b});PWS.B=B;
+ const v=new THREE.Vector3(),w=new THREE.Vector3(),sv={p:PWS.g.position.clone(),r:PWS.g.rotation.clone()};PWS.g.position.set(0,0,0);PWS.g.rotation.set(0,0,0);
+ for(const n in PWS.acts){const a=PWS.acts[n],D=a.getClip().duration;pwAllOff();a.reset();a.setEffectiveWeight(1);a.play();a.timeScale=0;
+  for(let i=0;i<24;i++){a.time=D*i/24;PWS.mx.update(0);PWS.g.updateMatrixWorld(true);B.Head.getWorldPosition(v);B.Hips.getWorldPosition(w);const sc=(v.y-w.y)-Math.hypot(v.x-w.x,v.z-w.z)*1.5;if(sc>bv){bv=sc;best={n,t:a.time}}}}
+ PWS.g.position.copy(sv.p);PWS.g.rotation.copy(sv.r);return PWS.up=best}
+function clPose(){const u=clUpright();pwAllOff();const a=PWS.acts[u.n];a.reset();a.setEffectiveWeight(1);a.play();a.timeScale=0;a.time=u.t;PWS.mx.update(0);
+ const B=PWS.B;CL2.pq={a:B.RightArm.quaternion.clone(),f:B.RightForeArm.quaternion.clone(),s:B.Spine2?B.Spine2.quaternion.clone():null}}
+/* one-handed overhead chop: k 0..1. Upper arm swings from its rest direction to straight up, then down in front of you */
+const _cd1=new THREE.Vector3(),_cd2=new THREE.Vector3(),_cqw=new THREE.Quaternion(),_cqd=new THREE.Quaternion(),_cqp=new THREE.Quaternion();
+function clAimBone(b,child,dir){b.updateWorldMatrix(true,true);b.getWorldPosition(_cd1);child.getWorldPosition(_cd2);_cd2.sub(_cd1).normalize();
+ _cqd.setFromUnitVectors(_cd2,dir);b.getWorldQuaternion(_cqw);_cqw.premultiply(_cqd);b.parent.getWorldQuaternion(_cqp).invert();b.quaternion.copy(_cqp.multiply(_cqw))}
 function clArm(k){
- if(!PWS.arm){PWS.inner.traverse(o=>{if(o.isBone&&/mixamorigRightArm$/.test(o.name))PWS.arm=o;if(o.isBone&&/mixamorigRightForeArm$/.test(o.name))PWS.farm=o})}
- const A=PWS.arm;if(!A||!A.parent)return;
- if(!CL2.aq0){CL2.aq0=A.quaternion.clone();CL2.fq0=PWS.farm?PWS.farm.quaternion.clone():null}
- A.quaternion.copy(CL2.aq0);if(PWS.farm&&CL2.fq0)PWS.farm.quaternion.copy(CL2.fq0);
- /* k: 0..1 swing phase. raise forward-up (0..0.45), then slash down and across (0.45..1) */
- const up=k<.45?Math.sin(k/.45*Math.PI/2)*2.3:2.3-(k-.45)/.55*2.0,side=k<.45?-.35*k/.45:-.35+(k-.45)/.55*1.3;
- const ry=PWS.g.rotation.y,right=_cax.set(Math.cos(ry),0,-Math.sin(ry));
- A.updateWorldMatrix(true,false);A.getWorldQuaternion(_cq1);
- _cq2.setFromAxisAngle(right,-up);_cq3.setFromAxisAngle(_pv3.set(0,1,0),side);_cq2.premultiply(_cq3);_cq1.premultiply(_cq2);
- A.parent.getWorldQuaternion(_cq3).invert();A.quaternion.copy(_cq3.multiply(_cq1));
- if(PWS.farm){PWS.farm.rotateX(-.45*Math.sin(k*Math.PI))}
+ const B=PWS.B;if(!B||!CL2.pq)return;B.RightArm.quaternion.copy(CL2.pq.a);B.RightForeArm.quaternion.copy(CL2.pq.f);if(CL2.pq.s&&B.Spine2)B.Spine2.quaternion.copy(CL2.pq.s);
+ const ry=PWS.g.rotation.y,fx=Math.sin(ry),fz=Math.cos(ry),rx=Math.cos(ry),rz=-Math.sin(ry);
+ /* raise 0..0.5 (ease out), chop 0.5..1 (fast) */
+ let ang;if(k<.5){const e=Math.sin(k/.5*Math.PI/2);ang=-.3+e*2.05}else{const e=Math.pow((k-.5)/.5,.55);ang=1.75-e*2.15}
+ /* ang: 0 = straight forward, +pi/2 = straight up; arm slightly out to his right side */
+ const dir=new THREE.Vector3(fx*Math.cos(ang)-rx*.18,Math.sin(ang),fz*Math.cos(ang)-rz*.18).normalize();
+ clAimBone(B.RightArm,B.RightForeArm,dir);
+ const fdir=dir.clone().add(new THREE.Vector3(fx,0,fz).multiplyScalar(k<.5?.35:.1)).normalize();clAimBone(B.RightForeArm,B.RightHand,fdir);
+ /* lean into the blow */
+ if(B.Spine2){const lean=k<.5?-.12*k/.5:-.12+(k-.5)/.5*.45;B.Spine2.rotateX(lean)}
 }
 function clCatch(){
  clLaughStop();CL2.st="off";CL2.cd=ENEMY=="clown"?18:45;
  const f=_nC.set(CL2.x-P.pos.x,0,CL2.z-P.pos.z);if(f.lengthSq()<1e-4)f.set(0,0,1);f.normalize();yaw=Math.atan2(f.x,f.z);pitch=0;
  PWS.on=true;PWS.t=2.0;PWS.ph=3;PWS.f=f.clone();PWS.o=cam.position.clone();PWS.wp=new THREE.Vector3(CL2.x,0,CL2.z);PWS.wp2=PWS.wp.clone();PWS.d0=1.2;PWS.dn=0;PWS.why="catch";PWS.y0=layerY(CL2.L);
- for(const k in PWS.acts)PWS.acts[k].stop();const a=PWS.acts.sprint;if(a){a.reset();a.play();a.timeScale=1.9}PWS.cur=null;
+ pwAllOff();const a=PWS.acts.sprint;if(a){a.reset();a.setEffectiveWeight(1);a.play();a.timeScale=1.9}PWS.cur=null;
 }
 function clStep(dt){
  if(!PWS.ready||PWS.on)return;
@@ -2775,6 +2794,7 @@ function clStep(dt){
  const sees=clSees();
  if(CL2.st=="attack"){CL2.atk+=dt;const k=Math.min(1,CL2.atk/.62);
   const tf=Math.atan2(P.pos.x-CL2.x,P.pos.z-CL2.z);CL2.face=tf;PWS.g.position.set(CL2.x,layerY(CL2.L),CL2.z);PWS.g.rotation.set(0,tf,0);
+  PWS.g.updateMatrixWorld(true);
   clArm(k);
   if(CL2.atk>.36&&!CL2.hit){CL2.hit=1;try{nsbPlay("hit",.8);snd("thud",.6)}catch(e){}shake=Math.max(shake,.05);NUN.flash=.35}
   if(k>=1){clCatch()}return}
@@ -2785,7 +2805,7 @@ function clStep(dt){
   const tg=sees||!CL2.lp?{x:P.pos.x,z:P.pos.z}:CL2.lp;clPlay("sprint",1.15);
   const m=clMoveTo(tg.x,tg.z,4.35*DIFF.spd,dt);CL2.step+=m;if(CL2.step>1.1){CL2.step=0;try{snd3("run",1.5,CL2.x,layerY(CL2.L)+.05,CL2.z,.9,3)}catch(e){}}
   CL2.gig-=dt;if(CL2.gig<=0){CL2.gig=7+Math.random()*5;clLaugh(.5)}
-  if(d<1.35&&!HLK.hide&&sees){CL2.st="attack";CL2.atk=0;CL2.hit=0;CL2.aq0=null;for(const k in PWS.acts)PWS.acts[k].stop();PWS.cur=null;const a=PWS.acts.zombie_walk_2||PWS.acts.drunk_walk;if(a){a.reset();a.play();a.timeScale=0}PWS.mx.update(0);try{nsbPlay("pw2",.8)}catch(e){}return}
+  if(d<1.35&&!HLK.hide&&sees){CL2.st="attack";CL2.atk=0;CL2.hit=0;CL2.aq0=null;pwAllOff();PWS.cur=null;PWS.g.rotation.set(0,CL2.face,0);clPose();PWS.g.updateMatrixWorld(true);clArm(0);try{nsbPlay("pw2",.8)}catch(e){}return}
  }else{
   /* stalk: creep toward you (or the last noise), slow and quiet */
   let tg={x:P.pos.x,z:P.pos.z};if(CL2.st=="invest"&&CL2.nz){tg=CL2.nz;if(Math.hypot(tg.x-CL2.x,tg.z-CL2.z)<1){CL2.nz=null;CL2.st="stalk"}}
@@ -2840,10 +2860,43 @@ function spMats(){
  const mahog=spTex(512,512,(x,w,h)=>spGrain(x,w,h,R,"#4a2418","26,10,6","110,52,34",380,10));
  const cab=spTex(512,512,(x,w,h)=>{spGrain(x,w,h,R,"#8d8a7e","70,66,58","160,156,146",160,8);for(let i=0;i<40;i++){x.fillStyle="rgba(70,52,36,.55)";x.beginPath();x.ellipse(R()*w,R()*h,2+R()*9,1+R()*4,R()*3,0,6.3);x.fill()}});
  /* painted door: off-white satin paint, faint brush strokes, worn near the handle */
- const door=spTex(512,1024,(x,w,h)=>{x.fillStyle="#bdb9aa";x.fillRect(0,0,w,h);for(let i=0;i<500;i++){x.strokeStyle=`rgba(${R()<.5?150:225},${R()<.5?146:222},${R()<.5?132:210},${.06+R()*.08})`;x.lineWidth=1+R()*2;x.beginPath();const sx=R()*w;x.moveTo(sx,0);x.lineTo(sx+(R()-.5)*6,h);x.stroke()}
-  for(let i=0;i<12000;i++){x.fillStyle=`rgba(${R()<.5?120:240},${R()<.5?116:238},${R()<.5?104:226},${.03+R()*.04})`;x.fillRect(R()*w,R()*h,1+R()*2,1)}
-  const g=x.createRadialGradient(w*.85,h*.5,0,w*.85,h*.5,w*.35);g.addColorStop(0,"rgba(90,80,60,.22)");g.addColorStop(1,"rgba(90,80,60,0)");x.fillStyle=g;x.fillRect(0,0,w,h);
-  const g2=x.createLinearGradient(0,h*.88,0,h);g2.addColorStop(0,"rgba(70,62,50,0)");g2.addColorStop(1,"rgba(70,62,50,.3)");x.fillStyle=g2;x.fillRect(0,h*.88,w,h*.12)});
+ /* detailed painted four-panel door: grain under the paint, bevelled panels, chips, scratches, grime, rust under the hinges */
+ const DP=[[.27,.72,.36,.36],[.73,.72,.36,.36],[.27,.27,.36,.4],[.73,.27,.36,.4]];
+ const doorDraw=(x,w,h,bump)=>{const Rr=sgRnd(bump?71:70);
+  const P=(u,v)=>[u*w,(1-v)*h];
+  x.fillStyle=bump?"#808080":"#c3beae";x.fillRect(0,0,w,h);
+  /* wood grain telegraphing through the paint */
+  for(let i=0;i<260;i++){const xx=Rr()*w;x.strokeStyle=bump?`rgba(${Rr()<.5?95:160},${Rr()<.5?95:160},${Rr()<.5?95:160},.25)`:`rgba(${Rr()<.5?150:220},${Rr()<.5?144:216},${Rr()<.5?128:204},${.05+Rr()*.08})`;x.lineWidth=.6+Rr()*1.6;x.beginPath();x.moveTo(xx,0);x.bezierCurveTo(xx+(Rr()-.5)*10,h*.33,xx+(Rr()-.5)*10,h*.66,xx+(Rr()-.5)*8,h);x.stroke()}
+  /* brush strokes */
+  for(let i=0;i<900;i++){const xx=Rr()*w,yy=Rr()*h;x.strokeStyle=bump?`rgba(${Rr()<.5?110:150},${Rr()<.5?110:150},${Rr()<.5?110:150},.18)`:`rgba(${Rr()<.5?160:235},${Rr()<.5?156:232},${Rr()<.5?142:222},${.04+Rr()*.06})`;x.lineWidth=1+Rr()*2;x.beginPath();x.moveTo(xx,yy);x.lineTo(xx+(Rr()-.5)*4,yy+20+Rr()*60);x.stroke()}
+  /* panels: recessed field with bevels */
+  for(const [cu,cv,pw,ph] of DP){const [x0,y0]=P(cu-pw/2,cv+ph/2),[x1,y1]=P(cu+pw/2,cv-ph/2),b=w*.028;
+   const dk=bump?"#3a3a3a":"rgba(40,34,24,.42)",lt=bump?"#d0d0d0":"rgba(255,252,240,.4)";
+   x.fillStyle=lt;x.beginPath();x.moveTo(x0,y0);x.lineTo(x1,y0);x.lineTo(x1-b,y0+b);x.lineTo(x0+b,y0+b);x.closePath();x.fill();
+   x.beginPath();x.moveTo(x0,y0);x.lineTo(x0+b,y0+b);x.lineTo(x0+b,y1-b);x.lineTo(x0,y1);x.closePath();x.fill();
+   x.fillStyle=dk;x.beginPath();x.moveTo(x1,y1);x.lineTo(x0,y1);x.lineTo(x0+b,y1-b);x.lineTo(x1-b,y1-b);x.closePath();x.fill();
+   x.beginPath();x.moveTo(x1,y1);x.lineTo(x1-b,y1-b);x.lineTo(x1-b,y0+b);x.lineTo(x1,y0);x.closePath();x.fill();
+   x.fillStyle=bump?"#6a6a6a":"rgba(70,60,44,.08)";x.fillRect(x0+b,y0+b,x1-x0-2*b,y1-y0-2*b);
+   x.strokeStyle=bump?"#2a2a2a":"rgba(30,24,16,.55)";x.lineWidth=2;x.strokeRect(x0,y0,x1-x0,y1-y0);
+   if(!bump){const g=x.createLinearGradient(0,y1-b-30,0,y1-b);g.addColorStop(0,"rgba(60,48,30,0)");g.addColorStop(1,"rgba(60,48,30,.3)");x.fillStyle=g;x.fillRect(x0+b,y1-b-30,x1-x0-2*b,30)}}
+  /* scratches */
+  for(let i=0;i<70;i++){const xx=Rr()*w,yy=h*(.35+Rr()*.6);x.strokeStyle=bump?"rgba(40,40,40,.7)":`rgba(${90+Rr()*40|0},${70+Rr()*30|0},${50},.55)`;x.lineWidth=.7+Rr()*1.2;x.beginPath();x.moveTo(xx,yy);x.lineTo(xx+(Rr()-.5)*70,yy+(Rr()-.5)*24);x.stroke()}
+  /* paint chips showing grey primer and dark wood */
+  for(let i=0;i<55;i++){const cx=Rr()<.5?Rr()*w*.12+(Rr()<.5?0:w*.88):Rr()*w,cy=Rr()*h,r=3+Rr()*13;
+   x.fillStyle=bump?"#4a4a4a":(Rr()<.45?"#8d8a82":"#5b3e27");x.beginPath();for(let k=0;k<9;k++){const a=k/9*6.28,q=r*(.5+Rr()*.6);x.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q*.7)}x.closePath();x.fill()}
+  if(!bump){
+   /* grime round the handle, finger marks, kick marks at the bottom, rust from the hinges */
+   const hg=x.createRadialGradient(w*.9,h*.52,0,w*.9,h*.52,w*.22);hg.addColorStop(0,"rgba(70,58,40,.38)");hg.addColorStop(1,"rgba(70,58,40,0)");x.fillStyle=hg;x.fillRect(0,0,w,h);
+   for(let i=0;i<6;i++){const fx=w*(.8+Rr()*.15),fy=h*(.42+Rr()*.18);x.fillStyle="rgba(60,48,34,.18)";x.beginPath();x.ellipse(fx,fy,6,14,Rr(),0,6.3);x.fill()}
+   const kg=x.createLinearGradient(0,h*.86,0,h);kg.addColorStop(0,"rgba(60,50,36,0)");kg.addColorStop(1,"rgba(55,44,30,.55)");x.fillStyle=kg;x.fillRect(0,h*.86,w,h*.14);
+   for(let i=0;i<30;i++){x.strokeStyle="rgba(40,32,24,.35)";x.lineWidth=2+Rr()*3;x.beginPath();const xx=Rr()*w,yy=h*(.9+Rr()*.09);x.moveTo(xx,yy);x.lineTo(xx+(Rr()-.5)*40,yy+(Rr()-.5)*6);x.stroke()}
+   for(const hv of[.12,.48,.87]){const g=x.createLinearGradient(0,h*(1-hv),0,h*(1-hv)+h*.12);g.addColorStop(0,"rgba(120,60,25,.45)");g.addColorStop(1,"rgba(120,60,25,0)");x.fillStyle=g;x.fillRect(0,h*(1-hv),w*.05,h*.12)}
+   for(let i=0;i<20000;i++){x.fillStyle=`rgba(${Rr()<.5?110:240},${Rr()<.5?104:236},${Rr()<.5?92:224},${.03+Rr()*.04})`;x.fillRect(Rr()*w,Rr()*h,1+Rr()*1.5,1)}
+   /* dried blood smear: a hand dragged down */
+   x.save();x.globalAlpha=.55;for(let f=0;f<4;f++){x.strokeStyle="rgba(80,12,8,.6)";x.lineWidth=5;x.beginPath();x.moveTo(w*(.62+f*.03),h*.38);x.bezierCurveTo(w*(.63+f*.03),h*.5,w*(.61+f*.03),h*.58,w*(.62+f*.032),h*(.66+Rr()*.04));x.stroke()}x.restore()}};
+ const door=spTex(768,1536,(x,w,h)=>doorDraw(x,w,h,false));door.wrapS=door.wrapT=THREE.ClampToEdgeWrapping;
+ const doorB=qCanvasTex(384,768,(x,w,h)=>doorDraw(x,w,h,true),0);doorB.encoding=THREE.LinearEncoding;
+ const trimT=spTex(256,512,(x,w,h)=>{x.fillStyle="#c9c4b4";x.fillRect(0,0,w,h);const Rr=sgRnd(72);for(let i=0;i<300;i++){x.strokeStyle=`rgba(${Rr()<.5?150:230},${Rr()<.5?146:226},${Rr()<.5?130:214},.1)`;x.lineWidth=1+Rr();x.beginPath();const xx=Rr()*w;x.moveTo(xx,0);x.lineTo(xx,h);x.stroke()}for(let i=0;i<25;i++){x.fillStyle="rgba(90,80,64,.4)";x.fillRect(Rr()*w,Rr()*h,2+Rr()*6,1+Rr()*4)}});
  /* tufted dark-brown leather */
  const leather=spTex(512,512,(x,w,h)=>{x.fillStyle="#3a2017";x.fillRect(0,0,w,h);
   for(let i=0;i<30000;i++){x.fillStyle=`rgba(${R()<.5?14:120},${R()<.5?6:70},${R()<.5?4:48},${.04+R()*.06})`;x.fillRect(R()*w,R()*h,1+R()*2,1+R()*2)}
@@ -2863,7 +2916,7 @@ function spMats(){
  const S=(o)=>new THREE.MeshStandardMaterial(Object.assign({roughness:.85,metalness:0,envMap:env,envMapIntensity:.12},o));
  const wm=wall.clone();wm.needsUpdate=true;wm.repeat.set(1,-1);
  const M={wall:S({map:wm,roughness:.93,envMap:null,color:0xc9c9c2}),ceil:S({map:ceil,roughness:1,envMap:null}),floor:S({map:floor,roughness:.72,envMapIntensity:.16}),
-  trim:S({map:door,roughness:.6,color:0xe6e2d6}),door:S({map:door,roughness:.62}),
+  trim:S({map:trimT,roughness:.6,color:0xe6e2d6}),door:S({map:door,bumpMap:doorB,bumpScale:.0035,roughness:.6}),
   walnut:S({map:walnut,roughness:.7}),mahog:S({map:mahog,roughness:.68}),cab:S({map:cab,roughness:.75}),
   leather:S({map:leather,roughnessMap:leatherR,roughness:.8,envMapIntensity:.08}),ticking:S({map:ticking,roughness:.95,envMap:null}),blanket:S({map:blanket,roughness:1,envMap:null}),linen:S({map:linen,roughness:1,envMap:null}),
   enamel:S({map:enamel,roughness:.55,metalness:.15,envMapIntensity:.2}),metal:S({color:0x8d8e8b,roughness:.38,metalness:.85,envMapIntensity:.45}),
@@ -3023,8 +3076,7 @@ function spBuild(){
    for(const n of["Door_Panel002","Door_Handle002"])if(byName[n])byName[n].visible=false;
    const pv=new THREE.Group;pv.position.set(hx,0,hz);grp.add(pv);keep.add(pv);const M=spMats();
    const leaf=new THREE.Group;leaf.position.set(0,.012,-T/2);pv.add(leaf);
-   const slab=new THREE.Mesh(new THREE.BoxGeometry(W,Hh,T),M.door);slab.position.set(W/2,Hh/2,0);leaf.add(slab);
-   for(const sz of[1,-1])for(const [py,ph] of [[Hh*.72,Hh*.36],[Hh*.27,Hh*.4]])for(const px of[W*.27,W*.73]){const p=new THREE.Mesh(new THREE.BoxGeometry(W*.36,ph,.008),M.door);p.position.set(px,py,sz*(T/2+.003));leaf.add(p)}
+   const sg=new THREE.BoxGeometry(W,Hh,T);{const uv=sg.attributes.uv;for(let i=20;i<24;i++)uv.setX(i,1-uv.getX(i));for(const i of[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15])uv.setXY(i,.02+uv.getX(i)*.01,uv.getY(i));uv.needsUpdate=true}const slab=new THREE.Mesh(sg,M.door);slab.position.set(W/2,Hh/2,0);leaf.add(slab);
    for(const sz of[1,-1]){const ro=new THREE.Mesh(new THREE.CylinderGeometry(.028,.028,.012,20),M.metal);ro.rotation.x=Math.PI/2;ro.position.set(W-.075,1.0,sz*(T/2+.006));leaf.add(ro);
     const lv=new THREE.Mesh(new THREE.BoxGeometry(.13,.018,.018),M.metal);lv.position.set(W-.12,1.0,sz*(T/2+.03));leaf.add(lv);
     const st=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,.03,10),M.metal);st.rotation.x=Math.PI/2;st.position.set(W-.075,1.0,sz*(T/2+.018));leaf.add(st);
