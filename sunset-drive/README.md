@@ -3,6 +3,8 @@
 Single-file open-city game (three.js r170, every model, animation and texture embedded). Open `index.html` in Chrome / Safari (needs internet for three.js from jsDelivr).
 
 ## What changed in v3
+- **Weapon icons are renders of the real in-game 3D models** (Glock, M4, M4 with scope, grenade), made at load time with lighting and a soft shadow. Unarmed is a render of the character's own right hand closed into a fist. Empty slots say EMPTY.
+- The grenade is now a frag grenade model (body, fuse cap, spoon and pin ring) in the hand, when thrown, and in its icon.
 - **Map about 10x bigger**: 35×35 blocks (was 11×11) and 22 stunt ramps. The city is split into tiles; far tiles are not drawn, and far palms are cheap image stand-ins rendered from the 3D palm.
 - **Ocean and beach instead of mountains**: sand slopes from the city edge into an animated, reflective sea, with a foam line, palms, umbrellas and towels. You can walk and drive on the sand.
 - **In the car**: the driver now sits lower and further inside the cab, so the head no longer pokes through the roof and the arms stay inside the door.

@@ -57,7 +57,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 #money{font:400 clamp(26px,4.4vw,40px)/1 Anton,sans-serif;color:var(--money);-webkit-text-stroke:1.5px #062d14;text-shadow:3px 3px 0 #062d14;letter-spacing:.02em}
 #wcard{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:6px 12px 6px 8px;border-radius:12px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);min-height:52px}
 #wicon{width:86px;height:40px}
-#wicon svg{width:100%;height:100%;fill:#fff;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6))}
+#wicon img{width:100%;height:100%;object-fit:contain;display:block}
 #ammo{font:700 22px/1 Rajdhani;white-space:nowrap}#ammo small{font-size:15px;opacity:.7}
 #cross{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0;transition:opacity .12s;--g:6px}
 #cross.on{opacity:1}
@@ -134,6 +134,7 @@ body.desk #touch .b,body.desk #joyHint{display:none!important}
 #wheel .seg.sel g.ic{fill:#fff}
 #wheel .seg text{fill:#fff;font:700 13px Rajdhani;letter-spacing:.08em;text-anchor:middle}
 #wheel .seg text.am{font-size:12px;fill:rgba(255,255,255,.72)}
+#wheel .seg text.em{font-size:12px;fill:rgba(255,255,255,.45);letter-spacing:.2em}
 #wheel .seg.sel .cnt{fill:var(--amber)}
 #wheel .mid circle{fill:rgba(8,8,10,.82);stroke:rgba(255,255,255,.25);stroke-width:1.5}
 #wheel .mid text{fill:#fff;text-anchor:middle}
@@ -1391,26 +1392,32 @@ function setupWeapon(fbx, set, key) {
       mainGeo.computeBoundingBox(); const bb = mainGeo.boundingBox, L = (bb.max.z - bb.min.z), cz = bb.min.z + L * .47;
       scope = new THREE.Group(); scope.matrixAutoUpdate = false; scope.matrix.copy(mainM); holder.add(scope);
       const sm = new THREE.MeshStandardMaterial({ color: 0x1b1c1f, metalness: .7, roughness: .38 });
-      const r = L * .038, tube = new THREE.CylinderGeometry(r, r, L * .36, 16); tube.rotateX(Math.PI / 2);
+      const r = L * .026, tube = new THREE.CylinderGeometry(r, r, L * .34, 16); tube.rotateX(Math.PI / 2);
       const bell = new THREE.CylinderGeometry(r * 1.45, r, L * .08, 16); bell.rotateX(Math.PI / 2);
       const t = new THREE.Mesh(tube, sm), b1 = new THREE.Mesh(bell, sm), b2 = new THREE.Mesh(bell, sm), lens = new THREE.Mesh(new THREE.CircleGeometry(r * 1.3, 16), new THREE.MeshStandardMaterial({ color: 0x223355, metalness: 1, roughness: .05, emissive: 0x0a1a40 }));
-      const y = bb.max.y + r * 1.6; t.position.set(0, y, cz); b1.position.set(0, y, cz + L * .21); b2.position.set(0, y, cz - L * .21); b2.rotation.y = Math.PI; lens.position.set(0, y, cz + L * .252);
-      const mount = new THREE.Mesh(new THREE.BoxGeometry(r * .8, r * 1.6, L * .16), sm); mount.position.set(0, bb.max.y + r * .5, cz);
-      for (const m of [t, b1, b2, lens, mount]) { m.castShadow = true; scope.add(m); }
+      const y = bb.max.y - r * .3; t.position.set(0, y, cz); b1.position.set(0, y, cz + L * .21); b2.position.set(0, y, cz - L * .21); b2.rotation.y = Math.PI; lens.position.set(0, y, cz + L * .252);
+      for (const m of [t, b1, b2, lens]) { m.castShadow = true; scope.add(m); }
       scope.visible = false;
     }
   }
   holder.visible = false;
-  wpnM[key] = { holder, muzzle, scope };
+  wpnM[key] = { holder, muzzle, scope, axis: mainM ? V3(0, 0, 1).transformDirection(mainM) : V3(0, 0, 1), up: mainM ? V3(0, 1, 0).transformDirection(mainM) : V3(0, 1, 0) };
 }
 function setupGrenadeModel() {
   const holder = new THREE.Group(); holder.scale.setScalar(100); holder.rotation.z = Math.PI;
   const wr = bones['weapon_r'] || bones['hand.r']; if (wr) wr.add(holder);
-  const g = new THREE.Mesh(nadeGeo, nadeMat); g.position.set(0, .02, .03); g.castShadow = true; holder.add(g);
+  const g = makeNade(); g.position.set(0, .02, .03); holder.add(g);
   holder.visible = false; wpnM.nade = { holder, muzzle: g };
 }
-const nadeGeo = (() => { const g = new THREE.SphereGeometry(.042, 12, 10); g.scale(1, 1.25, 1); return g; })();
-const nadeMat = new THREE.MeshStandardMaterial({ color: 0x3d4a2a, roughness: .6, metalness: .3 });
+const nadeGeo = (() => { const g = new THREE.SphereGeometry(.042, 18, 14); g.scale(1, 1.25, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i), a = Math.atan2(p.getZ(i), p.getX(i)), k = 1 + .045 * Math.max(Math.cos(y * 150), 0) + .03 * Math.max(Math.cos(a * 6), 0); p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k); } g.computeVertexNormals(); return g; })();
+const nadeMat = new THREE.MeshStandardMaterial({ color: 0x3f4b2b, roughness: .55, metalness: .25 });
+const nadeMetal = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: .35, metalness: .9 });
+const nadeCap = new THREE.CylinderGeometry(.016, .019, .03, 12), nadeLever = new THREE.BoxGeometry(.013, .075, .007), nadeRing = new THREE.TorusGeometry(.013, .0024, 6, 16);
+function makeNade() { // M67-style frag: body, fuse cap, spoon lever and pull ring
+  const g = new THREE.Group(), b = new THREE.Mesh(nadeGeo, nadeMat), c = new THREE.Mesh(nadeCap, nadeMetal), l = new THREE.Mesh(nadeLever, nadeMetal), r = new THREE.Mesh(nadeRing, nadeMetal);
+  c.position.y = .062; l.position.set(.024, .04, 0); l.rotation.z = -.32; r.position.set(-.024, .066, 0); r.rotation.y = Math.PI / 2;
+  for (const m of [b, c, l, r]) { m.castShadow = true; g.add(m); } return g;
+}
 function showWeapon() {
   const W = WEAP[player.weapon], foot = player.state === 'foot' || player.state === 'dead';
   for (const k in wpnM) wpnM[k].holder.visible = foot && W.model === k && !(W.throw && player.ammo[5] <= 0);
@@ -1798,7 +1805,70 @@ const ICONP = {
   shotgun: 'M2 13h52l3-2h21v4H58l-3 2H24l-6 13H7l6-13H2zM30 17h18v4H30z',
   heavy: 'M4 13h54l8-5h10v16H66l-8-5H4zM22 19h7v11h-7zM36 19h5v7h-5z',
 };
-const icon = (cat, cls = '') => `<svg viewBox="0 0 80 36" class="${cls}"><path d="${ICONP[cat]}"/></svg>`;
+const ICONS = {}; // weapon icons rendered from the actual 3D models (filled in at load)
+const icon = (cat) => ICONS[cat] ? `<img src="${ICONS[cat]}" alt="">` : '';
+let iconRT = null;
+function iconShot(obj, cam, w = 384, h = 192) {
+  if (!iconRT) { iconRT = new THREE.WebGLRenderTarget(w * 2, h * 2); iconRT.texture.colorSpace = THREE.SRGBColorSpace; }
+  const sc = new THREE.Scene(); sc.environment = scene.environment; sc.environmentIntensity = 1;
+  sc.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6)); const k = new THREE.DirectionalLight(0xffffff, 3.2); k.position.set(2, 4, 5); sc.add(k);
+  const rim = new THREE.DirectionalLight(0xbfd8ff, 2.2); rim.position.set(-4, 2, -3); sc.add(rim); sc.add(obj); obj.updateMatrixWorld(true);
+  const prevT = renderer.getRenderTarget(), cc = new THREE.Color(), ca = renderer.getClearAlpha(), tm = renderer.toneMapping; renderer.getClearColor(cc);
+  renderer.setRenderTarget(iconRT); renderer.setClearColor(0, 0); renderer.clear(); renderer.render(sc, cam);
+  const buf = new Uint8Array(w * h * 16); renderer.readRenderTargetPixels(iconRT, 0, 0, w * 2, h * 2, buf);
+  renderer.setRenderTarget(prevT); renderer.setClearColor(cc, ca); sc.remove(obj);
+  const big = document.createElement('canvas'); big.width = w * 2; big.height = h * 2; const bg = big.getContext('2d'), id = bg.createImageData(w * 2, h * 2);
+  for (let y = 0; y < h * 2; y++) id.data.set(buf.subarray((h * 2 - 1 - y) * w * 8, (h * 2 - y) * w * 8), y * w * 8); // flip rows
+  bg.putImageData(id, 0, 0);
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+  g.shadowColor = 'rgba(0,0,0,.65)'; g.shadowBlur = 6; g.shadowOffsetY = 2; g.drawImage(big, 0, 0, w, h);
+  return c.toDataURL('image/png');
+}
+function fitOrtho(obj, aspect, pad = 1.08, view = V3(0, 0, 1)) {
+  obj.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(obj), c = b.getCenter(V3()), s = b.getSize(V3());
+  let w = s.x * pad, hh = s.y * pad; if (w / hh < aspect) w = hh * aspect; else hh = w / aspect;
+  const cam = new THREE.OrthographicCamera(-w / 2, w / 2, hh / 2, -hh / 2, .01, 100); cam.position.copy(c).addScaledVector(view, 10); cam.lookAt(c); return cam;
+}
+function gunIcon(key, scope) {
+  const src = wpnM[key]; if (!src) return null;
+  const h = src.holder.clone(true); h.visible = true; h.position.set(0, 0, 0); h.rotation.set(0, 0, 0); h.scale.setScalar(1);
+  const si = src.scope ? src.holder.children.indexOf(src.scope) : -1; if (si >= 0) h.children[si].visible = !!scope;
+  h.traverse(o => { if (o.isMesh) o.castShadow = false; });
+  h.updateMatrixWorld(true);
+  const d = src.axis.clone().normalize(), up = src.up.clone().normalize();
+  const z = V3().crossVectors(d, up).normalize(); up.crossVectors(z, d).normalize();
+  h.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, up, z)).invert();
+  const w = new THREE.Group(); w.add(h); w.rotation.y = -.18; w.rotation.x = .08;
+  return iconShot(w, fitOrtho(w, 2));
+}
+function fistIcon(sign = -1) {
+  if (!charTpl || !charClips.idle) return null;
+  const ch = SkeletonUtils.clone(charTpl);
+  ch.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } if (!o.isBone && !o.isMesh && o !== ch && o.parent && o.parent.isBone) o.visible = false; });
+  const mx = new THREE.AnimationMixer(ch); mx.clipAction(charClips.idle).play(); mx.update(0);
+  const g = new THREE.Group(); g.add(ch); g.updateMatrixWorld(true);
+  const B = n => findBone(ch, n), W = b => b.getWorldPosition(V3());
+  const turn = (b, axis, ang) => { b.parent.getWorldQuaternion(_q1); const ax = axis.clone().applyQuaternion(_q1.invert()).normalize(); b.quaternion.premultiply(_q1.setFromAxisAngle(ax, ang)); b.updateMatrixWorld(true); };
+  const point = (b, child, dir) => { const v = W(child).sub(W(b)).normalize(), q = new THREE.Quaternion().setFromUnitVectors(v, dir.clone().normalize()), ang = 2 * Math.acos(clamp(q.w, -1, 1)); if (ang > 1e-4) turn(b, V3(q.x, q.y, q.z).normalize(), ang); };
+  // punch pose: arm straight forward, then close the fingers into a fist
+  const F = V3(0, -.08, 1);
+  point(B('arm_stretch.r'), B('forearm_stretch.r'), F); point(B('forearm_stretch.r'), B('hand.r'), F); point(B('hand.r'), B('c_middle1.r'), F);
+  for (const f of ['index', 'middle', 'ring', 'pinky']) for (const [j, a] of [[1, 1.45], [2, 1.65], [3, 1.15]]) {
+    const b = B('c_' + f + j + '.r'); if (!b) continue; const A = W(B('c_index1.r')).sub(W(B('c_pinky1.r'))).normalize(); turn(b, A, a * sign);
+  }
+  { const A = W(B('c_index1.r')).sub(W(B('c_pinky1.r'))).normalize(); turn(B('c_thumb2.r'), A, .7 * sign); turn(B('c_thumb3.r'), A, .8 * sign); }
+  const wr = W(B("hand.r")), kn = W(B("c_middle1.r")), tgt = wr.clone().lerp(kn, .55);
+  const cam = new THREE.PerspectiveCamera(24, 2, .01, 10); cam.position.copy(tgt).add(V3(-.5, .08, -.07));
+  const v = tgt.clone().sub(cam.position).normalize(), r = kn.clone().sub(wr); r.addScaledVector(v, -r.dot(v)).normalize();
+  cam.up.copy(V3().crossVectors(v.clone().negate(), r)); cam.lookAt(tgt);
+  return iconShot(g, cam);
+}
+function makeIcons() {
+  try {
+    ICONS.pistol = ICONS.smg = gunIcon('glock'); ICONS.rifle = gunIcon('m4', false); ICONS.sniper = gunIcon('m4', true);
+    const n = new THREE.Group(), nn = makeNade(); nn.rotation.z = -.35; n.add(nn); ICONS.throw = iconShot(n, fitOrtho(n, 2, 1.25, V3(.35, .1, 1).normalize()));
+  } catch (e) { console.warn('icons', e); }
+}
 const WHEEL = [
   { cat: 'pistol', w: 1 }, { cat: 'smg', w: 3 }, { cat: 'rifle', w: 2 }, { cat: 'sniper', w: 4 },
   { cat: 'heavy', w: -1, name: 'HEAVY' }, { cat: 'throw', w: 5 }, { cat: 'fists', w: 0 }, { cat: 'shotgun', w: -1, name: 'SHOTGUN' }];
@@ -1812,7 +1882,7 @@ function wheelBuild() {
     const P = (r, a) => (r * Math.cos(a)).toFixed(1) + ' ' + (r * Math.sin(a)).toFixed(1);
     const d = `M${P(R0, a0)} L${P(R1, a0)} A${R1} ${R1} 0 0 1 ${P(R1, a1)} L${P(R0, a1)} A${R0} ${R0} 0 0 0 ${P(R0, a0)}Z`;
     const cx = 182 * Math.cos(am), cy = 182 * Math.sin(am);
-    h += `<g class="seg" data-i="${i}"><path class="bg" d="${d}"/><g class="ic" transform="translate(${(cx - 44).toFixed(1)} ${(cy - 30).toFixed(1)}) scale(1.1)"><path d="${ICONP[s.cat]}"/></g>` +
+    h += `<g class="seg" data-i="${i}"><path class="bg" d="${d}"/>` + (ICONS[s.cat] && s.w >= 0 ? `<image href="${ICONS[s.cat]}" x="${(cx - 64).toFixed(1)}" y="${(cy - 44).toFixed(1)}" width="128" height="64"/>` : `<text class="em" x="${cx.toFixed(1)}" y="${(cy + 4).toFixed(1)}">${s.name || ''}</text>`) +
       `<text class="am" x="${cx.toFixed(1)}" y="${(cy + 34).toFixed(1)}" data-a="${i}"></text></g>`;
   });
   h += `<g class="mid"><circle r="90"/><text class="wc" y="-30" id="wcat">PISTOL</text><text class="wn" y="8" id="wname">PISTOL</text><text class="wa" y="36" id="wammo"></text></g>`;
@@ -1822,7 +1892,7 @@ function wheelRender() {
   document.querySelectorAll('#wheel .seg').forEach(g => {
     const i = +g.dataset.i, s = WHEEL[i];
     g.classList.toggle('sel', i === wheel.sel); g.classList.toggle('empty', s.w < 0 || !owned(s.w));
-    g.querySelector('text').textContent = s.w > 0 ? ammoTxt(s.w) : s.w === 0 ? '' : '—';
+    g.querySelector('text.am').textContent = s.w > 0 ? ammoTxt(s.w) : s.w === 0 ? '' : 'EMPTY';
   });
   const s = WHEEL[wheel.sel], W = s.w >= 0 ? WEAP[s.w] : null;
   $('wcat').textContent = ({ pistol: 'PISTOLS', smg: 'SMGs', rifle: 'RIFLES', sniper: 'SNIPERS', heavy: 'HEAVY', throw: 'THROWN', fists: 'MELEE', shotgun: 'SHOTGUNS' })[s.cat];
@@ -2051,7 +2121,7 @@ function releaseGrenade() {
   player.ammo[5]--;
   const m = wpnM.nade ? wpnM.nade.muzzle : null, p = m ? m.getWorldPosition(V3()) : player.obj.position.clone().setY(player.obj.position.y + 1.6);
   const v = V3().copy(camFwd).multiplyScalar(15).add(V3(0, 4.5, 0)).addScaledVector(player.vel, .6);
-  const mesh = new THREE.Mesh(nadeGeo, nadeMat); mesh.castShadow = true; mesh.position.copy(p); scene.add(mesh);
+  const mesh = makeNade(); mesh.position.copy(p); scene.add(mesh);
   nades.push({ m: mesh, v, t: 2.6 }); showWeapon(); sfx.draw();
   if (player.ammo[5] <= 0) setTimeout(() => { if (player.weapon === 5 && player.ammo[5] <= 0) switchWeapon(player.lastWeapon || 1); }, 500);
 }
@@ -2694,7 +2764,7 @@ async function main() {
   charTpl = charFbx; charClips = clips;
   player.obj.position.copy(motelSpawn); player.yaw = Math.PI; camYaw = Math.PI;
   setupPeds();
-  setupWeapon(glock, 'glock', 'glock'); setupWeapon(m4, 'm4', 'm4'); setupGrenadeModel();
+  const fist = fistIcon(); setupWeapon(glock, 'glock', 'glock'); setupWeapon(m4, 'm4', 'm4'); setupGrenadeModel(); makeIcons(); ICONS.fists = fist;
   showWeapon();
   animSnap({ idle_glock: 1 });
   { // cars near the start, the rest are recycled towards the player while playing
