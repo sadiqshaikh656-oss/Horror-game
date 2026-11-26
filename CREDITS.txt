@@ -20,6 +20,8 @@ the game is published, sold or monetised.
 - "Unity 5 - Flashlight with Hand" (Blend Swap #88445) by Giovanni Cartella (John's Art),
   CC BY-SA 3.0. The converted model (assets/source/flashlight_with_hand.glb,
   assets/models/flashglb.js) is shared under the same CC BY-SA 3.0 licence.
+- "A bloody kitchen knife" by blacksheeptal (Sketchfab), CC BY 4.0 - the clown's knife.
+  https://sketchfab.com/3d-models/a-bloody-kitchen-knife-01d6d4906ed749329f37c4929a4846aa
 - Procedural content made in code for this game (no licence issue): spawn-room
   textures, letter/document paper and text, both room keys, the lockers' hollow
   geometry, the forest floor, dust, the synthesised UI/door/drawer sounds.
