@@ -39,6 +39,9 @@ the game is published, sold or monetised.
 
 3. UNKNOWN LICENCE (supplied by the user, no licence info included)
 -------------------------------------------------------------------
+- "Worn Key" OBJ + Key_Material.png (used for both room keys): supplied by the user, licence not stated.
+- "oak_wood_planks_2k" texture (table in the spawn room): file naming matches Poly Haven, which
+  publishes under CC0. Please confirm the download source.
 - "Horror Room Bundle" OBJ (spawn room, assets/models/questglb.js key "sproom").
   Supplied without MTL/textures or licence; textures in game are generated in code.
 - "washroom.glb" (Mark Bai), basement washroom: licence not stated.
@@ -58,6 +61,11 @@ ABOUT THE "ORIGINAL CHARACTER REDESIGN"
 --------------------------------------
 The Nun and the Clown in the game still use the models listed in section 2. A real
 redesign needs new, original rigged 3D models and new sounds; these cannot be generated
-inside this HTML project. What has been changed: the story (Darsla Hospital, the Sister,
+inside this HTML project. What has been changed visually: the nun's texture was repainted (dark oxblood habit,
+yellowed stained collar, grey-blue corpse skin, black sockets, stitched/blackened mouth,
+black glasses frames, a brass sigil instead of the red cross) and the clown's textures and
+materials were repainted (filthy stained suit, rotted cracked face paint, blood, matted hair,
+glowing yellow eyes). The meshes are still the same models, so this does NOT remove the
+copyright risk. What has been changed in play: the story (Darsla Hospital, the Sister,
 the ritual, the separate clown entity), the clown's behaviour (his own stalking AI, not a
 copy of the nun's), and the removal of the film voice line.
