@@ -2,6 +2,12 @@
 
 Single-file open-city game (three.js r170, every model, animation and texture embedded). Open `index.html` in Chrome / Safari (needs internet for three.js from jsDelivr).
 
+## People
+- Three kinds of pedestrians: the hero model in different shirts, **"Standing Man"** (by zhuoyi0904, Sketchfab, CC-BY 4.0) and a **Ready Player Me** avatar. The two supplied characters were shrunk (512 px textures, face blendshapes removed) and are driven by Mixamo idle / walk / run / death clips taken from the repo's `assets/models/player.glb`, retargeted by bone name. Their arms and back are posed in code to a relaxed civilian walk, because the source clips are a rifle walk.
+- **Scared on aim**: point a gun at someone and they stop, turn to you and raise their hands (shaking). Nearby people do the same. Keep aiming, or fire, and they run. When shot they play a real fall clip and bleed.
+- **Accuracy**: aimed shots go exactly to the crosshair. Spread only opens a little for hip fire, rapid fire, moving or jumping, and the recoil kick returns to the aim point.
+- The supplied GTA V character ("Michael De Santa") and "Michael's House" were not used: they are another game's characters and assets.
+
 ## Detailed shop building
 The supplied `Building.obj` (4 floors, window grills, AC units, roof vents, railing, roof shed and 10 ground-floor shops) is placed on about half the lots in the mid-city ring, about 230 buildings.
 - AC units and roof vents use the supplied *ventilation* PBR textures (colour, normal, AO, roughness, metallic).
