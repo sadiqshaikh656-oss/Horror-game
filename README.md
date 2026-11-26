@@ -1,5 +1,9 @@
 # Ironyard: Tactical Ops
 
+> **Third-person player:** you play Michael (`assets/models/michael.glb`) with an MP5 (`assets/models/mp5.glb`), seen from over the right shoulder. `js/tpsplayer.js` retargets the 43 Mixamo clips of the hidden Ch15 rig onto Michael's GTA-style `SKEL_*` skeleton every frame, fingers included. The MP5 is parented to his right hand with the pistol grip in his fist, and two-bone IK keeps his left hand wrapped on the handguard (it lets go during reloads). The camera pulls in when it hits a wall and moves closer while aiming. The loadout uses SMG stats (`WEAPONS.smg`, shown as MP5).
+>
+> Asset credits: "GTA V - Michael De Santa (2025)" by Zorg_Sinister on Sketchfab, licensed CC-BY-4.0. The MP5 model was supplied without license metadata. `tools/prep-mp5.mjs` strips its backdrop, lights and cameras and rescales it, then `gltf-transform optimize --compress meshopt --texture-compress webp --texture-size 1024 --simplify false` compresses both models.
+
 > **First-person body:** you play the Ch15 operator (Mixamo rig) and see your own animated body and the M4 in its hands. `js/fpsbody.js` drives 43 Mixamo clips (8-way walk/run/crouch-walk, sprint, aim and relaxed idles, fire, reload, jump up/loop/land, run-to-stop, 6 directional deaths), with left-hand IK on the handguard and IK aim-down-sights. The `Viewmodels` class still runs invisibly as the weapon system (ammo, fire rate, spread, recoil, reload timing). The map has no clutter props and a clean concrete ground.
 
 A mobile-first browser FPS built with Three.js. It runs on phones (touch controls, landscape) and on desktop (keyboard + mouse).

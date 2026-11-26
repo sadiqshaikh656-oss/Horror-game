@@ -13,10 +13,11 @@ import { Input } from './input.js';
 import { UI } from './ui.js';
 import * as Audio from './audio.js';
 import { applyLayout, HudEditor } from './hudlayout.js';
-import { FPSBody } from './fpsbody.js';
+import { TPSPlayer } from './tpsplayer.js';
 
-const MODELS = ['carbine', 'smg', 'pistol', 'soldier', 'containers', 'dungeon', 'player'];
-const ADS_ZOOM = 1.5; // camera zoom while aiming down the M4's optic
+const MODELS = ['carbine', 'smg', 'pistol', 'soldier', 'containers', 'dungeon', 'player', 'michael', 'mp5'];
+const ADS_ZOOM = 1.25; // over-the-shoulder zoom while aiming
+const LOADOUT = 'smg'; // MP5 stats (fire rate, damage, recoil, magazine)
 const ROUND_TIME = 115;
 const MAX_ROUNDS = 10;
 
@@ -40,7 +41,7 @@ class Game {
   async load() {
     const manager = new THREE.LoadingManager();
     const loader = new GLTFLoader(manager); loader.setMeshoptDecoder(MeshoptDecoder);
-    const progress = {}; const sizes = { carbine: 0.8, smg: 0.7, pistol: 0.7, soldier: 1.1, containers: 0.3, dungeon: 1.1, player: 3.5 };
+    const progress = {}; const sizes = { carbine: 0.8, smg: 0.7, pistol: 0.7, soldier: 1.1, containers: 0.3, dungeon: 1.1, player: 3.5, michael: 1.1, mp5: 0.3 };
     const total = Object.values(sizes).reduce((a, b) => a + b);
     const report = () => { let s = 0; for (const k in progress) s += progress[k] * sizes[k]; this.ui.setLoading(s / total * 0.9); };
     const assets = {};
@@ -62,9 +63,9 @@ class Game {
     await nextFrame();
     this.soldierTemplate = buildSoldierTemplate(assets.soldier, assets.carbine);
     this.player = new Player(this.camera, this.world);
-    // third-person SWAT operator replaces the first-person hands (the Viewmodels class stays as the
-    // invisible weapon system: ammo, fire rate, spread, recoil, reload timing)
-    this.body = new FPSBody(assets.player, this.world.scene, this.effects.flashTex);
+    // third-person Michael with the MP5 (animated from the Ch15 Mixamo clips); the Viewmodels class stays
+    // as the invisible weapon system: ammo, fire rate, spread, recoil, reload timing
+    this.body = new TPSPlayer(assets, this.world.scene, this.effects.flashTex);
     for (const id of ['touchSlots', 'slots', 'btnInspect']) document.getElementById(id).classList.add('hidden');
     this.gfx.setup(this.world, this.camera, this.vm);
     this.world.applyQuality(this.camera);
@@ -124,7 +125,7 @@ class Game {
     this.stats = newStats();
     this.round = 1;
     this.vm.resetAmmo();
-    this.vm.equip(SLOTS[0], true);
+    this.vm.equip(LOADOUT, true);
     this.startRound();
     this.state = 'playing';
     this.input.enabled = true; this.input.reset();
@@ -351,7 +352,7 @@ class Game {
     const playing = this.state === 'playing' && P.alive;
     // weapon switching / actions
     if (playing) {
-      inp.switchTo = null; inp.wheel = 0; // single rifle loadout in third person
+      inp.switchTo = null; inp.wheel = 0; // single MP5 loadout in third person
       if (inp.reload) { vm.reload(); inp.reload = false; }
       inp.inspect = false;
       vm.adsWanted = inp.ads;
@@ -370,7 +371,7 @@ class Game {
     if (inp.fire && P.sprinting) inp.cancelSprintLock();
     P.update(dt, playing ? inp : { moveX: 0, moveY: 0, sprint: false, jump: false }, vm.cfg.moveMul, vm.ads);
     if (P.landed) { vm.onLand(P.landed); P.landed = 0; }
-    // first-person body: pose for this frame, then the eye camera (+ ADS / left-hand IK)
+    // third-person body: pose for this frame, then the over-the-shoulder camera
     const rc = vm.cfg.clips[vm.clipName];
     const camQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(P.pitch, P.yaw, 0, 'YXZ'));
     this.body.update(dt, {
@@ -378,7 +379,7 @@ class Game {
       reloading: vm.reloading, reloadTime: rc ? (rc[1] - rc[0]) / (vm.clipSpeed || 1) : 2,
       crouch: P.crouchBlend, grounded: P.grounded || !!P.mantle, alive: P.alive, wantStop: Math.hypot(inp.moveX, inp.moveY) < 0.1,
     });
-    this.body.updateCamera(dt, P, this.camera, vm.ads, P.alive);
+    this.body.updateCamera(dt, P, this.camera, vm.ads, P.alive, this.world);
     // FOV zoom while aiming
     const fov = this.baseFov / THREE.MathUtils.lerp(1, ADS_ZOOM, vm.ads) * (1 + 0.06 * P.sprintRamp);
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 14);

@@ -18,7 +18,7 @@ export const WEAPONS = {
     sounds: { reload: [[0.35, 'mag'], [1.2, 'mag']], reloadEmpty: [[0.35, 'mag'], [1.15, 'mag'], [1.7, 'slide']], draw: [[0.1, 'draw']] },
   },
   smg: {
-    id: 'smg', name: 'MP45 SMG', type: 'SUBMACHINE GUN', model: 'smg', unit: 0.01,
+    id: 'smg', name: 'MP5', type: 'SUBMACHINE GUN', model: 'smg', unit: 0.01,
     auto: true, rpm: 900, damage: 23, headMul: 2.6, legMul: 0.8, mag: 32, reserve: 192, pellets: 1,
     spreadHip: 0.026, spreadAds: 0.004, spreadMove: 0.018, bloomPerShot: 0.004, maxBloom: 0.03,
     recoil: { up: 0.011, side: 0.007, kick: 0.028, rotKick: 0.05, recover: 0.7 },
