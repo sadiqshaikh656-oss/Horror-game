@@ -42,6 +42,8 @@ the game is published, sold or monetised.
 - "Worn Key" OBJ + Key_Material.png (used for both room keys): supplied by the user, licence not stated.
 - "oak_wood_planks_2k" texture (table in the spawn room): file naming matches Poly Haven, which
   publishes under CC0. Please confirm the download source.
+- "blood_stain" OBJ (baked into a wet decal texture, used on the floor x3 and the wall): supplied by
+  the user, licence not stated. The supplied EXR in that pack is an HDRI sky, not used.
 - "Horror Room Bundle" OBJ (spawn room, assets/models/questglb.js key "sproom").
   Supplied without MTL/textures or licence; textures in game are generated in code.
 - "washroom.glb" (Mark Bai), basement washroom: licence not stated.

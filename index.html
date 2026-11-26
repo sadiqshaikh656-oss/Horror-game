@@ -2741,14 +2741,27 @@ function clSpawn(){
  PWS.g.visible=true;PWS.g.position.set(CL2.x,layerY(L),CL2.z);PWS.g.rotation.set(0,0,0);PWS.cur=null;clPlay(PWS.acts.zombie_walk_2?"zombie_walk_2":"drunk_walk",1);
  return true
 }
+/* doors: open the ones ahead of him (swinging away from him) and wait for them; never walk through a shut leaf */
+function clOpenDoor(d){const c=d.cy*Math.PI/180,sd=(CL2.x-d.x)*Math.sin(c)+(CL2.z-d.z)*Math.cos(c);d.sg=sd<0?-1:1;d.tgt=1;d.wc=0;d.av=Math.max(d.av||0,CL2.st=="chase"?3.4:1.8)}
+function clDoorBlock(wx,wz,spd){
+ const dx=wx-CL2.x,dz=wz-CL2.z,l=Math.hypot(dx,dz)||1,reach=spd>3?3:2;let wait=false;
+ for(const d of HD){if(d.tp||!d.pv)continue;const ox=d.cx-CL2.x,oz=d.cz-CL2.z,along=(ox*dx+oz*dz)/l,perp=Math.abs(ox*dz-oz*dx)/l;
+  if(along<-.3||along>reach||perp>1.05)continue;const t=d.t!=null?d.t:(d.a||0)/1.78;
+  if(!d.tgt||t<.8)clOpenDoor(d);if(t<.6&&Math.hypot(ox,oz)<1.05)wait=true}
+ const D=typeof SPN!="undefined"&&SPN.door;
+ if(D){const ox=D.x-CL2.x,oz=D.z-CL2.z,dist=Math.hypot(ox,oz),along=(ox*dx+oz*dz)/l;
+  if(dist<2.2&&along>-.3){if(!SPN.got.doorU)wait=dist<1.1;else{if(!D.tgt){D.tgt=1;try{snd("creak",.7,{x:D.x,z:D.z})}catch(e){}}if(D.a<.7&&dist<1.15)wait=true}}}
+ return wait}
 function clMoveTo(gx,gz,spd,dt){
- let w={x:gx,z:gz};
+ let w={x:gx,z:gz};if(!CL2.F||CL2.F.d.length!==NL.w*NL.h)CL2.F=nfNew(CL2.L);
  if(!nunClearLine(CL2.x,CL2.z,gx,gz,CL2.L)){nfBuild(CL2.F,CL2.L,gx,gz);const s=nfStep(CL2.F,CL2.x,CL2.z);if(s)w=s}
- const dx=w.x-CL2.x,dz=w.z-CL2.z,l=Math.hypot(dx,dz);if(l<1e-3)return 0;const st=Math.min(l,spd*dt);
- const nx=CL2.x+dx/l*st,nz=CL2.z+dz/l*st;if(nlFree(CL2.L,nx,nz)){CL2.x=nx;CL2.z=nz}
+ const dx=w.x-CL2.x,dz=w.z-CL2.z,l=Math.hypot(dx,dz);if(l<1e-3)return 0;
  const tf=Math.atan2(dx,dz);CL2.face+=Math.atan2(Math.sin(tf-CL2.face),Math.cos(tf-CL2.face))*Math.min(1,dt*8);
- /* he opens hospital doors in his way */
- try{for(const d of HD){if(d.tgt||d.a>.3)continue;if(Math.hypot(d.cx-CL2.x,d.cz-CL2.z)<1.3){if(typeof toggleDoor=="function")toggleDoor(d)}}}catch(e){}
+ if(clDoorBlock(w.x,w.z,spd)){CL2.dw=(CL2.dw||0)+dt;return 0}CL2.dw=0;
+ const st=Math.min(l,spd*dt),nx=CL2.x+dx/l*st,nz=CL2.z+dz/l*st;
+ /* slide along walls and door frames instead of sticking */
+ if(nlFree(CL2.L,nx,nz)){CL2.x=nx;CL2.z=nz}else if(nlFree(CL2.L,nx,CL2.z)){CL2.x=nx}else if(nlFree(CL2.L,CL2.x,nz)){CL2.z=nz}
+ else{const c=nlNear(CL2.L,CL2.x,CL2.z,4);if(c>=0){const cx=nlCx(c),cz=nlCz(c),k=Math.min(1,st/(Math.hypot(cx-CL2.x,cz-CL2.z)||1));CL2.x+=(cx-CL2.x)*k;CL2.z+=(cz-CL2.z)*k}}
  return st
 }
 /* one-handed slash: the right arm swings up and across before the face scare */
@@ -2815,7 +2828,7 @@ function clStep(dt){
   CL2.gig-=dt;if(CL2.gig<=0&&d<13){CL2.gig=9+Math.random()*7;clLaugh(.18*clamp(1-d/13,.25,1))}
   if(d<1.2){CL2.st="chase"}
  }
- if(Math.hypot(CL2.x-CL2.lx,CL2.z-CL2.lz)<.01){CL2.stuck+=dt;if(CL2.stuck>3.5&&!sees){clHide(10);return}}else CL2.stuck=0;CL2.lx=CL2.x;CL2.lz=CL2.z;
+ if(Math.hypot(CL2.x-CL2.lx,CL2.z-CL2.lz)<.01&&!(CL2.dw>0&&CL2.dw<4)){CL2.stuck+=dt;if(CL2.stuck>3.5&&!sees){clHide(10);return}}else CL2.stuck=0;CL2.lx=CL2.x;CL2.lz=CL2.z;
  PWS.g.position.set(CL2.x,layerY(CL2.L),CL2.z);PWS.g.rotation.set(0,CL2.face,0);
  PWS.mx.update(dt)
 }
@@ -2837,6 +2850,20 @@ function spTex(w,h,fn){const t=qCanvasTex(w,h,fn,1);t.wrapS=t.wrapT=THREE.Repeat
 function spGrain(x,w,h,R,base,dark,light,n,wav){x.fillStyle=base;x.fillRect(0,0,w,h);
  for(let i=0;i<n;i++){const t=R();x.strokeStyle=t<.6?`rgba(${dark},${.08+R()*.22})`:`rgba(${light},${.05+R()*.12})`;x.lineWidth=.5+R()*2;x.beginPath();const y=R()*h;x.moveTo(0,y);x.bezierCurveTo(w*.33,y+(R()-.5)*wav,w*.66,y+(R()-.5)*wav,w,y+(R()-.5)*wav*.7);x.stroke()}
  for(let i=0;i<w*h/60;i++){x.fillStyle=`rgba(${R()<.5?dark:light},${.03+R()*.05})`;x.fillRect(R()*w,R()*h,1+R()*3,1)}}
+/* claw gouges: 3-4 parallel tapered rakes, torn edges, dark wood inside, splinters; bump: deep cuts */
+function spClaw(x,cx,cy,ang,len,sc,bump,R){
+ const n=R()<.5?3:4,gap=sc*(.9+R()*.3);x.save();x.translate(cx,cy);x.rotate(ang);
+ for(let i=0;i<n;i++){const ox=(i-(n-1)/2)*gap,L=len*(.75+R()*.35),cur=(R()-.5)*sc*1.4,y0=-L/2+(R()-.5)*sc,wd=sc*(.22+R()*.12);
+  const pts=[];for(let k=0;k<=14;k++){const t=k/14;pts.push([ox+cur*Math.sin(t*Math.PI)+(R()-.5)*sc*.08,y0+t*L,wd*Math.sin(Math.min(1,t*1.25)*Math.PI*.5)*(1-Math.pow(t,3)*.85)])}
+  const shape=(grow)=>{x.beginPath();pts.forEach(([px,py,ww],k)=>{k?x.lineTo(px-ww-grow,py):x.moveTo(px-ww-grow,py)});for(let k=pts.length-1;k>=0;k--){const [px,py,ww]=pts[k];x.lineTo(px+ww+grow+(R()-.5)*sc*.06,py)}x.closePath()};
+  if(bump){shape(sc*.12);x.fillStyle="rgba(150,150,150,.9)";x.fill();shape(0);x.fillStyle="rgba(8,8,8,1)";x.fill()}
+  else{shape(sc*.16);x.fillStyle="rgba(235,228,210,.55)";x.fill();          /* lifted, cracked paint lip */
+   shape(sc*.05);x.fillStyle="rgba(120,84,52,.95)";x.fill();                /* raw splintered wood */
+   shape(-sc*.02);x.fillStyle="rgba(42,24,14,.97)";x.fill();                /* deep dark cut */
+   for(let k=0;k<8;k++){const [px,py,ww]=pts[1+(R()*12|0)];x.strokeStyle="rgba(150,110,70,.8)";x.lineWidth=.8;x.beginPath();x.moveTo(px+ww,py);x.lineTo(px+ww+sc*(.1+R()*.25),py+(R()-.5)*sc*.5);x.stroke()}
+   /* a thin dark smear of dried blood in the deepest part */
+   x.strokeStyle="rgba(70,8,5,.45)";x.lineWidth=wd*.6;x.beginPath();pts.slice(2,9).forEach(([px,py],k)=>k?x.lineTo(px,py):x.moveTo(px,py));x.stroke()}}
+ x.restore()}
 function spMats(){
  if(SPN.M)return SPN.M;const R=sgRnd(1999);let env=null;try{env=metalEnv()}catch(e){}
  /* clean painted plaster: pale upper wall, satin grey-green lower wall, a thin rail between */
@@ -2879,11 +2906,13 @@ function spMats(){
    x.fillStyle=bump?"#6a6a6a":"rgba(70,60,44,.08)";x.fillRect(x0+b,y0+b,x1-x0-2*b,y1-y0-2*b);
    x.strokeStyle=bump?"#2a2a2a":"rgba(30,24,16,.55)";x.lineWidth=2;x.strokeRect(x0,y0,x1-x0,y1-y0);
    if(!bump){const g=x.createLinearGradient(0,y1-b-30,0,y1-b);g.addColorStop(0,"rgba(60,48,30,0)");g.addColorStop(1,"rgba(60,48,30,.3)");x.fillStyle=g;x.fillRect(x0+b,y1-b-30,x1-x0-2*b,30)}}
-  /* scratches */
-  for(let i=0;i<70;i++){const xx=Rr()*w,yy=h*(.35+Rr()*.6);x.strokeStyle=bump?"rgba(40,40,40,.7)":`rgba(${90+Rr()*40|0},${70+Rr()*30|0},${50},.55)`;x.lineWidth=.7+Rr()*1.2;x.beginPath();x.moveTo(xx,yy);x.lineTo(xx+(Rr()-.5)*70,yy+(Rr()-.5)*24);x.stroke()}
-  /* paint chips showing grey primer and dark wood */
-  for(let i=0;i<55;i++){const cx=Rr()<.5?Rr()*w*.12+(Rr()<.5?0:w*.88):Rr()*w,cy=Rr()*h,r=3+Rr()*13;
-   x.fillStyle=bump?"#4a4a4a":(Rr()<.45?"#8d8a82":"#5b3e27");x.beginPath();for(let k=0;k<9;k++){const a=k/9*6.28,q=r*(.5+Rr()*.6);x.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q*.7)}x.closePath();x.fill()}
+  /* a few fine scuffs */
+  for(let i=0;i<22;i++){const xx=Rr()*w,yy=h*(.4+Rr()*.55);x.strokeStyle=bump?"rgba(70,70,70,.5)":"rgba(110,96,76,.35)";x.lineWidth=.6;x.beginPath();x.moveTo(xx,yy);x.lineTo(xx+(Rr()-.5)*50,yy+(Rr()-.5)*14);x.stroke()}
+  /* small irregular paint chips, mostly on edges */
+  for(let i=0;i<16;i++){const cx=Rr()<.7?(Rr()<.5?Rr()*w*.06:w-Rr()*w*.06):Rr()*w,cy=Rr()*h,r=2+Rr()*6;
+   x.fillStyle=bump?"#5a5a5a":(Rr()<.5?"#8f8a80":"#4e3523");x.beginPath();for(let k=0;k<11;k++){const a=k/11*6.28,q=r*(.35+Rr()*.75);x.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q*(.4+Rr()*.5))}x.closePath();x.fill()}
+  /* claw rakes: something tried to get in */
+  {const Rc=sgRnd(911);spClaw(x,w*.58,h*.47,.32,h*.3,w*.05,bump,Rc);spClaw(x,w*.3,h*.7,-.22,h*.2,w*.042,bump,Rc);spClaw(x,w*.7,h*.82,.5,h*.13,w*.038,bump,Rc)}
   if(!bump){
    /* grime round the handle, finger marks, kick marks at the bottom, rust from the hinges */
    const hg=x.createRadialGradient(w*.9,h*.52,0,w*.9,h*.52,w*.22);hg.addColorStop(0,"rgba(70,58,40,.38)");hg.addColorStop(1,"rgba(70,58,40,0)");x.fillStyle=hg;x.fillRect(0,0,w,h);
@@ -2892,11 +2921,21 @@ function spMats(){
    for(let i=0;i<30;i++){x.strokeStyle="rgba(40,32,24,.35)";x.lineWidth=2+Rr()*3;x.beginPath();const xx=Rr()*w,yy=h*(.9+Rr()*.09);x.moveTo(xx,yy);x.lineTo(xx+(Rr()-.5)*40,yy+(Rr()-.5)*6);x.stroke()}
    for(const hv of[.12,.48,.87]){const g=x.createLinearGradient(0,h*(1-hv),0,h*(1-hv)+h*.12);g.addColorStop(0,"rgba(120,60,25,.45)");g.addColorStop(1,"rgba(120,60,25,0)");x.fillStyle=g;x.fillRect(0,h*(1-hv),w*.05,h*.12)}
    for(let i=0;i<20000;i++){x.fillStyle=`rgba(${Rr()<.5?110:240},${Rr()<.5?104:236},${Rr()<.5?92:224},${.03+Rr()*.04})`;x.fillRect(Rr()*w,Rr()*h,1+Rr()*1.5,1)}
-   /* dried blood smear: a hand dragged down */
-   x.save();x.globalAlpha=.55;for(let f=0;f<4;f++){x.strokeStyle="rgba(80,12,8,.6)";x.lineWidth=5;x.beginPath();x.moveTo(w*(.62+f*.03),h*.38);x.bezierCurveTo(w*(.63+f*.03),h*.5,w*(.61+f*.03),h*.58,w*(.62+f*.032),h*(.66+Rr()*.04));x.stroke()}x.restore()}};
+}};
  const door=spTex(768,1536,(x,w,h)=>doorDraw(x,w,h,false));door.wrapS=door.wrapT=THREE.ClampToEdgeWrapping;
  const doorB=qCanvasTex(384,768,(x,w,h)=>doorDraw(x,w,h,true),0);doorB.encoding=THREE.LinearEncoding;
- const trimT=spTex(256,512,(x,w,h)=>{x.fillStyle="#c9c4b4";x.fillRect(0,0,w,h);const Rr=sgRnd(72);for(let i=0;i<300;i++){x.strokeStyle=`rgba(${Rr()<.5?150:230},${Rr()<.5?146:226},${Rr()<.5?130:214},.1)`;x.lineWidth=1+Rr();x.beginPath();const xx=Rr()*w;x.moveTo(xx,0);x.lineTo(xx,h);x.stroke()}for(let i=0;i<25;i++){x.fillStyle="rgba(90,80,64,.4)";x.fillRect(Rr()*w,Rr()*h,2+Rr()*6,1+Rr()*4)}});
+ const trimDraw=(x,w,h,bump)=>{const Rr=sgRnd(bump?73:72);x.fillStyle=bump?"#808080":"#c3beae";x.fillRect(0,0,w,h);
+  for(let i=0;i<120;i++){const xx=Rr()*w;x.strokeStyle=bump?"rgba(100,100,100,.3)":`rgba(${Rr()<.5?150:222},${Rr()<.5?144:218},${Rr()<.5?128:206},${.06+Rr()*.08})`;x.lineWidth=.6+Rr()*1.4;x.beginPath();x.moveTo(xx,0);x.bezierCurveTo(xx+(Rr()-.5)*8,h*.33,xx+(Rr()-.5)*8,h*.66,xx+(Rr()-.5)*6,h);x.stroke()}
+  for(let i=0;i<400;i++){const xx=Rr()*w,yy=Rr()*h;x.strokeStyle=bump?"rgba(120,120,120,.2)":`rgba(${Rr()<.5?165:235},${Rr()<.5?160:232},${Rr()<.5?146:222},.06)`;x.lineWidth=1+Rr()*2;x.beginPath();x.moveTo(xx,yy);x.lineTo(xx+(Rr()-.5)*3,yy+20+Rr()*50);x.stroke()}
+  /* moulding profile: two grooves and a rounded edge */
+  for(const [u,c] of [[.18,bump?"#3a3a3a":"rgba(50,42,30,.45)"],[.24,bump?"#d0d0d0":"rgba(255,250,236,.4)"],[.62,bump?"#3a3a3a":"rgba(50,42,30,.4)"],[.68,bump?"#d0d0d0":"rgba(255,250,236,.35)"]]){x.fillStyle=c;x.fillRect(u*w,0,w*.04,h)}
+  {const g=x.createLinearGradient(w*.85,0,w,0);g.addColorStop(0,bump?"rgba(128,128,128,0)":"rgba(0,0,0,0)");g.addColorStop(1,bump?"#404040":"rgba(40,34,24,.35)");x.fillStyle=g;x.fillRect(w*.85,0,w*.15,h)}
+  for(let i=0;i<10;i++){const cx=Rr()*w,cy=Rr()*h,r=2+Rr()*5;x.fillStyle=bump?"#555":(Rr()<.5?"#8f8a80":"#4e3523");x.beginPath();for(let k=0;k<9;k++){const a=k/9*6.28,q=r*(.35+Rr()*.75);x.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q*.5)}x.closePath();x.fill()}
+  if(!bump){const kg=x.createLinearGradient(0,h*.9,0,h);kg.addColorStop(0,"rgba(60,50,36,0)");kg.addColorStop(1,"rgba(55,44,30,.5)");x.fillStyle=kg;x.fillRect(0,h*.9,w,h*.1);
+   for(let i=0;i<9000;i++){x.fillStyle=`rgba(${Rr()<.5?110:240},${Rr()<.5?104:236},${Rr()<.5?92:224},.04)`;x.fillRect(Rr()*w,Rr()*h,1,1)}}
+  spClaw(x,w*.5,h*.42,.12,h*.18,w*.13,bump,sgRnd(913))};
+ const trimT=spTex(256,1024,(x,w,h)=>trimDraw(x,w,h,false));const trimB=qCanvasTex(128,512,(x,w,h)=>trimDraw(x,w,h,true),0);trimB.encoding=THREE.LinearEncoding;
+ const trimTH=trimT.clone();trimTH.needsUpdate=true;trimTH.center.set(.5,.5);trimTH.rotation=Math.PI/2;const trimBH=trimB.clone();trimBH.needsUpdate=true;trimBH.center.set(.5,.5);trimBH.rotation=Math.PI/2;
  /* tufted dark-brown leather */
  const leather=spTex(512,512,(x,w,h)=>{x.fillStyle="#3a2017";x.fillRect(0,0,w,h);
   for(let i=0;i<30000;i++){x.fillStyle=`rgba(${R()<.5?14:120},${R()<.5?6:70},${R()<.5?4:48},${.04+R()*.06})`;x.fillRect(R()*w,R()*h,1+R()*2,1+R()*2)}
@@ -2916,7 +2955,7 @@ function spMats(){
  const S=(o)=>new THREE.MeshStandardMaterial(Object.assign({roughness:.85,metalness:0,envMap:env,envMapIntensity:.12},o));
  const wm=wall.clone();wm.needsUpdate=true;wm.repeat.set(1,-1);
  const M={wall:S({map:wm,roughness:.93,envMap:null,color:0xc9c9c2}),ceil:S({map:ceil,roughness:1,envMap:null}),floor:S({map:floor,roughness:.72,envMapIntensity:.16}),
-  trim:S({map:trimT,roughness:.6,color:0xe6e2d6}),door:S({map:door,bumpMap:doorB,bumpScale:.0035,roughness:.6}),
+  trim:S({map:trimT,bumpMap:trimB,bumpScale:.003,roughness:.6}),trimH:S({map:trimTH,bumpMap:trimBH,bumpScale:.003,roughness:.6}),door:S({map:door,bumpMap:doorB,bumpScale:.0035,roughness:.6}),
   walnut:S({map:walnut,roughness:.7}),mahog:S({map:mahog,roughness:.68}),cab:S({map:cab,roughness:.75}),
   leather:S({map:leather,roughnessMap:leatherR,roughness:.8,envMapIntensity:.08}),ticking:S({map:ticking,roughness:.95,envMap:null}),blanket:S({map:blanket,roughness:1,envMap:null}),linen:S({map:linen,roughness:1,envMap:null}),
   enamel:S({map:enamel,roughness:.55,metalness:.15,envMapIntensity:.2}),metal:S({color:0x8d8e8b,roughness:.38,metalness:.85,envMapIntensity:.45}),
@@ -3052,7 +3091,7 @@ function spBuild(){
    const ow=byName.Wall_Mesh003;if(ow)near.push(ow);
    near.forEach(m=>{m.geometry=m.geometry.clone()});rrCut(near,SP_DOOR.x0,SP_DOOR.x1,3.7,4.3,-.05,SP_DOOR.h);
    for(const n of["Door_Frame002","Door_Jamb002"])if(byName[n])byName[n].visible=false;
-   const M=spMats().trim,D0=SP_DOOR,dep=D0.zr-D0.zc+.02,zm=(D0.zc+D0.zr)/2,bx=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M);m.position.set(x,y,z);grp.add(m);keep.add(m)};
+   const M=spMats().trim,D0=SP_DOOR,dep=D0.zr-D0.zc+.02,zm=(D0.zc+D0.zr)/2,bx=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),w>h?spMats().trimH:M);m.position.set(x,y,z);grp.add(m);keep.add(m)};
    /* lining inside the opening */
    bx(.025,D0.h,dep,D0.x0+.0125,D0.h/2,zm);bx(.025,D0.h,dep,D0.x1-.0125,D0.h/2,zm);bx(D0.x1-D0.x0,.025,dep,(D0.x0+D0.x1)/2,D0.h-.0125,zm);
    /* casings on both faces */
@@ -3097,6 +3136,14 @@ function spBuild(){
   SPN.letter=spDocMesh(SP_DOCS[0]);SPN.letter.rotation.set(-Math.PI/2,0,.35);SPN.letter.position.set(5.2,.772,7.45);grp.add(SPN.letter);keep.add(SPN.letter);
   SPN.k1=spKeyM(0xe0c890);SPN.k1.position.set(11.0,.801,6.55);SPN.k1.rotation.y=.7;grp.add(SPN.k1);keep.add(SPN.k1);
   {const d=SPN.dr.find(d=>d.lock);SPN.k2=spKeyM(0xc8ccd0,1);if(d){SPN.k2.position.set(d.cx,d.bot,d.mid);d.g.add(SPN.k2)}else grp.add(SPN.k2)}
+  /* the user's blood stain (baked from the supplied model into a wet decal) in three places */
+  try{const A=QST.asset.blood;let src=null;if(A)A.traverse(o=>{if(o.isMesh)src=o});if(src){let env=null;try{env=metalEnv()}catch(e){}
+   const om=src.material,bm=new THREE.MeshStandardMaterial({map:om.map,normalMap:om.normalMap||null,normalScale:new THREE.Vector2(1.2,1.2),alphaTest:.12,transparent:true,opacity:.8,color:0xffd0d0,roughness:.18,metalness:0,envMap:env,envMapIntensity:.22,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4,depthWrite:false});
+   SPN.blood=[];
+   for(const [x,y,z,r,sc] of [[9.0,.043,7.5,.6,3.0],[6.3,.043,5.5,2.3,2.2],[5.8,.004,2.4,4.1,3.3]]){
+    const g=new THREE.Mesh(new THREE.PlaneGeometry(sc,sc),bm);g.rotation.set(-Math.PI/2,0,r);g.position.set(x,y,z);g.renderOrder=2;g.receiveShadow=true;grp.add(g);keep.add(g);SPN.blood.push(g)}
+   /* splashed on the wall above the bed, running down */
+   {const wm2=bm.clone();wm2.opacity=.9;const g=new THREE.Mesh(new THREE.PlaneGeometry(2.0,2.4),wm2);g.rotation.set(0,Math.PI,.25);g.position.set(9.85,1.45,9.118);g.renderOrder=2;grp.add(g);keep.add(g);SPN.blood.push(g)}}}catch(e){console.error("[spawn] blood",e)}
   /* extra records hidden around the hospital */
   spPlaceDocs();
   /* 7. light: one tired bulb, dust in the air */
