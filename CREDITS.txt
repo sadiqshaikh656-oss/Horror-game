@@ -1,0 +1,63 @@
+DUSK PROTOCOL - CREDITS AND ASSET LICENCE AUDIT
+================================================
+
+Game made by Mohammed.
+
+This is an audit of every third-party asset used in the game. It was written from the
+information supplied with each file; it is NOT legal advice and does NOT make the game
+"copyright-safe". Anything marked RISK or UNKNOWN should be replaced or cleared before
+the game is published, sold or monetised.
+
+
+1. CLEARLY LICENSED (keep the credit lines below)
+-------------------------------------------------
+- "Metal Locker" by Teslov (Sketchfab), CC BY 4.0. In-game lockers are rebuilt from it.
+  https://sketchfab.com/3d-models/metal-locker-1807cfeea89c4a57997cbe5fce569b53
+- "Pine Tree" by EmreAlkan (Sketchfab), CC BY 4.0.
+- "Grass_green" by nikitadyachik05 (Sketchfab), CC BY 4.0.
+- "Grass" by Cosmic_dust (Sketchfab), CC BY 4.0.
+- "Low poly Stones" by rakutin (Sketchfab), CC BY 4.0.
+- "Unity 5 - Flashlight with Hand" (Blend Swap #88445) by Giovanni Cartella (John's Art),
+  CC BY-SA 3.0. The converted model (assets/source/flashlight_with_hand.glb,
+  assets/models/flashglb.js) is shared under the same CC BY-SA 3.0 licence.
+- Procedural content made in code for this game (no licence issue): spawn-room
+  textures, letter/document paper and text, both room keys, the lockers' hollow
+  geometry, the forest floor, dust, the synthesised UI/door/drawer sounds.
+
+2. RISK - based on someone else's character or film (replace before release)
+--------------------------------------------------------------------------
+- The nun model: "Evil Nun" by Mr.Prizz (Sketchfab), CC BY 4.0 as a file, but it is a
+  fan model of the nun from the commercial game "Evil Nun" (Keplerians). The file licence
+  does not clear the character design. Replace with an original nun design.
+- The clown model (assets/models/pwglb.js, source assets/source/pennywise_animated.glb)
+  is a model of Pennywise from "IT" (Warner Bros / Stephen King). Licence of the file is
+  UNKNOWN and the character is copyrighted. Replace with an original clown design.
+- Jump-scare / voice audio in assets/audio/nunsfx.js: 4 clips cut from the video
+  "Evil Nun jumpscare evolution", plus clown laugh/scream clips supplied by the user
+  (the "Well I'm Pennywise" voice line is no longer played). These are cut from
+  commercial games/films: NOT cleared. Replace with self-recorded or licensed sounds.
+
+3. UNKNOWN LICENCE (supplied by the user, no licence info included)
+-------------------------------------------------------------------
+- "Horror Room Bundle" OBJ (spawn room, assets/models/questglb.js key "sproom").
+  Supplied without MTL/textures or licence; textures in game are generated in code.
+- "washroom.glb" (Mark Bai), basement washroom: licence not stated.
+- "toilet_exit_door.glb" (washroom door): licence not stated.
+- Worn steel door, hospital bed, wood planks pack, door key, hammer
+  (assets/models/questglb.js): supplied by the user, licence not stated.
+- Hospital level / props from the original project files (assets/data, assets/models/lv_*,
+  ph_*): origin not documented in the project.
+- Sound effects pack assets/audio/sfxpack.js and the chase music, nun footsteps,
+  plank-fall, equip and pickup sounds supplied by the user: licence not stated.
+
+Ask the original authors (or check the download pages) and write the licence for each
+UNKNOWN item here. If a licence cannot be found, replace the asset.
+
+
+ABOUT THE "ORIGINAL CHARACTER REDESIGN"
+--------------------------------------
+The Nun and the Clown in the game still use the models listed in section 2. A real
+redesign needs new, original rigged 3D models and new sounds; these cannot be generated
+inside this HTML project. What has been changed: the story (Darsla Hospital, the Sister,
+the ritual, the separate clown entity), the clown's behaviour (his own stalking AI, not a
+copy of the nun's), and the removal of the film voice line.

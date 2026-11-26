@@ -229,7 +229,7 @@ body.qcine #qbars{display:block}body.qcine #hud,body.qcine #touch{opacity:0!impo
 <div id="cdsc"><div id="pvn"></div><div id="pvd"></div></div></div></div>
 <div id="cft"><button class="cb" id="pvr">&#8635; Rotate</button><button class="cb" id="pve">Equip</button><button class="cb on" id="pvu">Use</button><button class="cb" id="pvx">&#128465; Delete</button><button class="cb" id="bagx">&#10005; Close</button></div><canvas id="pvc"></canvas></div>
 <div id="ov" class="hide"><h1>Down.</h1><div class="sub" id="os"></div><button class="btn on go" id="rs">Run it again</button></div>
-<div id="menu" class="hide"><h1>Dusk Protocol</h1><div class="sub">She is still here. Choose how long you survive.</div>
+<div id="menu" class="hide"><h1>Dusk Protocol</h1><div class="sub">Darsla Hospital. Closed since 1999. You should not be here.</div>
 <button class="btn on go" id="go">Start</button><button class="btn go hide" id="rsb">Restart</button><button class="btn go" id="sb">Settings</button><button class="btn go" id="ib">Install app</button><button class="btn go hide" id="mm">Main menu</button>
 <div class="help" id="hl">WASD move · Mouse aim · LMB fire · RMB aim · Shift sprint · Alt walk · C crouch · E pick up · Y laser · T inspect · I bag<br>Click game to capture mouse · Esc / P = pause<br><small>Find the hammer, tear the planks off the EXIT, find the key in a drawer or cabinet. She hears everything. One blow from her hammer is enough.</small><br><small style="opacity:.6">Evil Nun model by Mr.Prizz (Sketchfab) · CC BY 4.0 · Flashlight with Hand by Giovanni Cartella (John's Art), Blend Swap · CC BY-SA 3.0 · Metal Locker by Teslov · Pine Tree by EmreAlkan · Grass by nikitadyachik05 &amp; Cosmic_dust · Stones by rakutin (Sketchfab, CC BY 4.0)</small></div></div>
 <div id="set" class="hide"><div id="sp"><h2>Settings</h2><div id="tabs"><button class="btn on" data-t="g">Graphics</button><button class="btn" data-t="c">Controls</button><button class="btn" data-t="a">Audio</button></div><div id="rows"></div><button class="btn go hide" id="ced">Edit touch controls (move / size)</button><button class="btn on go" id="sbk">Back</button></div></div>
@@ -894,7 +894,7 @@ function nunSting(){
 }
 /* ======================= COMBAT / CATCH ======================= */
 function nunRay(o,d){
- if(!NUN.ok||DIFF.off||!NUN.g.visible||NUN.st=="wait")return 1e9;
+ if(!NUN.ok||nunOff()||!NUN.g.visible||NUN.st=="wait")return 1e9;
  let bt=1e9;const y0=NUN.pos.y;
  for(const [y,r] of [[1.62,.17],[1.25,.3],[.8,.3],[.35,.26]]){const t=raySph(o,d,NUN.pos.x,y0+y,NUN.pos.z,r);if(t<bt)bt=t}
  return bt
@@ -973,7 +973,7 @@ function nunStep(dt){
  if(!NUN.ok)return;
  if(!NL.ok||NL.lvok!==LV.ok){NL.lvok=LV.ok;nlBuild()}
  if(QST.cine&&QST.cine.type=="escape"){if(QST.cine.out){nunPose(dt);try{qNunStare(QST.cine.stare||0,dt)}catch(e){}}return}
- if(DIFF.off){if(NUN.g)NUN.g.visible=false;NUN.st="patrol";NUN.fear=0;if(NUN.br)nunBreath(false,0);if(CM.on)cmStop();return}
+ if(nunOff()){if(NUN.g)NUN.g.visible=false;NUN.st="patrol";NUN.fear=0;if(NUN.br)nunBreath(false,0);if(CM.on)cmStop();return}
  if(!NL.ok||NL.lvok!==LV.ok){NL.lvok=LV.ok;nlBuild()}
  if(NUN.st=="wait"){nunSpawn();if(NUN.st=="wait")return}
  if(!NUN.F1){NUN.F1=nfNew(0);NUN.F2=nfNew(0)}
@@ -1264,6 +1264,7 @@ function nunAlways(dt){
  try{paraStep(dt)}catch(e){console.error("[para]",e)}
  try{qTick(dt)}catch(e){console.error("[quest]",e)}
  try{pwStep(dt)}catch(e){console.error("[pw]",e)}
+ try{spStep(dt)}catch(e){console.error("[spawn]",e)}
  if(st!="play"){if(NUN.br)nunBreath(false,0);NUN.fear*=Math.max(0,1-dt*2);if(CM.on)cmStop();if(JS.on&&st!="over")jsHide()}
  if(AC&&!NSB.loading)nsbLoad();
  if(st=="over"&&NUN.ok&&NUN.g.visible){if(NUN.cur=="attack"&&!NUN.acts.attack.isRunning())nunPlay("idle_look",.4);NUN.mx.update(dt)}
@@ -1290,6 +1291,11 @@ const DIFFS=[
 let DIFF=DIFFS[2];
 function qSetDiff(i){DIFF=DIFFS[i]||DIFFS[2];QST.MAXD=DIFF.days}
 window.__dpQuestDyn=[];
+/* which enemies are in the run: both / nun only / clown only */
+let ENEMY=(()=>{try{const v=localStorage.getItem("dusk_enemy");return v=="nun"||v=="clown"?v:"both"}catch(e){return "both"}})();
+const ENEMIES=[["both","Nun + Clown"],["nun","Nun only"],["clown","Clown only"]];
+function nunOff(){return DIFF.off||ENEMY=="clown"}
+function qSetEnemy(k){ENEMY=k;try{localStorage.setItem("dusk_enemy",k)}catch(e){}const e=$("qenemy");if(e)e.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k==k));try{clReset()}catch(e){}}
 const BEDP={x:5.3,z:9.12},STANDP={x:5.75,z:7.62,yaw:2.75};
 const EXR={x0:-10,x1:-4.6,z0:13.2,z1:18,dz:15.75,gx0:-6.95,gx1:-5.65};
 /* the game rebuilds the whole hospital when graphics settings change (buildWorld); rebuild our additions and restore the run */
@@ -1299,7 +1305,7 @@ function nunWorldReset(){
  const O=QST.out;if(O){scene.remove(O.g);if(O.light)scene.remove(O.light);QST.out=null}
  QST.built=false;QST.tbl=null;QST.tblPos=null;QST.H=null;QST.K=null;QST.ex=null;QST.bed=null;QST.exitSet=null;QST.nailsL=[];QST.drops=[];QST.hv=null;QST.kv=null;QST.pk=null;QST.cine=null;QST.swing=null;
  HLK.built=false;HLK.list=[];HLK.hide=null;NL.ok=false;NL.lvok=-1;NUN.route=null;LV.ok=0;
- PARA.wc=[];PARA.wcTry=0;PARA.drop=[];try{RR.done=false;RR.g=null;RR.lt=null;RR.lm=[];RR.door=null}catch(e){}
+ PARA.wc=[];PARA.wcTry=0;PARA.drop=[];try{SPN.built=false;SPN.ok=false;if(SPN.insp)spInspectEnd();SPN.door=null;SPN.dr=[];SPN.docs=[]}catch(e){}try{RR.done=false;RR.g=null;RR.lt=null;RR.lm=[];RR.door=null}catch(e){}
  if(sv){QST.cont=sv;QST.pending=true}
  console.log("[world] rebuilt after a graphics change; restoring the run")
 }
@@ -1532,10 +1538,10 @@ function qCredits(done){
  let el=$("qcred");if(!el){el=document.createElement("div");el.id="qcred";document.body.appendChild(el)}
  el.innerHTML='<div class="roll"><h1>DUSK PROTOCOL</h1><p class="big">Made by <b>MOHAMMED</b></p>'+
   '<p>A horror game created, designed and directed by Mohammed.</p>'+
-  '<p>Mohammed imagined the hospital, the Evil Nun and the four nights you must survive, and shaped every scare, every hiding place and this escape.</p>'+
+  '<p>Mohammed imagined Darsla Hospital, the Sister, the clown and the four days you must survive, and shaped every scare, every hiding place and this escape.</p>'+
   '<h3>Created by</h3><p>Mohammed</p><h3>Game design &amp; story</h3><p>Mohammed</p><h3>Level &amp; horror direction</h3><p>Mohammed</p><h3>Testing</h3><p>Mohammed</p>'+
-  '<h3>Thank you for playing</h3><p>She is still in there. She will be waiting.</p>'+
-  '<h3 class="sm">3D models (licence credits)</h3><p class="sm">Evil Nun — Mr.Prizz (CC BY 4.0) · Metal Locker — Teslov (CC BY 4.0) · Pine Tree — EmreAlkan (CC BY 4.0) · Grass — nikitadyachik05 and Cosmic_dust (CC BY 4.0) · Low poly Stones — rakutin (CC BY 4.0) · Flashlight with Hand — Giovanni Cartella / John’s Art (CC BY-SA 3.0)</p>'+
+  '<h3>Darsla Hospital, 2026</h3><p>James got out. The underground ward stayed sealed, and the ritual was never finished.</p><p>But on the night he escaped, the old EEG machines in the basement switched themselves on.</p><p>Whatever she was calling is still down there. And it is still listening.</p><h3>Thank you for playing</h3>'+
+  '<h3 class="sm">3D models (licence credits)</h3><p class="sm">Evil Nun — Mr.Prizz (CC BY 4.0) · Metal Locker — Teslov (CC BY 4.0) · Pine Tree — EmreAlkan (CC BY 4.0) · Grass — nikitadyachik05 and Cosmic_dust (CC BY 4.0) · Low poly Stones — rakutin (CC BY 4.0) · Spawn room — \"Horror Room Bundle\" (user-supplied OBJ, licence not stated) · Flashlight with Hand — Giovanni Cartella / John’s Art (CC BY-SA 3.0)</p>'+
   '<p class="big" style="margin-top:28vh">MOHAMMED</p></div><div class="skip">tap to skip</div>';
  el.style.display="block";const roll=el.querySelector(".roll");roll.style.transform="translateY(100vh)";
  const H=roll.offsetHeight,dur=Math.max(16,H/60);let t0=performance.now(),fin=false;
@@ -1682,6 +1688,7 @@ function qBuild(){
  const hm=(QST.htpl||new THREE.Mesh(new THREE.BoxGeometry(.36,.05,.05),new THREE.MeshStandardMaterial({color:0x553322}))).clone(true);
  hm.rotation.z=Math.PI/2;const vm=new THREE.Group;vm.add(hm);hm.position.y=-.05;vm.visible=false;scene.add(vm);QST.vm=vm;
  hm.traverse(m=>{if(m.isMesh){m.castShadow=false;m.material=m.material.clone();m.material.depthTest=true}});
+ try{spBuild()}catch(e){console.error("[spawn]",e)}
  if(window.NL_REBUILD)window.NL_REBUILD();NL.ok=false;
  console.log("[quest] world built")
 }
@@ -1754,6 +1761,9 @@ function qUI(){
  const cb=document.createElement("button");cb.className="btn on go hide";cb.id="qc";$("menu").insertBefore(cb,$("go"));
  const dv=document.createElement("div");dv.id="qdiff";dv.innerHTML=DIFFS.map((d,i)=>'<button class="btn qd'+(i==2?' on':'')+'" data-i="'+i+'"><b>'+d.n+'</b><small>'+d.h+'</small></button>').join("");
  $("menu").insertBefore(dv,$("go"));
+ {const ev=document.createElement("div");ev.id="qenemy";ev.innerHTML='<span>ENEMIES</span>'+ENEMIES.map(([k,n])=>'<button class="btn'+(k==ENEMY?' on':'')+'" data-k="'+k+'">'+n+'</button>').join("");
+  $("menu").insertBefore(ev,dv);ev.querySelectorAll("button").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();if(st=="menu")qSetEnemy(b.dataset.k)}));
+  const cs=document.createElement("style");cs.textContent="#qenemy{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;margin:4px 0 2px;max-width:min(760px,96vw)}#qenemy span{font-size:11px;letter-spacing:.25em;opacity:.7;margin-right:4px}#qenemy .btn{margin:0;padding:6px 12px;font-size:13px;min-width:0;letter-spacing:.08em;opacity:.55}#qenemy .btn.on{opacity:1;border-color:#ff2a2a;box-shadow:0 0 12px rgba(255,0,0,.3)}#spov{position:fixed;inset:0;z-index:12;pointer-events:none;display:none}#spov.on{display:block}#spov .h{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font:12px Georgia,serif;letter-spacing:.06em;color:#d8cfc0;background:rgba(0,0,0,.55);padding:6px 12px;border-radius:4px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}#spov button{pointer-events:auto;position:absolute;right:14px;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,60,60,.6);background:rgba(0,0,0,.6);color:#eee;font-size:22px;line-height:1}#spov button[data-z='1']{top:38%}#spov button[data-z='-1']{top:calc(38% + 54px)}#spov button[data-c]{top:14px;font-size:18px}body.spinsp #touch>.tb:not(#bu),body.spinsp #joy{opacity:.12!important}body.spinsp #qp{display:none}@media (max-height:520px){#qenemy .btn{padding:4px 9px;font-size:11px}}";document.head.appendChild(cs)}
  dv.querySelectorAll("button").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();if(st!="menu")return;qClearSave();QST.cont=null;qSetDiff(+b.dataset.i);startPlay()}));
  cb.onclick=()=>{const s=qLoadSave();if(!s)return;QST.cont=s;startPlay()};
  $("go").addEventListener("click",()=>{if(st=="menu"){qClearSave();QST.cont=null}},true);
@@ -1765,18 +1775,19 @@ function qUI(){
 }
 function qHud(){
  if(!QUI.root)return;
- QUI.day.innerHTML=DIFF.off?"PRACTICE <small>no nun</small>":"DAY "+QST.day+" <small>/ "+QST.MAXD+" · "+DIFF.n.toUpperCase()+"</small>";
+ QUI.day.innerHTML=DIFF.off?"PRACTICE <small>no nun</small>":"DAY "+QST.day+" <small>/ "+QST.MAXD+" · "+DIFF.n.toUpperCase()+(ENEMY=="nun"?" · NUN ONLY":ENEMY=="clown"?" · CLOWN ONLY":"")+"</small>";
  const ex=QST.ex,left=ex?qNailsLeft():4;
  let o;
  if(!left&&QST.hasK)o="Unlock the exit door and escape";
  else if(!left)o="Find the exit key — search drawers & cabinets";
  else if(QST.hasH)o="Pull the 4 nails out of the planks on the EXIT door ("+(4-left)+"/4)";
  else o="Find a hammer to tear the planks off the exit";
+ try{const so=spObjective();if(so)o=so}catch(e){}
  QUI.obj.textContent=o;
  QUI.h.classList.toggle("on",QST.hasH);QUI.k.classList.toggle("on",QST.hasK||QST.keyUsed);
  const c=$("qc"),sv=qLoadSave();if(c){c.classList.toggle("hide",st!="menu"||!sv);if(sv)c.textContent="Continue — Day "+sv.day+" ("+((DIFFS.find(d=>d.k==sv.diff)||DIFFS[2]).n)+")"}
  {const db=$("qdropb");if(db)db.classList.toggle("hide",!(touch&&st=="play"&&(QST.hasH||QST.hasK)&&!QST.cine&&!HLK.hide))}
- {const dv=$("qdiff");if(dv)dv.classList.toggle("hide",st!="menu");$("go").classList.toggle("hide",st=="menu")}
+ {const dv=$("qdiff");if(dv)dv.classList.toggle("hide",st!="menu");const en=$("qenemy");if(en)en.classList.toggle("hide",st!="menu");$("go").classList.toggle("hide",st=="menu")}
 }
 /* ---------------- interaction ---------------- */
 function qFacing(x,y,z,maxD,minDot){
@@ -1787,6 +1798,7 @@ function qFacing(x,y,z,maxD,minDot){
 function qAim(){
  if(st!="play"||P.dead||QST.cine||!QST.built)return null;
  if(HLK.hide)return HLK.hide.ph=="inside"?{k:"lo",t:"Leave the locker"}:null;
+ {const s=spAim();if(s)return s}
  const H=QST.H,K=QST.K,ex=QST.ex;
  try{const D=RR.door;if(D&&Math.abs(P.pos.y-BSM.Y)<1&&qFacing((D.x0+D.x1)/2,BSM.Y+1.1,D.z,2,.6))return{k:"wd",t:D.tgt?"Close the door":"Open the door"}}catch(e){}
  try{if(RR.sd&&Math.abs(P.pos.y-BSM.Y)<1){let best=null,bd=9;for(const s of RR.sd){const d=Math.hypot(s.wx-P.pos.x,s.wz-P.pos.z);if(d<bd&&qFacing(s.wx,BSM.Y+1.1,s.wz,1.8,.65)){bd=d;best=s}}if(best)return{k:"sd",s:best,t:best.locked?"Can't open the door":best.tgt?"Close the cubicle":"Open the cubicle"}}}catch(e){}
@@ -1799,11 +1811,22 @@ function qAim(){
   if(left)return QST.hasH?{k:"p",t:"Pull the nails out (hammer)"}:{k:"x",t:"Nailed shut — you need a hammer"};
   return QST.hasK?{k:"u",t:"Unlock the EXIT"}:{k:"x",t:"Locked — find the key"}
  }
+ {const dw=qDrwAim();if(dw)return{k:"dw",d:dw,t:dw.tgt?"Close drawer":"Open drawer"}}
  {const l=lkNear();if(l&&!QST.swing)return{k:"lk",t:"Hide in the locker",l}}
  return null
 }
+/* drawers: pick the one you are looking at (stacked drawers are told apart by the view angle) */
+function qDrwAim(){
+ if(!DRW.length)return null;const f=_nC.set(0,0,-1).applyQuaternion(cam.quaternion),o=cam.position;let best=null,bd=.86;
+ for(const d of DRW){if(d.lk||!d.o.visible)continue;if(Math.hypot(d.cx-P.pos.x,d.cz-P.pos.z)>2.1)continue;
+  if(!d.c0){d.o.updateWorldMatrix(true,true);const b=new THREE.Box3().setFromObject(d.o);if(b.isEmpty())continue;d.c0=b.getCenter(new THREE.Vector3());d.c0.x-=(d.base?0:0);d.ofw=new THREE.Vector3();if(d.off){const q=d.o.parent.getWorldQuaternion(new THREE.Quaternion());d.ofw.copy(d.off).applyQuaternion(q)}}
+  const cx=d.c0.x+d.ofw.x*d.a,cy=d.c0.y+d.ofw.y*d.a,cz=d.c0.z+d.ofw.z*d.a,dx=cx-o.x,dy=cy-o.y,dz=cz-o.z,l=Math.hypot(dx,dy,dz);
+  if(Math.abs(dy)>1.6||l>2.2)continue;const dot=(dx*f.x+dy*f.y+dz*f.z)/l;if(dot>bd){bd=dot;best=d}}
+ return best
+}
 function qUse(){
  const a=QST.aim;if(!a||st!="play"||P.dead||QST.cine)return false;
+ if(/^sp/.test(a.k)){spUse(a);return true}
  if(a.k=="sd"&&a.s.locked){try{snd("latch",.9,{x:a.s.wx,z:a.s.wz},0,.9);snd("thud",.4,{x:a.s.wx,z:a.s.wz})}catch(e){}shake=Math.max(shake,.012);banner("Can't open the door",1400);return true}
  if(a.k=="sd"){a.s.tgt=a.s.tgt?0:1;try{snd("creak",.7,{x:a.s.wx,z:a.s.wz},0,1.2)}catch(e){}return true}
  if(a.k=="wd"){const D=RR.door;D.tgt=D.tgt?0:1;try{snd(D.tgt?"dooropen":"doorclose",.8,{x:(D.x0+D.x1)/2,z:D.z},0,.8)}catch(e){try{snd("creak",.8)}catch(_){}}return true}
@@ -1814,6 +1837,7 @@ function qUse(){
  if(a.k=="x"){banner(a.t,1400);try{snd("latch",.6,{x:QST.ex.face,z:EXR.dz})}catch(e){}nunNoise(QST.ex.face+.5,EXR.dz,5,0,0);return true}
  if(a.k=="p"){if(!QST.swing)QST.swing={t:0,hit:false};return true}
  if(a.k=="u"){qUnlock();return true}
+ if(a.k=="dw"){const d=a.d;if(T-(d.tt||-9)<.4)return true;d.tt=T;d.tgt=d.tgt?0:1;return true}
  if(a.k=="lk"){lkEnter(a.l);return true}
  if(a.k=="lo"){lkExit();return true}
  return false
@@ -1940,7 +1964,7 @@ function qMkTable(){
 function qTableSpots(){
  const R=nunRoute(),out=[],dirs=[[1,0],[-1,0],[0,1],[0,-1]],bad=[];
  for(const d of HD){bad.push([d.cx,d.cz,2.5]);bad.push([d.x,d.z,1.8])}
- bad.push([QST.face||-10,EXR.dz,5]);bad.push([BEDP.x,BEDP.z,6]);
+ bad.push([QST.face||-10,EXR.dz,5]);bad.push([BEDP.x,BEDP.z,6]);bad.push([8,6.9,4.6]);
  if(HLK&&HLK.list)for(const l of HLK.list)bad.push([l.x,l.z,2]);
  const st=BSM.st;
  for(const p of R){
@@ -2084,6 +2108,7 @@ function qNewGame(){
  QST.day=1;QST.hasH=false;QST.hasK=false;QST.keyUsed=false;QST.won=false;
  const ex=QST.ex;if(ex)qPlanksReset();
  if(ex){qDoorSet(ex,0);ex.glow.visible=false;if(ex.key){grp.remove(ex.key);ex.key=null}}
+ try{spReset()}catch(e){}
  qRandomItems()
 }
 function qToBed(){
@@ -2093,17 +2118,17 @@ function qToBed(){
 }
 function qWake(){
  QST.cine={type:"wake",t:0};
- if(QUI.dt){QUI.dt.querySelector("b").textContent="DAY "+QST.day;QUI.dt.querySelector("small").textContent=DIFF.off?"Practice — explore freely, no nun":QST.MAXD==1?"One day. She will not let you go.":QST.day==1?"Escape the hospital within "+QST.MAXD+" days":QST.day==QST.MAXD?"Last day. She will not let you go again.":(QST.MAXD-QST.day+1)+" days left"}
+ if(QUI.dt){QUI.dt.querySelector("b").textContent="DAY "+QST.day;QUI.dt.querySelector("small").textContent=DIFF.off?"Practice — explore freely, no enemies":QST.MAXD==1?"One day. She will not let you go.":QST.day==1&&SPN.ok&&!SPN.got.doorU?"Darsla Hospital, 2026. Someone locked you in.":QST.day==1?"Escape the hospital within "+QST.MAXD+" days":QST.day==QST.MAXD?"Last day. She will not let you go again.":(QST.MAXD-QST.day+1)+" days left"}
  QUI.lid.style.display="block";
  /* nun far away and quiet while you wake up */
  if(NUN.ok){const p=nunSpawnPoint(26);if(p){NUN.L=p.L;NUN.pos.set(p.x,layerY(p.L),p.z);NUN.st="patrol";NUN.goal=null;NUN.stair=null;NUN.aw=0;NUN.ri=NUN.route?NUN.route.indexOf(p):0}NUN.wait=QST.day==1?16:11}
  try{pbreathStart(.9)}catch(e){}
 }
-function qCaught(){
+function qCaught(by){
  lkReset();
  if(DIFF.off){qToBed();qWake();return}
  if(QST.day>=QST.MAXD){qClearSave();die(NUN);
-  $("ov").querySelector("h1").textContent="GAME OVER";$("os").textContent="Day "+QST.day+" — she caught you for the last time.";return}
+  $("ov").querySelector("h1").textContent="GAME OVER";$("os").textContent="Day "+QST.day+" — "+(by=="clown"?"he":"she")+" caught you for the last time.";return}
  /* drop what you were holding where she caught you */
  const lay=plLayer();
  if(QST.hasH){QST.hasH=false;const p=nunClear(P.pos.x,P.pos.z,.2,lay)?P.pos:{x:NUN.pos.x,z:NUN.pos.z};qPlaceHammer({x:p.x+.3,z:p.z,L:lay})}
@@ -2126,7 +2151,7 @@ function qCam(dt){
   const sm=k=>k*k*k*(k*(k*6-15)+10);
   const fx=Math.sin(STANDP.yaw),fz=Math.cos(STANDP.yaw);
   /* key poses: [time, eye position, look target] */
-  const K=[[0,[BEDP.x-.72,.93,BEDP.z],[BEDP.x-.45,3.2,BEDP.z]],
+  const K=SPN.ok?spWakeK():[[0,[BEDP.x-.72,.93,BEDP.z],[BEDP.x-.45,3.2,BEDP.z]],
    [3.4,[BEDP.x-.72,.93,BEDP.z],[BEDP.x-.45,3.2,BEDP.z]],
    [5.0,[BEDP.x-.35,1.2,BEDP.z-.05],[BEDP.x+2.6,1.0,BEDP.z-.3]],
    [6.3,[BEDP.x+.05,1.12,BEDP.z-.62],[BEDP.x+.9,.55,BEDP.z-3.0]],
@@ -2211,7 +2236,7 @@ function qSave(){
  try{const H=QST.H,K=QST.K;
   const s={v:1,diff:DIFF.k,day:QST.day,hasH:QST.hasH,hasK:QST.hasK,keyUsed:QST.keyUsed,planks:QST.ex?QST.ex.planks.map(p=>p.st=="on"||p.st=="hang"?p.n:0):[2,2],
    H:H?{mode:H.mode,x:H.x,z:H.z,L:H.L,y:H.y}:null,T:QST.tblPos||null,K:K?(K.mode=="drw"||K.mode=="cab"?K.spec:{mode:"floor",x:K.x,z:K.z,L:K.L,held:K.mode=="held"}):null,
-   p:HLK.hide?{x:HLK.hide.l.fx,y:P.pos.y,z:HLK.hide.l.fz,yaw,pitch}:{x:P.pos.x,y:P.pos.y,z:P.pos.z,yaw,pitch},n:NUN.ok?{x:NUN.pos.x,z:NUN.pos.z,L:NUN.L}:null,fl:FL.on,t:Date.now()};
+   p:HLK.hide?{x:HLK.hide.l.fx,y:P.pos.y,z:HLK.hide.l.fz,yaw,pitch}:{x:P.pos.x,y:P.pos.y,z:P.pos.z,yaw,pitch},n:NUN.ok?{x:NUN.pos.x,z:NUN.pos.z,L:NUN.L}:null,sp:SPN.got,spr:SPN.read,en:ENEMY,fl:FL.on,t:Date.now()};
   localStorage.setItem(SAVEK,JSON.stringify(s))}catch(e){}
 }
 function qLoadSave(){try{const s=JSON.parse(localStorage.getItem(SAVEK)||"null");return s&&s.v==1?s:null}catch(e){return null}}
@@ -2227,6 +2252,8 @@ const ex=QST.ex;if(ex){qPlanksReset();ex.planks.forEach((p,i)=>{const n=s.planks
  if(s.K&&!s.K.held&&!QST.keyUsed)qPlaceKey(s.K);else if(QST.K){QST.K.o.visible=false;QST.K.mode="held"}
  if(s.p){P.pos.set(s.p.x,s.p.y||0,s.p.z);yaw=s.p.yaw;pitch=s.p.pitch||0}
  if(s.n&&NUN.ok){NUN.L=s.n.L||0;NUN.pos.set(s.n.x,layerY(NUN.L),s.n.z);NUN.st="patrol";NUN.goal=null;NUN.wait=5}
+ if(s.en)qSetEnemy(s.en);
+ try{SPN.got=Object.assign({letter:0,k1:0,k2:0,du:0,doorU:0},s.sp||{doorU:1,k1:1,k2:1,du:1,letter:1});SPN.read=s.spr||{};spApplyState()}catch(e){}
  FL.on=s.fl?1:0;
  banner("DAY "+QST.day+" — continued",1800)
 }
@@ -2334,7 +2361,7 @@ function lkPlace(){
  const T2=lkTemplate();if(!T2)return;try{lkStripRails()}catch(e){}
  const R=nunRoute(),placed=[],dirs=[[1,0],[-1,0],[0,1],[0,-1]];
  const avoid=[];for(const d of HD){avoid.push([d.cx,d.cz,2.2,0]);avoid.push([d.x,d.z,1.5,0])}
- if(QST.ex)avoid.push([QST.ex.face,EXR.dz,2.6,0]);if(QST.tblPos)avoid.push([QST.tblPos.x,QST.tblPos.z,2.1,0]);avoid.push([BEDP.x,BEDP.z,1.8,0]);avoid.push([18.95,9.4,1.9,0]);avoid.push([17,14,4.9,0]);
+ if(QST.ex)avoid.push([QST.ex.face,EXR.dz,2.6,0]);if(QST.tblPos)avoid.push([QST.tblPos.x,QST.tblPos.z,2.1,0]);avoid.push([BEDP.x,BEDP.z,1.8,0]);avoid.push([8,6.9,4.4,0]);avoid.push([18.95,9.4,1.9,0]);avoid.push([17,14,4.9,0]);
  const st=BSM.st;
  let cap=99;
  /* a real wall must be right behind the locker (raycast against tall structure meshes) */
@@ -2496,7 +2523,7 @@ function pwScare(why){
  if(free<4.5)return false;const d0=clamp(free-.5,4.5,9);
  PWS.on=true;PWS.t=0;PWS.d0=d0;PWS.f=f.clone();PWS.o=cam.position.clone();PWS.wp=new THREE.Vector3(cam.position.x+f.x*d0,0,cam.position.z+f.z*d0);PWS.y0=typeof layerY=="function"?layerY(lay):0;PWS.why=why;
  PWS.g.visible=true;PWS.ph=0;PWS.wp2=null;PWS.hit=0;for(const k in PWS.acts)PWS.acts[k].stop();const a=PWS.acts.drunk_walk||PWS.acts.sprint;if(a){a.reset();a.timeScale=.25;a.play()}
- try{nsbPlay("pwv",1.15);nsbPlay("pw2",.35)}catch(e){}
+ try{nsbPlay("pw2",.45)}catch(e){}
  return true
 }
 const _pv1=new THREE.Vector3(),_pv2=new THREE.Vector3(),_pv3=new THREE.Vector3(),_pq1=new THREE.Quaternion(),_pq2=new THREE.Quaternion(),_pq3=new THREE.Quaternion();
@@ -2505,18 +2532,19 @@ function pwStep(dt){
  try{rrStep(dt)}catch(e){}
  if(!PWS.ready){if(!PWS.loading&&T>3)pwLoad();return}
  /* new run -> arm the timed scare */
- if(st=="play"&&PWS.lastSt!="play"&&PWS.lastSt!="pause"){PWS.used2=false}
+ if(st=="play"&&PWS.lastSt!="play"&&PWS.lastSt!="pause"){PWS.used2=false;clReset()}
  PWS.lastSt=st;
  const ok=st=="play"&&!P.dead&&!QST.cine&&!HLK.hide&&NUN.st!="catch"&&NUN.st!="chase";
- if(ok&&!PWS.on&&!PWS.used2&&P.pos.y<-3.3&&P.pos.x>-2.6&&FL.on){if(pwScare("basement"))PWS.used2=true}
- if(!PWS.on)return;
+ if(ok&&ENEMY!="nun"&&CL2.st=="off"&&!PWS.on&&!PWS.used2&&P.pos.y<-3.3&&P.pos.x>-2.6&&FL.on){if(pwScare("basement"))PWS.used2=true}
+ if(!PWS.on){try{clStep(dt)}catch(e){console.error("[clown]",e)}return}
  PWS.t+=dt;const t=PWS.t,f=PWS.f;
  /* 0-3.3  he stands far down the corridor in your beam, head tilting, "Well I'm Pennywise, the dancing clown"
     3.3-3.8  torch dies, he laughs in the dark
     3.8-4.4  light flickers back: he is much closer, frozen, still laughing
     4.4-4.8  he sprints the last metres
     4.8-5.3  his face in yours: scream + horror hit + glitch, then black and gone */
- const T1=3.3,T2=3.8,T3=4.4,T4=4.8,T5=5.3;
+ /* no voice line: the face hits at 2.2 s */
+ const T1=.85,T2=1.15,T3=1.75,T4=2.25,T5=2.8;
  if(t>=T1&&PWS.ph==0){PWS.ph=1;pwBlack(1);try{snd("click",.5);nsbPlay("pwl",1.1)}catch(e){}}
  if(t>=T2&&PWS.ph==1){PWS.ph=2;pwBlack(0);PWS.dn=Math.min(3.2,PWS.d0*.5);for(const k in PWS.acts)PWS.acts[k].stop();const a=PWS.acts.sprint;if(a&&PWS.bestT!=null){a.reset();a.play();a.time=PWS.bestT;a.timeScale=0}}
  if(PWS.ph==2){pwBlack(Math.random()<.18?1:0)}
@@ -2538,7 +2566,7 @@ function pwStep(dt){
   PWS.g.position.y+=Math.min(.9,Math.max(0,cam.position.y-.06-_pv1.y));
   shake=Math.max(shake,.09);try{if(fin&&fin.uniforms.glt)fin.uniforms.glt.value=Math.random()<.35?.32:.05}catch(e){}NUN.fear=Math.max(NUN.fear,1)}
  if(PWS.ph==4){PWS.L.position.set(cam.position.x+f.x*.2,cam.position.y-.15,cam.position.z+f.z*.2);PWS.L.intensity=1.1}else{PWS.L.position.set(x,PWS.y0+1.6,z);PWS.L.intensity=PWS.ph==1?0:.3}
- if(t>=T5){PWS.on=false;PWS.g.visible=false;PWS.L.intensity=0;for(const k in PWS.acts)PWS.acts[k].stop();try{if(fin&&fin.uniforms.glt)fin.uniforms.glt.value=0}catch(e){}pwBlack(1);setTimeout(()=>pwBlack(0),220)}
+ if(t>=T5){PWS.on=false;PWS.g.visible=false;PWS.L.intensity=0;for(const k in PWS.acts)PWS.acts[k].stop();try{if(fin&&fin.uniforms.glt)fin.uniforms.glt.value=0}catch(e){}pwBlack(1);setTimeout(()=>pwBlack(0),220);if(PWS.why=="catch"){PWS.why="";try{qCaught("clown")}catch(e){console.error(e)}}}
 }
 /* =====================================================================
    BASEMENT WASHROOM (user-supplied "the_restroom.glb") replaces the old box washroom
@@ -2658,6 +2686,308 @@ function rrStep(dt){
  const f=Math.sin(T*23)*Math.sin(T*7.7)>.55||Math.random()<.02?.08:1;
  RR.lt.intensity=near?1.6*f:0;for(const m of RR.lm)m.emissiveIntensity=.9*f
 }
+/* =====================================================================
+   THE CLOWN: his own AI, separate from the nun.
+   He never chases like she does. He manifests out of sight, creeps toward
+   you while you are not looking and freezes when you are. A torch held on
+   him for a moment makes him melt back into the dark; with the torch off he
+   rushes. If he reaches you: his face, then you wake up in the room again.
+   ===================================================================== */
+const CL2={st:"off",t:0,cd:30,x:0,z:0,L:0,seen:0,life:0,stuck:0,lx:0,lz:0,F:null,step:0,gig:0};
+function clOn(){return ENEMY!="nun"&&!DIFF.off}
+function clReset(){CL2.st="off";CL2.cd=ENEMY=="clown"?14:40;CL2.seen=0;if(PWS.g&&!PWS.on)PWS.g.visible=false}
+function clHide(cd){CL2.st="off";CL2.cd=cd;if(!PWS.on&&PWS.g)PWS.g.visible=false;for(const k in PWS.acts)PWS.acts[k].stop()}
+function clSeen(){
+ const hx=CL2.x,hz=CL2.z,hy=layerY(CL2.L)+1.5,dx=hx-cam.position.x,dy=hy-cam.position.y,dz=hz-cam.position.z,l=Math.hypot(dx,dy,dz);
+ if(l>22)return 0;const f=_pv3.set(0,0,-1).applyQuaternion(cam.quaternion);const dot=(dx*f.x+dy*f.y+dz*f.z)/l;
+ if(dot<.8)return 0;if(!nlos(_pv1.set(hx,hy,hz),_pv2.copy(cam.position)))return 0;
+ /* in the dark he is hard to see unless close or in the beam */
+ return FL.on&&dot>.9||l<6?1:.5
+}
+function clSpawn(){
+ const R=nunRoute(),L=plLayer();let best=null,bs=-1e9;
+ for(let i=0;i<60;i++){const p=R[Math.random()*R.length|0];if(!p||p.L!==L)continue;const d=Math.hypot(p.x-P.pos.x,p.z-P.pos.z);if(d<7||d>14)continue;
+  if(SPN.ok&&p.x>SP_REG.x0-.5&&p.x<SP_REG.x1&&p.z>SP_REG.z0-.5&&p.z<SP_REG.z1)continue;
+  const vis=nlos(_pv1.set(p.x,layerY(L)+1.5,p.z),_pv2.copy(cam.position));
+  const dx=p.x-cam.position.x,dz=p.z-cam.position.z,f=_pv3.set(0,0,-1).applyQuaternion(cam.quaternion),dot=(dx*f.x+dz*f.z)/(Math.hypot(dx,dz)||1);
+  if(vis&&dot>.2)continue;                      /* never pops in where you are looking */
+  const s=(vis?0:6)-Math.abs(d-10)+Math.random()*3;if(s>bs){bs=s;best=p}}
+ if(!best)return false;
+ CL2.x=best.x;CL2.z=best.z;CL2.L=L;CL2.st="stalk";CL2.life=ENEMY=="clown"?55:38;CL2.seen=0;CL2.stuck=0;CL2.lx=CL2.x;CL2.lz=CL2.z;CL2.step=0;CL2.gig=4+Math.random()*4;
+ if(!CL2.F)CL2.F=nfNew(L);
+ PWS.g.visible=true;PWS.g.position.set(CL2.x,layerY(L),CL2.z);PWS.g.rotation.set(0,0,0);for(const k in PWS.acts)PWS.acts[k].stop();
+ const a=PWS.acts.drunk_walk||PWS.acts.zombie_walk_2;if(a){a.reset();a.timeScale=1;a.play()}
+ return true
+}
+function clMoveTo(gx,gz,spd,dt){
+ let w={x:gx,z:gz};
+ if(!nunClearLine(CL2.x,CL2.z,gx,gz,CL2.L)){nfBuild(CL2.F,CL2.L,gx,gz);const s=nfStep(CL2.F,CL2.x,CL2.z);if(s)w=s}
+ const dx=w.x-CL2.x,dz=w.z-CL2.z,l=Math.hypot(dx,dz);if(l<1e-3)return 0;const st=Math.min(l,spd*dt);
+ const nx=CL2.x+dx/l*st,nz=CL2.z+dz/l*st;if(nlFree(CL2.L,nx,nz)){CL2.x=nx;CL2.z=nz}
+ CL2.face=Math.atan2(dx,dz);return st
+}
+function clCatch(){
+ /* turn the player toward him, then the face lunge of the scare */
+ CL2.st="off";CL2.cd=ENEMY=="clown"?18:45;
+ const f=_nC.set(CL2.x-P.pos.x,0,CL2.z-P.pos.z);if(f.lengthSq()<1e-4)f.set(0,0,1);f.normalize();yaw=Math.atan2(f.x,f.z);pitch=0;
+ PWS.on=true;PWS.t=1.75;PWS.ph=3;PWS.f=f.clone();PWS.o=cam.position.clone();PWS.wp=new THREE.Vector3(CL2.x,0,CL2.z);PWS.wp2=PWS.wp.clone();PWS.d0=2;PWS.dn=0;PWS.why="catch";PWS.y0=layerY(CL2.L);
+ for(const k in PWS.acts)PWS.acts[k].stop();const a=PWS.acts.sprint;if(a){a.reset();a.play();a.timeScale=1.9}
+ try{nsbPlay("pwl",.8)}catch(e){}
+}
+function clStep(dt){
+ if(!PWS.ready||PWS.on)return;
+ const ok=st=="play"&&clOn()&&!P.dead&&!QST.cine&&!QST.won&&!(SPN.ok&&!SPN.got.doorU)&&NUN.st!="catch";
+ if(!ok){if(CL2.st!="off")clHide(Math.max(CL2.cd,12));return}
+ if(CL2.st=="off"){if(HLK.hide||NUN.st=="chase")return;CL2.cd-=dt;if(CL2.cd<=0){if(!clSpawn())CL2.cd=4}return}
+ const pl=plLayer(),d=Math.hypot(CL2.x-P.pos.x,CL2.z-P.pos.z);
+ CL2.life-=dt;
+ /* he gives up: you hid, changed floors, the nun is after you, or he has been around long enough */
+ if(HLK.hide||pl!==CL2.L||NUN.st=="chase"||CL2.life<=0||d>26){clHide(ENEMY=="clown"?16+Math.random()*10:40+Math.random()*25);return}
+ const sv=clSeen();
+ if(sv>0)CL2.seen+=dt*sv;else CL2.seen=Math.max(0,CL2.seen-dt*.5);
+ const a=PWS.acts.drunk_walk||PWS.acts.zombie_walk_2,sp=PWS.acts.sprint;
+ if(CL2.st=="stalk"){
+  if(sv>0){/* frozen while watched */if(a)a.timeScale=0;
+   if(FL.on&&CL2.seen>1.4){try{nsbPlay("pwl",.35)}catch(e){}pwBlack(1);setTimeout(()=>pwBlack(0),120);clHide(ENEMY=="clown"?14+Math.random()*10:35+Math.random()*25);return}
+   if(!FL.on&&CL2.seen>.9){CL2.st="rush";if(a)a.stop();if(sp){sp.reset();sp.timeScale=1.4;sp.play()}try{nsbPlay("pw2",.6)}catch(e){}}}
+  else{if(a)a.timeScale=1;const m=clMoveTo(P.pos.x,P.pos.z,1.55,dt);CL2.step+=m;
+   if(CL2.step>.75){CL2.step=0;try{snd("step",.12*clamp(1-d/14,0,1),{x:CL2.x,z:CL2.z},0,.7)}catch(e){}}
+   CL2.gig-=dt;if(CL2.gig<=0&&d<12){CL2.gig=7+Math.random()*6;try{nsbPlay("pwl",.18*clamp(1-d/12,.2,1))}catch(e){}}}
+  if(d<1.1){clCatch();return}
+ }else if(CL2.st=="rush"){clMoveTo(P.pos.x,P.pos.z,4.6,dt);if(d<1.2){clCatch();return}}
+ /* stuck: melt away and try again later */
+ if(Math.hypot(CL2.x-CL2.lx,CL2.z-CL2.lz)<.02&&sv==0){CL2.stuck+=dt;if(CL2.stuck>3){clHide(10);return}}else CL2.stuck=0;CL2.lx=CL2.x;CL2.lz=CL2.z;
+ PWS.g.position.set(CL2.x,layerY(CL2.L),CL2.z);
+ const ty=sv>0?Math.atan2(cam.position.x-CL2.x,cam.position.z-CL2.z):CL2.face||0;PWS.g.rotation.y=ty;PWS.g.rotation.z=CL2.st=="stalk"&&sv>0?.1:0;
+ PWS.mx.update(dt)
+}
+
+/* =====================================================================
+   OPENING: the spawn room (user-supplied "Horror Room Bundle" OBJ)
+   James wakes in a locked room: letter on the table, key 1 on the side table,
+   key 1 unlocks the night-stand drawer, key 2 inside opens the room door.
+   Placed in the ground-floor room whose door was at (7,4); its own door opens
+   into the corridor at x≈5.5.
+   ===================================================================== */
+const SPN={ok:false,built:false,g:null,letter:null,k1:null,k2:null,dr:[],door:null,
+ got:{letter:0,k1:0,k2:0,du:0,doorU:0},insp:null,docs:[],read:{}};
+const SPX=8.75,SPZ=6.74;            /* room origin: OBJ (x,z) -> world (SPX-x, SPZ-z) */
+const SP_REG={x0:4.3,x1:11.75,z0:4.2,z1:9.75};
+const SP_DOOR={x0:5.16,x1:5.91,h:2.03};
+function spW(x,z){return [SPX-x,SPZ-z]}
+function spTex(w,h,fn){const t=qCanvasTex(w,h,fn,1);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
+function spMats(){
+ if(SPN.M)return SPN.M;const R=sgRnd(1999);
+ const wall=spTex(512,512,(x,w,h)=>{x.fillStyle="#7d8478";x.fillRect(0,0,w,h);
+  for(let i=0;i<5000;i++){const v=R();x.fillStyle=`rgba(${v<.5?30:200},${v<.5?32:205},${v<.5?25:190},${.03+R()*.05})`;x.fillRect(R()*w,R()*h,1+R()*3,1+R()*3)}
+  for(let i=0;i<26;i++){const gx=R()*w,gy=R()*h,r=12+R()*70,g=x.createRadialGradient(gx,gy,0,gx,gy,r);g.addColorStop(0,`rgba(${55+R()*30|0},${48+R()*20|0},30,${.18+R()*.25})`);g.addColorStop(1,"rgba(60,50,30,0)");x.fillStyle=g;x.fillRect(gx-r,gy-r,r*2,r*2)}
+  for(let i=0;i<16;i++){const gx=R()*w,g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,"rgba(40,32,24,0)");g.addColorStop(.3,"rgba(40,32,24,.3)");g.addColorStop(1,"rgba(40,32,24,.05)");x.fillStyle=g;x.fillRect(gx,R()*h*.3,2+R()*6,h)}
+  x.fillStyle="rgba(20,24,22,.55)";x.fillRect(0,h*.62,w,h*.38);x.fillStyle="rgba(10,10,10,.5)";x.fillRect(0,h*.62,w,4)});
+ const floor=spTex(512,512,(x,w,h)=>{x.fillStyle="#4d4a43";x.fillRect(0,0,w,h);for(let a=0;a<8;a++)for(let b=0;b<8;b++){const v=60+R()*35|0;x.fillStyle=`rgb(${v},${v-3},${v-9})`;x.fillRect(a*64+1,b*64+1,62,62)}
+  for(let i=0;i<4000;i++){x.fillStyle=`rgba(${R()<.5?0:180},${R()<.5?0:170},${R()<.5?0:150},${.04+R()*.06})`;x.fillRect(R()*w,R()*h,1+R()*2,1+R()*2)}
+  for(let i=0;i<10;i++){const gx=R()*w,gy=R()*h,r=20+R()*60,g=x.createRadialGradient(gx,gy,0,gx,gy,r);g.addColorStop(0,"rgba(30,22,14,.35)");g.addColorStop(1,"rgba(30,22,14,0)");x.fillStyle=g;x.fillRect(gx-r,gy-r,r*2,r*2)}});
+ const wood=spTex(256,256,(x,w,h)=>{x.fillStyle="#4a3122";x.fillRect(0,0,w,h);for(let i=0;i<220;i++){x.strokeStyle=`rgba(${R()<.5?25:110},${R()<.5?15:72},${R()<.5?8:45},${.15+R()*.25})`;x.lineWidth=1+R()*2;x.beginPath();const y=R()*h;x.moveTo(0,y);x.bezierCurveTo(w*.3,y+(R()-.5)*14,w*.7,y+(R()-.5)*14,w,y+(R()-.5)*10);x.stroke()}});
+ const fabric=spTex(256,256,(x,w,h)=>{x.fillStyle="#8f8a7d";x.fillRect(0,0,w,h);for(let i=0;i<3000;i++){x.fillStyle=`rgba(${R()<.5?40:220},${R()<.5?36:210},${R()<.5?30:190},${.05+R()*.07})`;x.fillRect(R()*w,R()*h,1,1+R()*3)}
+  for(let i=0;i<8;i++){const gx=R()*w,gy=R()*h,r=10+R()*40,g=x.createRadialGradient(gx,gy,0,gx,gy,r);g.addColorStop(0,`rgba(${90+R()*40|0},${50+R()*20|0},20,.4)`);g.addColorStop(1,"rgba(90,50,20,0)");x.fillStyle=g;x.fillRect(gx-r,gy-r,r*2,r*2)}});
+ const S=(o)=>new THREE.MeshStandardMaterial(Object.assign({roughness:.85,metalness:0,envMapIntensity:.3},o));
+ return SPN.M={wall:S({map:wall,color:0xc8c8c0}),floor:S({map:floor,roughness:.7,color:0xbdb8ac}),ceil:S({map:wall,color:0x6b6b66}),
+  wood:S({map:wood,color:0xb59b85,roughness:.65}),paint:S({map:wood,color:0x6f7a6c,roughness:.6}),metal:S({color:0x6c6e6b,roughness:.45,metalness:.7}),
+  rust:S({color:0x5a4234,roughness:.8,metalness:.35}),fabric:S({map:fabric,color:0xd8d2c4,roughness:.95}),dark:S({color:0x1c1c1c,roughness:.6}),brass:S({color:0xb58a3a,roughness:.35,metalness:.85,emissive:0x1a1004})}
+}
+function spMatFor(n){const M=spMats();
+ if(/^Wall_Mesh/.test(n))return M.wall;if(n=="Cube")return M.ceil;if(n=="Cube001")return M.floor;
+ if(/^Cube01[01]$/.test(n))return M.fabric;if(/^Cube00[2-9]$/.test(n))return M.rust;
+ if(/^Cube01[2-6]$/.test(n))return M.wood;if(/^B.zierCurve/.test(n)||/Handle/.test(n))return M.metal;
+ if(/^Door_/.test(n))return M.paint;if(/Shelf_Hole/.test(n))return M.dark;if(/Wall_Clock/.test(n))return M.dark;return M.wood}
+/* paper texture for any document */
+function spDocTex(title,lines){return qCanvasTex(1024,1448,(x,w,h)=>{const R=sgRnd(title.length*7+3);
+ x.fillStyle="#d9cfb4";x.fillRect(0,0,w,h);
+ for(let i=0;i<9000;i++){x.fillStyle=`rgba(${R()<.5?90:250},${R()<.5?70:240},${R()<.5?40:210},${.03+R()*.05})`;x.fillRect(R()*w,R()*h,1+R()*3,1+R()*3)}
+ for(let i=0;i<7;i++){const gx=R()*w,gy=R()*h,r=40+R()*160,g=x.createRadialGradient(gx,gy,r*.6,gx,gy,r);g.addColorStop(0,"rgba(120,90,40,0)");g.addColorStop(.9,"rgba(120,85,40,.22)");g.addColorStop(1,"rgba(120,85,40,0)");x.fillStyle=g;x.fillRect(gx-r,gy-r,r*2,r*2)}
+ const e=x.createRadialGradient(w/2,h/2,w*.3,w/2,h/2,w*.85);e.addColorStop(0,"rgba(80,55,20,0)");e.addColorStop(1,"rgba(80,55,20,.45)");x.fillStyle=e;x.fillRect(0,0,w,h);
+ x.fillStyle="#140f0b";x.textAlign="left";let y=105;
+ x.font="bold 60px 'Courier New',monospace";x.fillText(title[0],70,y);y+=64;x.font="bold 38px 'Courier New',monospace";for(let i=1;i<title.length;i++){x.fillText(title[i],70,y);y+=48}
+ x.fillRect(70,y-12,w-140,5);y+=44;
+ for(const L of lines){if(L==""){y+=22;continue}const bold=/^[A-Z !:.'—-]+$/.test(L)&&L.length<46;x.font=(bold?"bold ":"")+"35px 'Courier New',monospace";
+  const words=L.split(" ");let ln="";for(const wd of words){const t2=ln?ln+" "+wd:wd;if(x.measureText(t2).width>w-140){x.fillText(ln,70,y);y+=44;ln=wd}else ln=t2}if(ln){x.fillText(ln,70,y);y+=44}}
+ x.save();x.translate(w-250,h-170);x.rotate(-.2);x.strokeStyle="rgba(150,20,20,.7)";x.lineWidth=6;x.strokeRect(-150,-50,300,100);x.fillStyle="rgba(150,20,20,.75)";x.font="bold 44px 'Courier New',monospace";x.textAlign="center";x.fillText("CLASSIFIED",0,16);x.restore()},1)}
+const SP_DOCS=[
+ {id:"letter",title:["DARSLA HOSPITAL","CONFIDENTIAL INCIDENT REPORT","DATE: 1999"],lines:["Hospital status: permanently closed.","Reason: unexplained paranormal activity.","","Multiple patients and hospital staff disappeared under circumstances that could not be explained.","Reports confirmed unidentified figures inside restricted areas.","A woman in a dark habit was repeatedly seen performing unexplained rituals on patients.","A tall figure in clown make-up was reported throughout the hospital.","Investigators found evidence of secret experiments connected to an unknown entity.","","WARNING:","DO NOT ENTER THE UNDERGROUND RESTRICTED WARD.","THE RITUAL MUST NEVER BE COMPLETED."]},
+ {id:"rec",title:["DARSLA HOSPITAL","PATIENT FILE #0447 - WARD C"],lines:["Admitted: 03 November 1999.","Patient reports a woman in black standing at the foot of his bed every night at 3:12 a.m.","Night staff deny any nurse on that floor.","Patient moved to the Restricted Ward on the Sister's request.","","No discharge record.","No death record.","Bed found empty, restraints still locked."]},
+ {id:"memo",title:["INTERNAL MEMO","PROJECT VESPER - NIGHT SESSIONS"],lines:["EEG spikes in all eleven subjects at the same second, every time the Sister begins the chant.","She says the one below is listening.","She has asked for more 'volunteers' from Ward C.","","Do not log the night sessions.","Do not go down after midnight.","Burn this memo."]},
+ {id:"cctv",title:["SECURITY LOG","CAM 07 - BASEMENT CORRIDOR B1"],lines:["02:47 - figure in clown make-up walking toward the morgue.","02:48 - figure gone. Tape shows it never left the frame.","02:51 - the Sister enters the frame and looks straight into the camera.","","The basement doors were chained from the outside.","","Whatever she was calling down there did not come alone."]}];
+function spDocMesh(d){const m=new THREE.Mesh(new THREE.PlaneGeometry(.21,.297),new THREE.MeshBasicMaterial({map:spDocTex(d.title,d.lines),side:THREE.DoubleSide,toneMapped:false,color:new THREE.Color(.86,.84,.8)}));m.userData.doc=d;return m}
+/* a small key, made from scratch */
+function spKey(col){const g=new THREE.Group,m=new THREE.MeshStandardMaterial({color:col,roughness:.3,metalness:.9,emissive:new THREE.Color(col).multiplyScalar(.12)});
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(.017,.0045,8,18),m);ring.rotation.x=Math.PI/2;ring.position.x=-.035;g.add(ring);
+ const sh=new THREE.Mesh(new THREE.BoxGeometry(.06,.005,.007),m);sh.position.x=.012;g.add(sh);
+ for(const [dx,dz] of [[.03,.006],[.038,.008],[.045,.005]]){const t=new THREE.Mesh(new THREE.BoxGeometry(.005,.004,dz),m);t.position.set(dx,0,.006);g.add(t)}
+ g.traverse(o=>{if(o.isMesh)o.castShadow=false});return g}
+/* ---------------- build ---------------- */
+function spBuild(){
+ if(SPN.built||!QST.asset||!QST.asset.sproom)return;SPN.built=true;
+ try{
+  const keep=new Set;
+  /* 1. clear the old room: props and old door */
+  const inR=b=>b.min.x>SP_REG.x0&&b.max.x<SP_REG.x1&&b.min.z>SP_REG.z0&&b.max.z<SP_REG.z1;
+  for(let i=obs.length-1;i>=0;i--){const o=obs[i];if(o.y0!=null||!(o.x===o.x))continue;if(o.x>SP_REG.x0&&o.x<SP_REG.x1&&o.z>SP_REG.z0&&o.z<SP_REG.z1&&o.hx<2.5&&o.hz<2.5)obs.splice(i,1)}
+  const inP=(x,z)=>x>SP_REG.x0&&x<SP_REG.x1&&z>SP_REG.z0&&z<SP_REG.z1;
+  for(let i=DRW.length-1;i>=0;i--){const d=DRW[i];if(inP(d.cx,d.cz)){if(d.o)d.o.visible=false;DRW.splice(i,1)}}
+  for(let i=AXC.length-1;i>=0;i--){const c=AXC[i];if(inP(c.x,c.z))AXC.splice(i,1)}
+  if(HLK.list)for(let i=HLK.list.length-1;i>=0;i--){const l=HLK.list[i];if(inP(l.x,l.z)){if(l.g)l.g.visible=false;HLK.list.splice(i,1)}}
+  const old=HD.find(h=>Math.abs(h.cx-7)<.3&&Math.abs(h.cz-4)<.3);
+  if(old){if(old.pv)old.pv.visible=false;const oi=obs.indexOf(old.box);if(oi>=0)obs.splice(oi,1);HD.splice(HD.indexOf(old),1)}
+  {const list=[];for(const r of[typeof HOSPG!=="undefined"?HOSPG:null,grp])if(r)r.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh&&o.visible)list.push(o)});
+   const use=new Map;list.forEach(m=>use.set(m.geometry,(use.get(m.geometry)||0)+1));const bb=new THREE.Box3(),v=new THREE.Vector3();
+   for(const m of list){m.updateWorldMatrix(true,false);bb.setFromObject(m);if(bb.isEmpty())continue;
+    if(inR(bb)&&bb.min.y>-.1){m.visible=false;continue}
+    if(bb.max.x<SP_REG.x0||bb.min.x>SP_REG.x1||bb.max.z<SP_REG.z0||bb.min.z>SP_REG.z1)continue;
+    /* big merged meshes: drop only the triangles that sit inside the room volume */
+    let g0=m.geometry;if(!g0.attributes.position||Array.isArray(m.material))continue;const g=g0.index?g0.toNonIndexed():g0.clone(),P=g.attributes.position,names=Object.keys(g.attributes),out={};names.forEach(k=>out[k]=[]);let cut=0;
+    const W=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()];
+    for(let t=0;t+2<P.count;t+=3){let inside=true;for(let j=0;j<3;j++){W[j].fromBufferAttribute(P,t+j).applyMatrix4(m.matrixWorld);const w=W[j];if(!(w.x>SP_REG.x0&&w.x<SP_REG.x1&&w.z>SP_REG.z0&&w.z<SP_REG.z1&&w.y>.02&&w.y<2.9))inside=false}
+     if(inside){cut++;continue}for(const k of names){const a=g.attributes[k],n=a.itemSize;for(let j=0;j<3;j++)for(let c=0;c<n;c++)out[k].push(a.array[(t+j)*n+c])}}
+    if(!cut)continue;const ng=new THREE.BufferGeometry();for(const k of names)ng.setAttribute(k,new THREE.Float32BufferAttribute(out[k],g.attributes[k].itemSize));ng.computeBoundingSphere();m.geometry=ng}}
+  /* 2. the room model */
+  const src=QST.asset.sproom.clone(true);const root=new THREE.Group;root.add(src);root.rotation.y=Math.PI;root.position.set(SPX,0,SPZ);grp.add(root);SPN.g=root;keep.add(root);
+  root.updateMatrixWorld(true);
+  const byName={};src.traverse(o=>{if(!o.isMesh)return;const n=(o.name||"").replace(/[^A-Za-z0-9_]/g,"");byName[n]=o;o.material=spMatFor(n);o.castShadow=false;o.receiveShadow=true});
+  /* uv-less meshes (OBJ boxes) get box-projected uvs so the textures show */
+  src.traverse(o=>{if(!o.isMesh)return;const g=o.geometry;if(g.attributes.uv&&g.attributes.uv.count)return;const p=g.attributes.position,n=g.attributes.normal,uv=new Float32Array(p.count*2);
+   for(let i=0;i<p.count;i++){const ax=Math.abs(n?n.getX(i):0),ay=Math.abs(n?n.getY(i):1);let u,v;if(ay>.6){u=p.getX(i);v=p.getZ(i)}else if(ax>.6){u=p.getZ(i);v=p.getY(i)}else{u=p.getX(i);v=p.getY(i)}uv[i*2]=u*.8;uv[i*2+1]=v*.8}
+   g.setAttribute("uv",new THREE.BufferAttribute(uv,2))});
+  /* 3. corridor wall: cut the new doorway, add reveals */
+  {const near=[];for(const r of[typeof HOSPG!=="undefined"?HOSPG:null,grp])if(r)r.traverse(o=>{if(!o.isMesh||o.isInstancedMesh)return;for(let q=o;q;q=q.parent)if(q===root)return;const b=new THREE.Box3().setFromObject(o);if(b.max.x>SP_DOOR.x0&&b.min.x<SP_DOOR.x1&&b.max.z>3.7&&b.min.z<4.2&&b.min.y<SP_DOOR.h)near.push(o)});
+   near.forEach(m=>{m.geometry=m.geometry.clone()});rrCut(near,SP_DOOR.x0,SP_DOOR.x1,3.7,4.2,-.05,SP_DOOR.h);
+   const M=spMats().paint,bx=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M);m.position.set(x,y,z);grp.add(m)};
+   bx(.03,SP_DOOR.h,.3,SP_DOOR.x0-.015,SP_DOOR.h/2,3.99);bx(.03,SP_DOOR.h,.3,SP_DOOR.x1+.015,SP_DOOR.h/2,3.99);bx(SP_DOOR.x1-SP_DOOR.x0+.06,.03,.3,(SP_DOOR.x0+SP_DOOR.x1)/2,SP_DOOR.h+.015,3.99)}
+  /* walls: split the corridor wall collider at the new doorway, then the room's own walls */
+  for(let i=obs.length-1;i>=0;i--){const o=obs[i];if(o.y0!=null||!(o.x===o.x))continue;if(Math.abs(o.z-4)<.1&&o.hz<.25&&o.x-o.hx<SP_DOOR.x1&&o.x+o.hx>SP_DOOR.x0){const a0=o.x-o.hx,a1=o.x+o.hx;obs.splice(i,1);
+    if(a0<SP_DOOR.x0-.01)obs.push({...o,x:(a0+SP_DOOR.x0-.01)/2,hx:(SP_DOOR.x0-.01-a0)/2});if(a1>SP_DOOR.x1+.01)obs.push({...o,x:(a1+SP_DOOR.x1+.01)/2,hx:(a1-SP_DOOR.x1-.01)/2})}}
+  const wb=(x0,x1,z0,z1,h,pr)=>{const b={x:(x0+x1)/2,z:(z0+z1)/2,hx:(x1-x0)/2,hz:(z1-z0)/2,h:h||3,sp:1};if(pr)b.pr=pr,b.nc=true;obs.push(b);return b};
+  wb(4.3,11.75,9.13,9.35);wb(4.3,4.52,4,9.35);wb(11.52,11.75,4,9.35);wb(4.3,SP_DOOR.x0,3.98,4.18);wb(SP_DOOR.x1,11.75,3.98,4.18);
+  /* furniture colliders (slim player radius so the room is comfortable to move in) */
+  wb(9.25,10.68,6.72,9.01,.8,.3);wb(4.65,5.65,6.75,8.25,.8,.3);wb(8.31,8.98,8.5,8.99,1,.3);wb(10.28,10.94,4.54,5.24,1,.3);wb(10.82,11.21,6.37,6.76,.85,.3);wb(8.75,9.75,4.19,4.52,1.6,.3);
+  /* 4. wake position: the room's own bed */
+  BEDP.x=9.97;BEDP.z=7.9;STANDP.x=8.6;STANDP.z=7.3;STANDP.yaw=Math.atan2(5.55-8.6,4.4-7.3);
+  /* 5. movables: door and the three drawers (baked to world space, hung on pivots) */
+  const bake=o=>{o.updateWorldMatrix(true,false);const g=(o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone()).applyMatrix4(o.matrixWorld);g.computeBoundingBox();return g};
+  {const pan=byName.Door_Panel002,hd=byName.Door_Handle002;if(pan){const pg=bake(pan),hg=hd?bake(hd):null;const b=pg.boundingBox.clone(),hx=b.min.x,hz=(b.min.z+b.max.z)/2;
+    const pv=new THREE.Group;pv.position.set(hx,0,hz);grp.add(pv);keep.add(pv);pg.translate(-hx,0,-hz);pv.add(new THREE.Mesh(pg,pan.material));if(hg){hg.translate(-hx,0,-hz);pv.add(new THREE.Mesh(hg,hd.material))}
+    pan.visible=false;if(hd)hd.visible=false;
+    const box={x:(b.min.x+b.max.x)/2,z:hz,hx:(b.max.x-b.min.x)/2+.03,hz:.07,h:2.2,nc:true};obs.push(box);
+    SPN.door={pv,a:0,v:0,tgt:0,box,ob:null,w:b.max.x-b.min.x,x:(b.min.x+b.max.x)/2,z:hz}}}
+  SPN.dr=[];
+  for(const [dn,hn,lock] of [["Cube013","BzierCurve",1],["Cube014","BzierCurve001",0],["Cube015","BzierCurve002",0]]){const dm=byName[dn];if(!dm)continue;const hm=byName[hn]||Object.values(byName).find(o=>new RegExp("^B.?zierCurve"+hn.slice(10)+"$").test(o.name.replace(/[^A-Za-z0-9_]/g,"")));
+   const dg=bake(dm),b=dg.boundingBox.clone(),g=new THREE.Group;grp.add(g);keep.add(g);g.add(new THREE.Mesh(dg,dm.material));dm.visible=false;
+   if(hm){g.add(new THREE.Mesh(bake(hm),hm.material));hm.visible=false}
+   /* a dark inside so the open drawer reads as a box */
+   const inner=new THREE.Mesh(new THREE.BoxGeometry(b.max.x-b.min.x-.03,.005,b.max.z-b.min.z-.03),spMats().dark);inner.position.set((b.min.x+b.max.x)/2,b.min.y+.03,(b.min.z+b.max.z)/2+.01);g.add(inner);
+   SPN.dr.push({g,lock,a:0,tgt:0,cx:(b.min.x+b.max.x)/2,cy:(b.min.y+b.max.y)/2,cz:b.min.z,bot:b.min.y+.035,mid:(b.min.z+b.max.z)/2})}
+  /* 6. letter on the table, key 1 on the side table, key 2 inside the locked drawer */
+  SPN.letter=spDocMesh(SP_DOCS[0]);SPN.letter.rotation.set(-Math.PI/2,0,.35);SPN.letter.position.set(5.2,.772,7.45);grp.add(SPN.letter);keep.add(SPN.letter);
+  SPN.k1=spKey(0xb58a3a);SPN.k1.position.set(11.0,.812,6.55);SPN.k1.rotation.y=.7;grp.add(SPN.k1);keep.add(SPN.k1);
+  {const d=SPN.dr.find(d=>d.lock);SPN.k2=spKey(0x8d9196);if(d){SPN.k2.position.set(d.cx,d.bot,d.mid);d.g.add(SPN.k2)}else grp.add(SPN.k2)}
+  /* extra records hidden around the hospital */
+  spPlaceDocs();
+  /* 7. light: one tired bulb, dust in the air */
+  if(!HOSP.lights.some(l=>l.sp)){const L=[7.9,2.2,6.8,1,1.15,7.5,0xffd9a8];L.sp=1;HOSP.lights.push(L)}
+  {const n=touch?60:140,pos=new Float32Array(n*3),R=sgRnd(77);for(let i=0;i<n;i++){pos[i*3]=4.6+R()*6.8;pos[i*3+1]=.2+R()*2.1;pos[i*3+2]=4.3+R()*4.8}
+   const gg=new THREE.BufferGeometry;gg.setAttribute("position",new THREE.BufferAttribute(pos,3));
+   const pm=new THREE.PointsMaterial({size:.012,color:0xd8cdb8,transparent:true,opacity:.32,depthWrite:false});SPN.dust=new THREE.Points(gg,pm);grp.add(SPN.dust);keep.add(SPN.dust)}
+  NL.ok=false;SPN.ok=true;spApplyState();
+  console.log("[spawn] room built")
+ }catch(e){console.error("[spawn]",e)}
+}
+function spPlaceDocs(){
+ SPN.docs.forEach(d=>{if(d.m&&d.m.parent)d.m.parent.remove(d.m)});SPN.docs=[];
+ const spots=[[30.5,7.2,0],[51.6,15.2,0],[2.5,13.2,1]];
+ SP_DOCS.slice(1).forEach((d,i)=>{const [x0,z0,L]=spots[i];let x=x0,z=z0;
+  for(let r=0;r<3;r+=.25){let ok=false;for(let a=0;a<6.28;a+=.5){const tx=x0+Math.cos(a)*r,tz=z0+Math.sin(a)*r;if(nlFree(L,tx,tz)){x=tx;z=tz;ok=true;break}}if(ok)break}
+  const m=spDocMesh(d);m.rotation.set(-Math.PI/2,0,i*1.3);m.position.set(x,layerY(L)+.012,z);grp.add(m);SPN.docs.push({d,m,x,z,L})})
+}
+/* ---------------- state ---------------- */
+function spReset(){SPN.got={letter:0,k1:0,k2:0,du:0,doorU:0};SPN.read={};spApplyState()}
+function spApplyState(){
+ if(!SPN.ok)return;const G=SPN.got;
+ if(SPN.letter)SPN.letter.visible=true;
+ if(SPN.k1)SPN.k1.visible=!G.k1;if(SPN.k2)SPN.k2.visible=!G.k2;
+ const D=SPN.door;if(D){D.tgt=G.doorU?1:0;D.a=D.tgt;D.pv.rotation.y=-D.a*1.45;spDoorBox(D)}
+ SPN.dr.forEach(d=>{d.tgt=0;d.a=0;d.g.position.z=0});
+ SPN.docs.forEach(o=>{o.m.visible=!SPN.read[o.d.id]})
+}
+function spActive(){return SPN.ok&&!SPN.got.doorU}
+function spDoorBox(D){const i=obs.indexOf(D.box);if(D.a<.15){if(i<0)obs.push(D.box)}else if(i>=0)obs.splice(i,1);
+ if(D.a>.95&&!D.ob){D.pv.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(D.pv);D.ob={x:(b.min.x+b.max.x)/2,z:(b.min.z+b.max.z)/2,hx:(b.max.x-b.min.x)/2,hz:(b.max.z-b.min.z)/2,h:2.2,nc:true,pr:.3};obs.push(D.ob);NL.ok=false}
+ if(D.a<.9&&D.ob){const j=obs.indexOf(D.ob);if(j>=0)obs.splice(j,1);D.ob=null;NL.ok=false}}
+/* ---------------- aim / use ---------------- */
+function spAim(){
+ if(SPN.insp)return{k:"spclose",t:"Put the "+(SPN.insp.d.id=="letter"?"letter":"document")+" away"};
+ if(!SPN.ok||Math.abs(P.pos.y)>1.2&&!SPN.docs.length)return null;const G=SPN.got,v=new THREE.Vector3();
+ for(const o of SPN.docs){if(SPN.read[o.d.id]||Math.abs(P.pos.y-layerY(o.L))>1.2)continue;if(qFacing(o.x,layerY(o.L)+.02,o.z,2.2,.75))return{k:"spdoc",o,t:"Pick up document"}}
+ if(P.pos.x<SP_REG.x0-1||P.pos.x>SP_REG.x1||P.pos.z<3||P.pos.z>SP_REG.z1||Math.abs(P.pos.y)>1)return null;
+ if(SPN.letter&&qFacing(5.2,.78,7.45,2.3,.72))return{k:"spletter",t:G.letter?"Read the letter again":"Pick up letter"};
+ if(!G.k1&&SPN.k1&&qFacing(11.0,.82,6.55,2.2,.75))return{k:"spk1",t:"Pick up key"};
+ for(const d of SPN.dr){d.g.updateMatrixWorld(true);v.set(d.cx,d.cy,d.cz+d.g.position.z);if(!qFacing(v.x,v.y,v.z,1.9,.8))continue;
+  if(d.a>.6&&d.lock&&!G.k2&&qFacing(d.cx,d.bot,d.mid+d.g.position.z,1.9,.75))return{k:"spk2",t:"Pick up drawer key"};
+  if(d.lock&&!G.du)return{k:"spdl",d,t:G.k1?"Unlock drawer":"Locked drawer"};
+  return{k:"spd",d,t:d.tgt?"Close drawer":"Open drawer"}}
+ const D=SPN.door;if(D&&qFacing(D.x,1.1,D.z,2.4,.6))return{k:"spdoor",t:G.doorU?(D.tgt?"Close door":"Open door"):G.k2?"Unlock door":"Locked door"};
+ return null
+}
+function spUse(a){const G=SPN.got;
+ if(a.k=="spclose"){spInspectEnd();return}
+ if(a.k=="spletter"){spInspect(SPN.letter,SP_DOCS[0]);G.letter=1;qSave();return}
+ if(a.k=="spdoc"){spInspect(a.o.m,a.o.d,a.o);return}
+ if(a.k=="spk1"){G.k1=1;SPN.k1.visible=false;try{nsbPlay("equip",.9)}catch(e){}banner("+ Small brass key",1600);qSave();return}
+ if(a.k=="spk2"){G.k2=1;SPN.k2.visible=false;try{nsbPlay("equip",.9)}catch(e){}banner("+ Room key",1600);qSave();return}
+ if(a.k=="spdl"){if(!G.k1){try{snd("latch",.7)}catch(e){}banner("It's locked. There must be a key somewhere.",1800);return}
+  G.du=1;try{snd("latch",.9);snd("click",.6)}catch(e){}banner("Drawer unlocked",1300);a.d.tgt=1;qSave();return}
+ if(a.k=="spd"){a.d.tgt=a.d.tgt?0:1;return}
+ if(a.k=="spdoor"){const D=SPN.door;
+  if(!G.doorU){if(!G.k2){try{snd("latch",.9);snd("thud",.35)}catch(e){}shake=Math.max(shake,.01);banner("Locked. I need the key.",1600);return}
+   G.doorU=1;try{snd("latch",1);setTimeout(()=>{try{snd("dooropen",.9,{x:D.x,z:D.z},0,.85);snd("creak",.8)}catch(e){}},250)}catch(e){}banner("The door is open",1500);D.tgt=1;qSave();return}
+  D.tgt=D.tgt?0:1;try{snd(D.tgt?"creak":"doorclose",.8)}catch(e){}}
+}
+/* ---------------- document inspection ---------------- */
+function spInspect(mesh,doc,o){
+ const m=spDocMesh(doc);m.renderOrder=999;m.material.depthTest=false;scene.add(m);
+ SPN.insp={m,d:doc,o,src:mesh,yaw0:yaw,pitch0:pitch,ry:0,rx:.05,zoom:1,pos:P.pos.clone(),t:0};mesh.visible=false;
+ try{snd("pickup",.6)}catch(e){}
+ let ov=$("spov");if(!ov){ov=document.createElement("div");ov.id="spov";ov.innerHTML='<div class="h">Drag to turn · <b>+</b>/<b>−</b> or wheel to zoom · USE to put away</div><button data-z="1">+</button><button data-z="-1">−</button><button data-c="1">✕</button>';document.body.appendChild(ov);
+  ov.querySelectorAll("button").forEach(b=>b.addEventListener("pointerdown",e=>{e.stopPropagation();e.preventDefault();if(!SPN.insp)return;if(b.dataset.c)spInspectEnd();else SPN.insp.zoom=clamp(SPN.insp.zoom+(+b.dataset.z)*.25,.6,2.2)}));
+  addEventListener("wheel",e=>{if(SPN.insp){SPN.insp.zoom=clamp(SPN.insp.zoom-Math.sign(e.deltaY)*.15,.6,2.2)}},{passive:true});
+  let pd=0;addEventListener("touchmove",e=>{if(!SPN.insp||e.touches.length!=2)return;const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pd)SPN.insp.zoom=clamp(SPN.insp.zoom+(d-pd)*.005,.6,2.2);pd=d},{passive:true});addEventListener("touchend",()=>{pd=0},{passive:true})}
+ ov.classList.add("on");document.body.classList.add("spinsp")
+}
+function spInspectEnd(){const I=SPN.insp;if(!I)return;scene.remove(I.m);I.m.material.map.dispose();I.m.material.dispose();I.m.geometry.dispose();
+ if(I.o){SPN.read[I.d.id]=1;const n=Object.keys(SPN.read).length;banner("Record found ("+n+"/3)",1600)}else I.src.visible=true;
+ SPN.insp=null;const ov=$("spov");if(ov)ov.classList.remove("on");document.body.classList.remove("spinsp");try{snd("pickup",.5,null,0,.8)}catch(e){}qSave()}
+/* ---------------- per frame ---------------- */
+function spStep(dt){
+ if(!SPN.built&&QST.built)spBuild();
+ if(!SPN.ok)return;
+ const I=SPN.insp;
+ if(I){if(st!="play"||P.dead||QST.cine){spInspectEnd();return}
+  I.t+=dt;const dy=Math.atan2(Math.sin(yaw-I.yaw0),Math.cos(yaw-I.yaw0)),dp=pitch-I.pitch0;I.ry-=dy*1.6;I.rx=clamp(I.rx-dp*1.6,-1.3,1.3);yaw=I.yaw0;pitch=I.pitch0;
+  P.pos.x=I.pos.x;P.pos.z=I.pos.z;vX=vZ=0;
+  const e=1-Math.pow(1-Math.min(1,I.t/.35),3),dist=.33/I.zoom;
+  const f=_nC.set(0,0,-1).applyQuaternion(cam.quaternion);I.m.position.copy(cam.position).addScaledVector(f,dist*e+.9*(1-e));I.m.position.y-=.25*(1-e);
+  I.m.quaternion.copy(cam.quaternion);I.m.rotateY(I.ry);I.m.rotateX(I.rx)}
+ /* door */
+ const D=SPN.door;if(D){const pa=D.a;D.v+=((D.tgt-D.a)*26-D.v*8.5)*dt;D.a=clamp(D.a+D.v*dt,-.02,1.03);D.pv.rotation.y=-D.a*1.45;if(Math.abs(D.a-pa)>1e-4||D.a>.95||D.a<.15)spDoorBox(D)}
+ /* drawers slide with a little ease, the key rides along */
+ for(const d of SPN.dr){const g=d.tgt?1:0;d.a+=(g-d.a)*Math.min(1,dt*7);if(Math.abs(g-d.a)<.001)d.a=g;d.g.position.z=-d.a*.3}
+ /* dust drifts */
+ if(SPN.dust&&SPN.dust.visible){const p=SPN.dust.geometry.attributes.position;for(let i=0;i<p.count;i++){let y=p.getY(i)+Math.sin(T*.3+i)*.0006-.0004;if(y<.1)y=2.3;p.setY(i,y);p.setX(i,p.getX(i)+Math.sin(T*.21+i*1.7)*.0005)}p.needsUpdate=true;SPN.dust.visible=Math.abs(P.pos.y)<1&&P.pos.x>3&&P.pos.x<13&&P.pos.z>2&&P.pos.z<11}
+ /* the nun leaves James alone while he is still locked in */
+ if(spActive()&&NUN.ok&&NUN.st!="catch"){NUN.wait=Math.max(NUN.wait||0,3)}
+}
+function spWakeK(){const fx=Math.sin(STANDP.yaw),fz=Math.cos(STANDP.yaw);
+ return [[0,[9.97,.98,8.45],[9.97,3.2,8.0]],[3.4,[9.97,.98,8.45],[9.97,3.2,8.0]],[5.0,[9.97,1.26,8.05],[9.9,1.0,5.2]],[6.3,[9.6,1.16,7.75],[6.5,.55,7.3]],[7.0,[9.4,1.08,7.6],[STANDP.x+fx*2,.7,STANDP.z+fz*2]],[8.1,[STANDP.x,1.5,STANDP.z],[STANDP.x+fx*3,1.38,STANDP.z+fz*3]]]}
+function spObjective(){if(!SPN.ok||SPN.got.doorU)return null;const G=SPN.got;
+ if(!G.letter)return "Read the letter on the table";if(!G.k1)return "The door is locked. Search the room for a key";
+ if(!G.du)return "Unlock the night-stand drawer";if(!G.k2)return "Take the key from the drawer";return "Unlock the door"}
 
 /* crash guard: if the GPU context is lost (low memory), save and come back to the same moment */
 (function(){try{const cv=$("c");
@@ -2671,7 +3001,7 @@ function rrStep(dt){
  if(r){try{sessionStorage.removeItem("dpResume")}catch(_){}const iv=setInterval(()=>{const b=document.querySelector("#qcont,#qcb,[data-cont]")||window.__dpCont;if(st=="menu"&&!$("load").classList.contains("hide"))return;if(st=="menu"&&qLoadSave()){clearInterval(iv);QST.cont=qLoadSave();startPlay()}},500);setTimeout(()=>clearInterval(iv),60000)}
 }catch(e){}})();
 nunLoad();paraInit();
-if(/[?&]debug/.test(location.search))window.__dpDbg={snap:(W,H)=>{const rt=new THREE.WebGLRenderTarget(W,H);R.setRenderTarget(rt);R.render(scene,cam);const b=new Uint8Array(W*H*4);R.readRenderTargetPixels(rt,0,0,W,H,b);R.setRenderTarget(null);rt.dispose();let s="";for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode.apply(null,b.subarray(i,i+8192));return btoa(s)},rinfo:()=>R.info.render.frame,rend2:()=>{try{Cm.render();return "ok"}catch(e){return String(e.stack).slice(0,900)}},RR,rend:()=>{try{R.render(scene,cam);return "ok"}catch(e){return e.stack}},LV,CM,PW:PWS,pwScare,pwZone,FOGU,NSB,mkChar,play0:play,CL,chr:()=>CHR,spd:v=>{spd0=v},scene,grp,qMkItem,qPlaceHammer,P,NUN,PARA,PEV,QST,NL,CM,cam,HD,nunNoise,nunSpawn,paraEvent,setYaw:v=>{yaw=v},play2:nunPlay,look:nunLook,rayBox,nunClear,nlFree,nunRoute,qUse,qAim,qCaught,qDrop,qPropGeos,qApplySave,qNewGame,qPlankHit,S,gfx:()=>({DIRTY,flushGfx,applyS}),HLK,lkEnter,lkExit,qSave,qLoadSave,nunCatch,jsShow,JS,NSB,T:()=>T,DRW,AXC,BSM,NV,gnY,stairY,
+if(/[?&]debug/.test(location.search))window.__dpDbg={SPN,spStep,CL2,qSetEnemy,clStep,nunOff,getEnemy:()=>ENEMY,snap:(W,H)=>{const rt=new THREE.WebGLRenderTarget(W,H);R.setRenderTarget(rt);R.render(scene,cam);const b=new Uint8Array(W*H*4);R.readRenderTargetPixels(rt,0,0,W,H,b);R.setRenderTarget(null);rt.dispose();let s="";for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode.apply(null,b.subarray(i,i+8192));return btoa(s)},rinfo:()=>R.info.render.frame,rend2:()=>{try{Cm.render();return "ok"}catch(e){return String(e.stack).slice(0,900)}},RR,rend:()=>{try{R.render(scene,cam);return "ok"}catch(e){return e.stack}},LV,CM,PW:PWS,pwScare,pwZone,FOGU,NSB,mkChar,play0:play,CL,chr:()=>CHR,spd:v=>{spd0=v},scene,grp,qMkItem,qPlaceHammer,P,NUN,PARA,PEV,QST,NL,CM,cam,HD,nunNoise,nunSpawn,paraEvent,setYaw:v=>{yaw=v},play2:nunPlay,look:nunLook,rayBox,nunClear,nlFree,nunRoute,qUse,qAim,qCaught,qDrop,qPropGeos,qApplySave,qNewGame,qPlankHit,S,gfx:()=>({DIRTY,flushGfx,applyS}),HLK,lkEnter,lkExit,qSave,qLoadSave,nunCatch,jsShow,JS,NSB,T:()=>T,DRW,AXC,BSM,NV,gnY,stairY,
  los:(a,b)=>nlos(new THREE.Vector3(...a),new THREE.Vector3(...b)),sim:(n,dt)=>{for(let i=0;i<n;i++){T+=dt;hdoorStep(dt);nunStep(dt);qStep(dt);qSwingStep(dt);paraStep(dt);if(QST.cine||NUN.st=="catch"){nunCam(dt);qCam(dt)}}},setPitch:v=>{pitch=v},st:()=>st,setSt:v=>{st=v},FL,obs,LV,keys};
 
 function frame(){requestAnimationFrame(frame);const nw=performance.now();if(FC&&nw-lastF<FC-2.5)return;lastF=nw;if(S.adapt&&st=="play"){fAcc+=1;fCnt+=0;if(!dynT)dynT=nw;if(nw-dynT>2200){const fps=fAcc*1e3/(nw-dynT),tg=Math.min(60,FC?1e3/FC:60);fAcc=0;dynT=nw;dynN++;if(dynN>1){if(fps<tg*.88&&dyn>.55){dyn=Math.max(.55,+(dyn-.08).toFixed(2));dynUp=0;dynLast=nw;rescale()}else if(fps>tg*.97&&dyn<1){if(++dynUp>=4&&nw-dynLast>8e3){dyn=Math.min(1,+(dyn+.05).toFixed(2));dynUp=0;dynLast=nw;rescale()}}else dynUp=0}}}else{fAcc=0;dynT=0;dynN=0}const dt=Math.min(clock.getDelta(),.05);T+=dt;if(S.fps){fc++;fa+=dt;if(fa>.5){$("fps").textContent=Math.round(fc/fa)+" FPS";fc=fa=0}}if(st=="play"){if(!P.dead)lookStep(dt);padStep(dt);updatePlayer(dt);doorStep(dt);hdoorStep(dt);try{nunStep(dt)}catch(e){console.error("[EvilNun]",e)}try{qStep(dt)}catch(e){console.error("[quest]",e)}spT-=dt;if(false){spawn();spT=rnd(1.5,3)}en.length=0;if(false){wTimer=3.5;banner("Wave "+wave+" cleared",2500);P.res=Math.min(120,P.res+6);snd("wave");hud()}if(wTimer>0){wTimer-=dt;if(wTimer<=0)startWave()}pkStep(dt);rlStep(dt);camUpdate(dt);nunCam(dt);qCam(dt);projBars()}else if(st=="over"){ragStep(P,dt);camUpdate(dt)}else if(st=="pause"){}else{menuCam(dt)}nunAlways(dt);decStep(dt);csStep(dt);laserStep();flyStep(dt);puffStep(dt);if(MZS>0){MZS-=dt;MZT-=dt;if(MZT<=0){MZT=.06;P.gun.localToWorld(_ms.set(0,.03,.172));puff(_ms,rnd(-.05,.05)+dirL.x*.25,.25+rnd(0,.15),rnd(-.05,.05)+dirL.z*.25,.05,rnd(.9,1.6),.8,.8,.82,.16*MZS)}}for(const m of trs)if(m.visible){m.life-=dt;if(m.life<=0)m.visible=false}if(flT>0){flT-=dt;if(flT<=0){fl.visible=false;mz.intensity=0}}for(let j=0;j<NP;j++){if(pl[j]>0){pl[j]-=dt;pv[j*3+1]-=8*dt;pp[j*3]+=pv[j*3]*dt;pp[j*3+1]+=pv[j*3+1]*dt;pp[j*3+2]+=pv[j*3+2]*dt;const f=Math.min(1,pl[j]/.3);pc[j*3]=pb[j*3]*f;pc[j*3+1]=pb[j*3+1]*f;pc[j*3+2]=pb[j*3+2]*f;if(pl[j]<=0){pp[j*3+1]=-50;pc[j*3]=pc[j*3+1]=pc[j*3+2]=0}}}pg.attributes.position.needsUpdate=pg.attributes.color.needsUpdate=true;dmgF=Math.max(0,dmgF-dt*1.6);fin.uniforms.dmg.value=dmgF;{const sh=1-clamp(VM.occ*(1-inLk),0,1);fin.uniforms.br.value+=(1.2+.06*sh-fin.uniforms.br.value)*Math.min(1,dt*2.5);HEMI.intensity=.3+.04*sh}fin.uniforms.t.value=T%10;sun.position.set(P.pos.x+sunO.x,sunO.y,P.pos.z+sunO.z);sun.target.position.copy(P.pos);{const h=st=="play"||st=="over"?houseOf(P.pos.x,P.pos.z):null;if(h){inH=h;inL.position.set(h.x,2.5,h.z)}inLk+=((h?1:0)-inLk)*Math.min(1,dt*5);inL.intensity=0;hospLamps(dt);paraPost(dt)}sky.position.copy(cam.position);MT.material.uniforms.camP.value.copy(cam.position);TWIND.value=T;fogFrame(dt);rayFrame();if(DUST.pts){const u=DUST.pts.material.uniforms;u.uT.value=T;u.uC.value.set(P.pos.x,0,P.pos.z);u.uPx.value=R.domElement.height/900}for(let i=0;i<FARV.length;i++){const f=FARV[i];f.o.visible=Math.abs(f.x-P.pos.x)<f.r&&Math.abs(f.z-P.pos.z)<f.r}forestTick(P.pos.x,P.pos.z);if(S.opt){shT^=1;if(shT)R.shadowMap.needsUpdate=true}vmUpdate(dt);torchUpd(dt);chVis();Cm.render()}function lock(){if(!touch&&st=="play")cv.requestPointerLock&&cv.requestPointerLock()}function showMenu(p){$("menu").classList.remove("hide");$("set").classList.add("hide");$("go").textContent=p?"Resume":"Start";$("rsb").classList.toggle("hide",!p);$("mm").classList.toggle("hide",!p);if(document.pointerLockElement)document.exitPointerLock()}function pauseG(){if(st!="play")return;st="pause";firing=false;mR=false;showMenu(true)}addEventListener("keydown",e=>{keys[e.code]=true;if(st!="play")return;if(e.code==BIND.light&&!e.repeat)toggleFL();if(e.code==BIND.reload)reload();if(e.code=="KeyY"&&!e.repeat){VM.laser=!VM.laser;banner(VM.laser?"Laser on":"Laser off",900)}if(e.code=="KeyT"&&!e.repeat)vmInspect();if(e.code==BIND.drop)dropGun();if(e.code==BIND.fire&&!e.repeat){if(!tryGun()&&!tryPick())firing=true}if(e.code==BIND.aim)mR=true;if(e.code==BIND.use||BIND.use=="KeyE"&&e.code=="KeyF"){if(!tryGun()&&!tryPick())tryDoor()}if(e.code==BIND.jump){e.preventDefault()}if(e.code==BIND.crouch)P.crouch=!P.crouch;if(e.code==BIND.pause)pauseG()});addEventListener("keyup",e=>{keys[e.code]=false;if(e.code==BIND.fire)firing=false;if(e.code==BIND.aim)mR=false});addEventListener("mousemove",e=>{if(locked&&st=="play"){lx+=e.movementX*.0022;ly+=e.movementY*.0022}});cv.addEventListener("mousedown",e=>{if(touch||st!="play")return;aud();if(LISTEN)return;const mc="Mouse"+e.button;if(!locked)lock();else if(mc==BIND.aim)mR=true;else if(mc==BIND.fire){if(tryGun()||tryPick())return;firing=true}});addEventListener("mouseup",e=>{const mc="Mouse"+e.button;if(mc==BIND.aim)mR=false;if(mc==BIND.fire)firing=false});addEventListener("contextmenu",e=>e.preventDefault());document.addEventListener("pointerlockchange",()=>{locked=document.pointerLockElement===cv;if(!locked&&st=="play"&&!touch)pauseG()});document.addEventListener("visibilitychange",()=>{if(document.hidden)pauseG()});function startPlay(){aud();$("menu").classList.add("hide");$("hud").classList.remove("hide");if(touch)$("touch").classList.remove("hide");if(st=="menu"){st="play";reset()}else st="play";lock();hud()}$("go").onclick=startPlay;$("rs").onclick=()=>{st="play";$("touch").classList.toggle("hide",!touch);reset();lock()};$("rsb").onclick=()=>{aud();$("menu").classList.add("hide");st="play";reset();lock();hud()};$("mm").onclick=()=>{clearPk();st="menu";wave=0;$("hud").classList.add("hide");$("touch").classList.add("hide");showMenu(false)};const GK=["post","aa","msaa","res","shadow","refl","props","mesh","struct"];const KLAB=[["fwd","Move forward"],["back","Move back"],["left","Move left"],["right","Move right"],["jump","Jump"],["crouch","Crouch"],["sprint","Sprint"],["walk","Walk slowly"],["fire","Fire"],["aim","Aim down sights"],["reload","Reload"],["use","Interact / pick up / door"],["drop","Drop gun"],["pause","Pause"],["light","Flashlight"]];let LISTEN=null;function kname(c){if(!c)return"—";if(/^Mouse/.test(c))return["Left Mouse","Middle Mouse","Right Mouse","Mouse 4","Mouse 5"][+c.slice(5)]||c;return c.replace(/^Key|^Digit/,"").replace(/Left$/," (L)").replace(/Right$/," (R)").replace(/([a-z])([A-Z])/g,"$1 $2").replace("Arrow ","Arrow ")}function helpUp(){if(touch)return;const e=$("hl");if(e)e.innerHTML=kname(BIND.fwd)+"/"+kname(BIND.left)+"/"+kname(BIND.back)+"/"+kname(BIND.right)+" move · Mouse aim · "+kname(BIND.fire)+" fire · "+kname(BIND.aim)+" aim · "+kname(BIND.sprint)+" sprint · "+kname(BIND.walk)+" walk · "+kname(BIND.crouch)+" crouch · "+kname(BIND.reload)+" reload · "+kname(BIND.drop)+" drop gun · "+kname(BIND.use)+" pick up · "+kname(BIND.light)+" flashlight · Y laser · T inspect · I bag<br>Click game to capture mouse · Esc / "+kname(BIND.pause)+" = pause · all keys editable in Settings &gt; Controls"}function setBind(a,code){for(const o in BIND)if(o!=a&&BIND[o]==code)BIND[o]=BIND[a];BIND[a]=code;try{localStorage.setItem("dusk_bind",JSON.stringify(BIND))}catch(x){}helpUp()}function bindClick(a){if(a=="__reset"){Object.assign(BIND,BDEF);try{localStorage.removeItem("dusk_bind")}catch(x){}LISTEN=null;helpUp();renderSet();return}LISTEN=LISTEN==a?null:a;renderSet()}addEventListener("keydown",e=>{if(!LISTEN)return;e.preventDefault();e.stopImmediatePropagation();if(e.code!="Escape")setBind(LISTEN,e.code);LISTEN=null;renderSet()},true);addEventListener("mousedown",e=>{if(!LISTEN||LISTEN!="fire"&&LISTEN!="aim"||e.target.closest("#rows"))return;e.preventDefault();e.stopImmediatePropagation();setBind(LISTEN,"Mouse"+e.button);LISTEN=null;renderSet()},true);const ROWS=[["g","gm","Graphics mode","o",["Mobile (smooth, optimized)","PC (max / peak)","Mobile High-End (best look)"]],["g","preset","Graphics preset","o",OPT.preset],["g","rm","Device RAM (auto-detected)","o",OPT.rm],["g","post","Post-processing","t"],["g","aa","Anti-aliasing (2x–18x)","o",OPT.aa],["g","msaa","MSAA","o",OPT.msaa],["g","res","Resolution scale","o",OPT.res],["g","shadow","Shadows","o",OPT.shadow],["g","refl","Reflection quality","o",OPT.q],["g","props","Props quality","o",OPT.q],["g","mesh","Mesh quality","o",OPT.q],["g","struct","Structure render quality","o",OPT.q],["g","ue5","Unreal Engine 5 mode (cinematic, max detail)","t"],["g","fov","Field of view","n",50,100,2],["g","mblur","Motion blur (0 = off)","n",0,60,5],["g","opt","Optimize game (max FPS mode)","t"],["g","sl","Smooth lighting (lamps / indoor light)","t"],["g","pt","Particles","o",OPT.pt],["g","mip","Mipmaps","t"],["g","tf","Texture filtering","o",["Retro (pixel)","Smooth","Smooth + Anisotropic"]],["g","vs","VSync (sync to screen)","t"],["g","fcap","Frame limit (when VSync off)","o",OPT.fcap],["g","fps","Show FPS","t"],["c","sens","Look sensitivity","n",2,30,1],["c","smooth","Smooth camera","t"],["c","assist","Aim assist","o",["Off","Low","Medium","High"]],["c","invy","Invert Y","t"],["c","hud","HUD size %","n",50,130,5],["c","fjoy","Floating joystick (touch anywhere on the left)","t"],["c","slock","Sprint lock (push the stick up past the ring)","t"],["c","tsens","Touch look sensitivity","n",2,30,1],["c","bop","Touch button opacity %","n",30,100,5],["c","vib","Vibration feedback","t"],["c","fwd","Move forward","k"],["c","back","Move back","k"],["c","left","Move left","k"],["c","right","Move right","k"],["c","jump","Jump","k"],["c","crouch","Crouch","k"],["c","sprint","Sprint","k"],["c","walk","Walk slowly","k"],["c","fire","Fire","k"],["c","aim","Aim down sights","k"],["c","reload","Reload","k"],["c","use","Interact / pick up / door","k"],["c","drop","Drop gun","k"],["c","pause","Pause","k"],["c","light","Flashlight","k"],["c","__reset","Reset all keys to default","r"],["a","vol","Master volume","n",0,10,1],["a","amb","Ambient sound","t"]];let tab="g";helpUp();function renderSet(){$("ced").classList.toggle("hide",tab!="c"||!touch);$("rows").innerHTML=ROWS.filter(r=>r[0]==tab).map(r=>{const k=r[1],t=r[3];if(t=="k")return'<div class="row"><span>'+r[2]+'</span><button class="btn v" data-b="'+k+'">'+(LISTEN==k?"Press a "+(k=="fire"||k=="aim"?"key / mouse button":"key")+"… (Esc cancels)":kname(BIND[k]))+"</button></div>";if(t=="r")return'<div class="row"><span></span><button class="btn v" data-b="__reset">'+r[2]+"</button></div>";const v=t=="o"?r[4][S[k]]:t=="t"?S[k]?"On":"Off":k=="sens"?(S[k]/10).toFixed(1)+"x":k=="vol"?S[k]*10+"%":k=="mblur"?(S[k]?S[k]+"%":"Off"):S[k];return'<div class="row"><span>'+r[2]+"</span>"+(t=="t"?'<button class="btn v" data-k="'+k+'" data-d="1">'+v+"</button>":'<span class="st"><button class="btn" data-k="'+k+'" data-d="-1">‹</button><b>'+v+'</b><button class="btn" data-k="'+k+'" data-d="1">›</button></span>')+"</div>"}).join("")+(tab=="g"?'<div class="row" style="opacity:.65;font-size:14px"><span>Detected: '+(navigator.deviceMemory||"?")+" GB RAM · "+CORES+" CPU cores · CPU class "+(CPUT+1)+"/5</span></div>":"")}let at=0;const DIRTY={m:0,t:0,w:0,b:0,e:0};let flushing=false;function apOv(on){let o=document.getElementById("apo");if(!o){o=document.createElement("div");o.id="apo";o.style.cssText="position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(9,11,16,.88);color:#ffb347;font:700 22px Rajdhani,system-ui,sans-serif;letter-spacing:.04em";o.textContent="Applying graphics…";document.body.appendChild(o)}o.style.display=on?"flex":"none"}function lightGfx(){if(typeof fin==="undefined"||!fin||!bloom)return;fin.uniforms.aa.value=[0,.35,.5,.65,.8,.9,1][S.aa];fin.uniforms.fx.value=S.post?1:0;bloom.enabled=!!S.post;const ms=Math.min([512,1024,2048,4096,4096][S.shadow],TP().sh,R.capabilities.maxTextureSize);sun.castShadow=false;sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}function flushGfx(){if(flushing||!(DIRTY.m||DIRTY.t||DIRTY.w||DIRTY.b||DIRTY.e))return;flushing=true;const D2=Object.assign({},DIRTY);DIRTY.m=DIRTY.t=DIRTY.w=DIRTY.b=DIRTY.e=0;apOv(true);const st2=[];if(D2.m)st2.push(()=>rebuildMT());if(D2.t)st2.push(()=>{if(GT.m){GT.m.dispose();GT.m=null}});if(D2.w)st2.push(()=>buildWorld());if(D2.e)st2.push(()=>{envUp();reflUp()});if(D2.b)st2.push(()=>build());st2.push(()=>{builtT=tier();perfUp();try{texUp()}catch(e){}try{R.compile(scene,cam)}catch(e){}});let i=0;const run=()=>{if(i<st2.length){try{st2[i++]()}catch(e){console.error(e)}setTimeout(run,40)}else{apOv(false);flushing=false}};setTimeout(run,80)}function applyS(k){if(k=="ue5"){Object.assign(S,S.ue5?Object.assign({},GMP[1],{cine:1,post:1,mblur:Math.max(S.mblur||0,20),fog:Math.max(S.fog||0,2)}):GMP[S.gm||0],{preset:6,adapt:0});try{texUp()}catch(e){}try{localStorage.setItem("dusk_s2",JSON.stringify(S))}catch(x){}DIRTY.m=DIRTY.t=DIRTY.w=DIRTY.b=DIRTY.e=1;rescale();lightGfx();fcUp();hudUp();renderSet();return}if(k=="gm"){Object.assign(S,GMP[S.gm],{preset:6,adapt:0,rmU:1});try{texUp()}catch(e){}try{localStorage.setItem("dusk_s2",JSON.stringify(S))}catch(x){}DIRTY.m=DIRTY.t=DIRTY.w=DIRTY.b=DIRTY.e=1;rescale();lightGfx();fcUp();hudUp();renderSet();return}if(k=="rm"){S.rmU=1;Object.assign(S,RAMPRE[tier()],{preset:6});try{localStorage.setItem("dusk_s2",JSON.stringify(S))}catch(x){}if(tier()!==builtT){DIRTY.m=DIRTY.t=DIRTY.w=DIRTY.b=DIRTY.e=1}renderSet();return}if(k=="fog"||k=="fogd"||k=="rays"||k=="dust"){fogUp();return}if(k=="adapt"){dyn=1;rescale();return}if(k=="preset"){DIRTY.w=DIRTY.b=DIRTY.e=1;return}if(k=="props"||k=="mesh"||k=="struct"||k=="fden"){DIRTY.w=1;return}if(k=="msaa"){DIRTY.b=1;return}if(k=="refl"){DIRTY.e=1;return}if(k=="res"||k=="aa"){rescale();lightGfx();return}if(k=="post"||k=="shadow"){lightGfx();return}if(k=="vol"||k=="amb")volUp();if(k=="fps")$("fps").classList.toggle("hide",!S.fps);if(k=="hud"||k=="bop")hudUp();if(k=="tf")try{texUp()}catch(e){}if(k=="fcap")fcUp();if(k=="opt"||k=="sl"||k=="mip"||k=="vs"){fcUp();perfUp();if(k=="opt")DIRTY.w=1}}$("rows").onclick=e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.b){bindClick(b.dataset.b);aud();snd("click");return}const k=b.dataset.k,d=+b.dataset.d,r=ROWS.find(x=>x[1]==k);if(r[3]=="o")S[k]=clamp(S[k]+d,0,r[4].length-1);else if(r[3]=="t")S[k]=S[k]?0:1;else S[k]=clamp(S[k]+d*r[6],r[4],r[5]);if(k=="preset"){if(S.preset<6)Object.assign(S,PRE[S.preset],{cine:PRE[S.preset].cine||0})}else if(GK.includes(k))S.preset=6;try{localStorage.setItem("dusk_s2",JSON.stringify(S))}catch(x){}renderSet();applyS(k);aud();snd("click")};document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{tab=b.dataset.t;LISTEN=null;document.querySelectorAll("[data-t]").forEach(x=>x.classList.toggle("on",x===b));renderSet()});let dip=null;addEventListener("beforeinstallprompt",e=>{e.preventDefault();dip=e});try{const c=document.createElement("canvas");c.width=c.height=192;const g=c.getContext("2d");g.fillStyle="#090b10";g.fillRect(0,0,192,192);g.fillStyle="#ffb347";g.font="bold 120px sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText("D",96,104);const mf={name:"Dusk Protocol",short_name:"Dusk",start_url:location.href.split("#")[0],display:"fullscreen",orientation:"any",background_color:"#090b10",theme_color:"#090b10",icons:[{src:c.toDataURL("image/png"),sizes:"192x192",type:"image/png",purpose:"any"}]};const l=document.createElement("link");l.rel="manifest";l.href=URL.createObjectURL(new Blob([JSON.stringify(mf)],{type:"application/manifest+json"}));document.head.appendChild(l)}catch(e){}if(matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches)$("ib").classList.add("hide");$("ib").onclick=async()=>{if(dip){dip.prompt();try{await dip.userChoice}catch(e){}dip=null}else alert('Install: browser menu (⋮) → "Install app" ya "Add to Home screen". Ye option game ko https link se kholne par hi aata hai (file ya preview se nahi).')};$("sb").onclick=()=>{$("menu").classList.add("hide");$("set").classList.remove("hide");renderSet()};$("sbk").onclick=()=>{$("set").classList.add("hide");$("menu").classList.remove("hide");flushGfx()};if(touch){let jm2=function(e){const r=joy.getBoundingClientRect();let x=(e.clientX-r.left-r.width/2)/(r.width*.4),y=(e.clientY-r.top-r.height/2)/(r.width*.4);const l=Math.hypot(x,y);if(S.slock){if(!JSL&&y<-1.3){JSL=1;tS=true;sprI(true);vib(18)}else if(JSL&&y>-.45){JSL=0;tS=false;sprI(false)}}if(l>1){x/=l;y/=l}jx=x;jy=y;kn.style.left=25+x*25+"%";kn.style.top=25+y*25+"%"};var jm=jm2;document.body.classList.add("t");$("hl").innerHTML="Left stick move · Drag right side to aim<br>FIRE (drag to aim) / AIM / CROUCH / RLD · DROP = drop gun · tap PICK UP GUN card · tap ammo to pick up";let jid=null,lid=null,lpx=0,lpy=0;const joy=$("joy"),kn=$("kn");joy.addEventListener("pointerdown",e=>{jid=e.pointerId;joy.setPointerCapture(jid);jm2(e)});joy.addEventListener("pointermove",e=>{if(e.pointerId===jid)jm2(e)});const je=e=>{if(e.pointerId===jid){jid=null;jx=jy=0;kn.style.left=kn.style.top="25%";if(joy.classList.contains("fl")){joy.classList.remove("fl");applyLay()}if(JSL){JSL=0;tS=false;sprI(false)}}};joy.addEventListener("pointerup",je);joy.addEventListener("pointercancel",je);const vib=ms=>{try{S.vib&&navigator.vibrate&&navigator.vibrate(ms)}catch(x){}};let JSL=0;const spEl=document.createElement("div");spEl.id="sprl";spEl.textContent="SPRINT LOCK";$("touch").appendChild(spEl);const sprI=on=>{spEl.style.display=on?"block":"none";if(on){const r=joy.getBoundingClientRect();spEl.style.left=r.left+r.width/2+"px";spEl.style.top=r.top-10+"px"}};cv.addEventListener("pointerdown",e=>{if(st!="play")return;aud();if(S.fjoy&&jid===null&&e.clientX<innerWidth*.45&&e.clientY>innerHeight*.28){jid=e.pointerId;const r=joy.getBoundingClientRect();joy.style.right=joy.style.bottom="auto";joy.style.transform="";joy.style.left=e.clientX-r.width/2+"px";joy.style.top=e.clientY-r.height/2+"px";joy.classList.add("fl");jm2(e);return}if(lid===null){lid=e.pointerId;lpx=e.clientX;lpy=e.clientY}});addEventListener("pointermove",e=>{if(e.pointerId===jid&&joy.classList.contains("fl"))jm2(e)});addEventListener("pointerup",e=>je(e));addEventListener("pointercancel",e=>je(e));addEventListener("pointermove",e=>{if(e.pointerId===lid){const ts=(S.tsens||10)/10;lx+=(e.clientX-lpx)*.0055*ts;ly+=(e.clientY-lpy)*.0045*ts;lpx=e.clientX;lpy=e.clientY}});const le=e=>{if(e.pointerId===lid)lid=null};addEventListener("pointerup",le);addEventListener("pointercancel",le);const hold=(id,on,off)=>{const b=$(id);b.addEventListener("pointerdown",e=>{e.stopPropagation();on();vib(10);b.style.background="rgba(255,179,71,.5)"});const u=()=>{off&&off();b.style.background=""};b.addEventListener("pointerup",u);b.addEventListener("pointercancel",u)};const fb=$("bf");let fid=null,fpx=0,fpy=0;fb.addEventListener("pointerdown",e=>{e.stopPropagation();fid=e.pointerId;fb.setPointerCapture(fid);fpx=e.clientX;fpy=e.clientY;firing=true;aud();vib(14);fb.style.background="rgba(255,179,71,.5)"});fb.addEventListener("pointermove",e=>{if(e.pointerId===fid){const ts=(S.tsens||10)/10;lx+=(e.clientX-fpx)*.005*ts;ly+=(e.clientY-fpy)*.004*ts;fpx=e.clientX;fpy=e.clientY}});const fu=e=>{if(e.pointerId===fid){fid=null;firing=false;fb.style.background=""}};fb.addEventListener("pointerup",fu);fb.addEventListener("pointercancel",fu);hold("bc",()=>P.crouch=!P.crouch);hold("bu",()=>{if(st=="play"&&!tryPick())tryDoor()});hold("br",reload);$("bs").addEventListener("pointerdown",e=>{e.stopPropagation();tS=!tS});const ab=$("ba");ab.addEventListener("pointerdown",e=>{e.stopPropagation();tA=!tA;ab.style.background=tA?"rgba(255,179,71,.5)":""});$("pz").addEventListener("pointerdown",e=>{e.stopPropagation();pauseG()});$("bd").addEventListener("pointerdown",e=>{e.stopPropagation();if(P.armed)dropGun();else tryGun()});$("bl").addEventListener("pointerdown",e=>{e.stopPropagation();toggleFL()});gcEl.addEventListener("pointerdown",e=>{e.stopPropagation();e.preventDefault();tryGun()})}const IDS=["joy","bu","bf","bj","bc","br","bs","ba","pz","bl","bd","bg","hp","am","top"];let LAYS={};try{LAYS=JSON.parse(localStorage.getItem("dusk_lay")||"{}")}catch(e){}const oKey=()=>innerWidth>innerHeight?"L":"P";function applyLay(){const L=LAYS[oKey()]||{};for(const id of IDS){const el=$(id);if(!el)continue;const c=L[id];el.style.transform="";el.style.transformOrigin="";el.style.left=el.style.top=el.style.right=el.style.bottom="";if(!c)continue;const w=el.offsetWidth,h=el.offsetHeight;if(!w)continue;el.style.right=el.style.bottom="auto";el.style.transformOrigin="50% 50%";el.style.left=c.x*innerWidth-w/2+"px";el.style.top=c.y*innerHeight-h/2+"px";el.style.transform="scale("+c.s+")"}}if(touch){new MutationObserver(applyLay).observe($("touch"),{attributes:true,attributeFilter:["class"]});new MutationObserver(applyLay).observe($("hud"),{attributes:true,attributeFilter:["class"]});addEventListener("resize",()=>setTimeout(applyLay,200));let editing=false,sel=null,drag=null,sv=null;const edp=()=>{$("eds").textContent=sel?Math.round(((LAYS[oKey()]||{})[sel]||{s:1}).s*100)+"%":"--";IDS.forEach(i=>$(i).classList.toggle("edsel",i==sel))};const cur=id=>{const L=LAYS[oKey()]=LAYS[oKey()]||{};if(!L[id]){const r=$(id).getBoundingClientRect();L[id]={x:(r.left+r.width/2)/innerWidth,y:(r.top+r.height/2)/innerHeight,s:1}}return L[id]};document.addEventListener("pointerdown",e=>{if(!editing)return;e.stopPropagation();e.preventDefault();const el=e.target.closest("#joy,.tb,#hp,#am,#top");if(!el||!IDS.includes(el.id))return;sel=el.id;const r=el.getBoundingClientRect();const c=cur(sel);applyLay();drag={id:sel,pid:e.pointerId,dx:e.clientX-(r.left+r.width/2),dy:e.clientY-(r.top+r.height/2)};edp()},true);addEventListener("pointermove",e=>{if(!editing||!drag||e.pointerId!==drag.pid)return;const c=cur(drag.id);c.x=Math.max(.04,Math.min(.96,(e.clientX-drag.dx)/innerWidth));c.y=Math.max(.06,Math.min(.94,(e.clientY-drag.dy)/innerHeight));applyLay()});addEventListener("pointerup",e=>{if(drag&&e.pointerId===drag.pid)drag=null});const sz=d=>{if(!sel)return;const c=cur(sel);c.s=Math.max(.5,Math.min(2.2,+(c.s+d).toFixed(2)));applyLay();edp()};$("edm").onclick=()=>sz(-.1);$("edp").onclick=()=>sz(.1);$("edr").onclick=()=>{delete LAYS[oKey()];applyLay();edp()};$("ced").onclick=()=>{editing=true;["hp","am","top"].forEach(i=>{const e=$(i);if(e)e.style.pointerEvents="auto"});sv=[$("touch").classList.contains("hide"),$("hud").classList.contains("hide"),$("set").classList.contains("hide")];$("set").classList.add("hide");$("touch").classList.remove("hide");$("hud").classList.remove("hide");$("ed").classList.remove("hide");sel=null;edp()};$("edd").onclick=()=>{editing=false;drag=null;["hp","am","top"].forEach(i=>{const e=$(i);if(e)e.style.pointerEvents=""});try{localStorage.setItem("dusk_lay",JSON.stringify(LAYS))}catch(e){}$("ed").classList.add("hide");IDS.forEach(i=>$(i).classList.remove("edsel"));$("touch").classList.toggle("hide",sv[0]);$("hud").classList.toggle("hide",sv[1]);$("set").classList.remove("hide")}}tm("setup");lt.textContent="Loading…";loadKit().then(()=>{lt.textContent="Compiling shaders…";bar.style.width="80%";tm("assets");captureGrips();buildWorld();tm("world");build();perfUp();try{texUp()}catch(e){}tm("render setup");$("fps").classList.toggle("hide",!S.fps);scene.updateMatrixWorld(true);play(P,"idle",.01);try{lzM.visible=lzD.visible=true}catch(e){}tm("prep");Cm.render();tm("shaders");try{lzM.visible=lzD.visible=false}catch(e){}started=true;bar.style.width="100%";$("load").classList.add("hide");$("menu").classList.remove("hide");clock.start();frame();setTimeout(vmLoad,250);try{const d=document.createElement("div");d.style.cssText="position:fixed;left:6px;bottom:4px;z-index:99;font:11px/1.3 system-ui;color:#c9b99a;background:rgba(0,0,0,.55);padding:3px 6px;border-radius:5px;pointer-events:none;max-width:92vw";d.textContent="Load "+(performance.now()/1e3).toFixed(1)+"s → "+TM.map((x,i)=>x[0]+" "+(i?((x[1]-TM[i-1][1])/1e3).toFixed(1):(x[1]/1e3).toFixed(1))+"s").join(" · ");void 0}catch(e){}try{const wl=()=>{if(document.visibilityState=="visible"&&navigator.wakeLock)navigator.wakeLock.request("screen").catch(()=>{})};wl();document.addEventListener("visibilitychange",wl)}catch(e){}}).catch(e=>{lt.textContent="Error: "+e.message;console.error(e)})}})();
