@@ -424,7 +424,7 @@ const blocks = [];
 const MID = (N - 1) / 2;
 let mseed = 4242; const mrnd = () => (mseed = (mseed * 16807) % 2147483647) / 2147483647;
 for (let i = 0; i < N; i++) { blocks[i] = []; for (let j = 0; j < N; j++) { const d = Math.max(Math.abs(i - MID), Math.abs(j - MID)); blocks[i][j] = d <= 2 ? 'down' : d <= 7 ? 'city' : 'suburb'; if (d > 1 && mrnd() < .065) blocks[i][j] = 'park'; } }
-blocks[MID][MID + 2] = 'motel';
+blocks[MID][MID + 2] = 'motel'; blocks[MID][MID - 2] = 'home';
 const ramps = [];
 for (let n = 0; n < 22; n++) { // stunt ramps on random road stretches
   const k = 1 + Math.floor(mrnd() * (N - 1)), m = Math.floor(mrnd() * N), alongX = mrnd() < .5, fl = mrnd() < .5, H = 2.6 + mrnd() * 1.2;
@@ -660,6 +660,7 @@ function buildCity(palmTpl, fenceTpl) {
     setChunk(cx, cz);
     if (t === 'motel') { buildMotel(cx, cz, fenceTpl); continue; }
     G('side').box(cx - h, 0, cz - h, cx + h, CURB, cz + h, 1.6, 1.6, 'XxZz');
+    if (t === 'home') { buildHome(cx, cz); continue; }
     if (t === 'suburb') {
       G('top').box(cx - h, 0, cz - h, cx + h, CURB, cz + h, 3, 3, 'Y');
       buildSuburb(cx, cz, i, j, G('grass'));
@@ -798,7 +799,7 @@ function makeSuburbMats() {
   const hedge = new THREE.MeshStandardMaterial({ map: noiseTex(128, '#2f5a26', [80, 40, 40, 14, 26], 5000), roughness: 1 });
   const fence = new THREE.MeshStandardMaterial({ map: canvasTex(128, 64, g => { g.fillStyle = '#e9e4da'; g.fillRect(0, 0, 128, 64); g.fillStyle = 'rgba(0,0,0,.25)'; for (let x = 0; x < 128; x += 16) g.fillRect(x, 0, 3, 64); g.fillRect(0, 14, 128, 3); g.fillRect(0, 48, 128, 3); }), roughness: .9 });
   SUB = { roofs, pal, concrete, hedge, fence };
-  roofs.forEach((m, k) => regMat('hr' + k, m)); regMat('conc', concrete, false, true); regMat('hedge', hedge); fence.side = THREE.DoubleSide; regMat('fence', fence);
+  roofs.forEach((m, k) => regMat('hr' + k, m)); regMat('conc', concrete, false, true); regMat('pool', new THREE.MeshStandardMaterial({ color: 0x2aa6cc, roughness: .08, metalness: .1, emissive: 0x0a4a66, emissiveIntensity: .5, polygonOffset: true, polygonOffsetFactor: -2 }), false, true); regMat('hedge', hedge); fence.side = THREE.DoubleSide; regMat('fence', fence);
 }
 function buildHouse(hx, hz, W, D, f, floors, P, roofK) {
   const H = floors === 2 ? 6.2 : 3.2, y0 = CURB + .02, y1 = y0 + H;
@@ -849,6 +850,40 @@ function buildSuburb(cx, cz, bi, bj, grassGB) {
     if (rnd() < .12 && (SUB.nCar = (SUB.nCar || 0) + 1) <= 60) carSpawns.push([gmx, zf + f * 3.7, f > 0 ? 0 : Math.PI, 'drive']);
     if (rnd() < .5) palmSpots.push([hx + gs * -(W / 2 + rand(2, 4)) * .9, lz + f * rand(9.5, 11), CURB]);
   }
+}
+/* ---------- the player's home: an original two-storey villa with garage, driveway, front pool, hedges and palms ---------- */
+const HOME = { spawn: V3(), cx: 0, cz: 0 };
+function buildHome(cx, cz) {
+  if (!SUB) makeSuburbMats();
+  const h = BLOCK / 2, P = SUB.pal[0], roofK = HOUSE_PAL[0].roof, W = 14.5, D = 11, floors = 2;
+  G('top').box(cx - h, 0, cz - h, cx + h, CURB, cz + h, 3, 3, 'Y');
+  G('grass').box(cx - h + 3, 0, cz - h + 3, cx + h - 3, CURB + .02, cz + h - 3, 6, 6, 'Y');
+  const zf = cz - 6.5, hz = zf - D / 2, hx = cx - 4;
+  buildHouse(hx, hz, W, D, 1, floors, P, roofK);
+  // attached double garage on the east side
+  const gx0 = hx + W / 2, gx1 = gx0 + 6.6, gz0 = zf - 7, gz1 = zf, gy0 = CURB + .02, gy1 = gy0 + 3.0, [u0, v0, u1, v1] = atlUV(ATL.gar);
+  G('hf' + P.i).quad([gx0, gy0, gz1], [gx1, gy0, gz1], [gx1, gy1, gz1], [gx0, gy1, gz1], u0, v0, u1, v1); G('hs' + P.i).box(gx0, gy0, gz0, gx1, gy1, gz1, 6, 3.1, 'Xxz');
+  G('hr' + roofK).box(gx0 - .3, gy1, gz0 - .3, gx1 + .3, gy1 + .35, gz1 + .3, 3, 3, 'XxZzY');
+  addCol({ x0: gx0, x1: gx1, z0: gz0, z1: gz1, h: 8 }); addBB({ x0: gx0, x1: gx1, z0: gz0, z1: gz1, y0: 0, y1: gy1 + .35 });
+  // driveway out to the street and a front path to the door
+  const gmx = (gx0 + gx1) / 2, edge = cz + h;
+  G('conc').box(gmx - 3, 0, zf, gmx + 3, CURB + .035, edge, 4, 4, 'Y');
+  G('conc').box(hx - .8, 0, zf, hx + .8, CURB + .03, cz + 14, 2, 2, 'Y');
+  G('conc').box(hx - 6, 0, cz + 11.5, hx + 6, CURB + .03, cz + 14, 2, 2, 'Y');
+  // swimming pool on the front lawn
+  const px0 = cx - 25, px1 = cx - 11, pz0 = cz + 1.5, pz1 = cz + 9.5;
+  G('conc').box(px0 - 1.2, 0, pz0 - 1.2, px1 + 1.2, CURB + .045, pz1 + 1.2, 2, 2, 'Y');
+  G('pool').quad([px0, CURB + .06, pz1], [px1, CURB + .06, pz1], [px1, CURB + .06, pz0], [px0, CURB + .06, pz0], 0, 0, 4, 2);
+  // low hedges along the street with a gap for the driveway; palms and a few lamps
+  for (const [a, b] of [[cx - h + 3, gmx - 3.6], [gmx + 3.6, cx + h - 3]]) {
+    G('hedge').box(a, CURB, cz + 24.4, b, CURB + 1.2, cz + 25.6, 2, 1.2, 'XxZzY');
+    addCol({ x0: a, x1: b, z0: cz + 24.4, z1: cz + 25.6, h: 1.2 }); addBB({ x0: a, x1: b, z0: cz + 24.4, z1: cz + 25.6, y0: 0, y1: CURB + 1.2 });
+  }
+  for (const [x, z] of [[cx - 22, cz - 14], [cx + 22, cz - 12], [cx - 24, cz + 14], [cx + 20, cz + 17], [cx + 12, cz + 6], [cx - 9, cz + 18]]) palmSpots.push([x, z, CURB]);
+  for (const [ex, ez, nx, nz] of [[cx - h + 1.6, cz + 14, -1, 0], [cx + h - 1.6, cz - 14, 1, 0], [cx - 14, cz + h - 1.6, 0, 1]]) lampSpots.push([ex, ez, Math.atan2(nx, nz)]);
+  carSpawns.push([gmx - 1.2, zf + 4.5, 0, 'home'], [gmx + 1.2, cz + 17, Math.PI, 'home']);
+  pickupSpots.push([cx + 10, cz + 12, CURB], [cx - 18, cz - 8, CURB]);
+  HOME.cx = cx; HOME.cz = cz; HOME.spawn.set(hx + 3.2, CURB, zf + 6);
 }
 function buildMotel(cx, cz, fenceTpl) {
   const h = BLOCK / 2;
@@ -1549,8 +1584,10 @@ function makePed(kind, i, shirtMats, bodyMats) {
   for (const k of ['dieF', 'dieB']) if (clips[k]) { a[k] = mx.clipAction(clips[k]); a[k].setLoop(THREE.LoopOnce, 1); a[k].clampWhenFinished = true; }
   const fb = n => { if (kind) { let r = null; model.traverse(o => { if (!r && o.isBone && canonBone(o.name) === n) r = o; }); return r; } return findBone(model, n); };
   const an = kind ? kind.arms : ['arm_stretch.l', 'forearm_stretch.l', 'hand.l', 'arm_stretch.r', 'forearm_stretch.r', 'hand.r'];
-  const arms = an.map(fb), torso = kind ? ['Spine', 'Neck', 'Head'].map(fb) : null;
-  const p = { obj, model, mx, a, kind, arms, torso, hp: 60, state: 'walk', speed: 1.4, yaw: 0, tgt: V3(), wait: 0, deadT: 0, panicT: 0, fallDir: 1, phase: Math.random(), scale: rand(.94, 1.06), visible: true, w: { idle: 0, walk: 1, run: 0 }, blood: null,
+  const arms = an.map(fb), torso = null;
+  let bn = {}, rest = new Map(), fingers = [];
+  if (kind) { model.traverse(o => { if (o.isBone) { const c = canonBone(o.name); if (!(c in bn)) bn[c] = o; rest.set(o, o.quaternion.clone()); if (/^(Left|Right)Hand(Thumb|Index|Middle|Ring|Pinky)[123]$/.test(c)) { o.userData.fc = /Thumb/.test(c) ? .5 : /1$/.test(c) ? .7 : 1; fingers.push(o); } } }); }
+  const p = { obj, model, mx, a, kind, arms, bn, rest, fingers, hp: 60, state: 'walk', speed: 1.4, yaw: 0, tgt: V3(), wait: 0, deadT: 0, panicT: 0, fallDir: 1, phase: Math.random(), scale: rand(.94, 1.06), visible: true, w: { idle: 0, walk: 1, run: 0 }, blood: null,
     wd: clips.walk.duration, rd: clips.run.duration, wv: kind ? kind.wv : WALK_V, rv: kind ? kind.rv : RUN_V, hands: 0, aimedT: 0, handsT: 0, saved: [] };
   model.scale.multiplyScalar(p.scale);
   peds.push(p); placePed(p, true);
@@ -1676,12 +1713,14 @@ function updatePeds(dt) {
       if (p.a.walk) { p.a.walk.timeScale = 0; p.a.walk.time = p.phase * p.a.walk.getClip().duration; }
       if (p.a.run) { p.a.run.timeScale = 0; p.a.run.time = p.phase * p.a.run.getClip().duration; }
       p.mx.update(dist < 70 ? dt : dt * 2);
-      if (dist < 70) pedArms(p);
+      pedArms(p);
     }
   }
 }
-/* arms on top of the clips: relaxed + swinging for the Mixamo walkers (their clips hold a rifle), hands up when scared */
-function pointBone(p, b, child, dir, w) {
+/* civilian pose, fully procedural for the supplied characters: the source clips are a rifle walk, so for living NPCs the whole
+   skeleton is put back to its rest pose each frame and re-posed (legs, hips, spine, arms, head, fingers). Death still plays a clip. */
+function restAll(p) { for (const [b, q] of p.rest) { if (!p.saved.some(s => s[0] === b)) p.saved.push([b, b.quaternion.clone()]); b.quaternion.copy(q); } p.model.updateMatrixWorld(true); }
+function pointBone(p, b, child, dir, w = 1) {
   if (!b || !child || w < .002) return;
   const v = child.getWorldPosition(_v5).sub(b.getWorldPosition(_v6)).normalize(), q = _q2.setFromUnitVectors(v, _v7.copy(dir).normalize());
   let ang = 2 * Math.acos(clamp(q.w, -1, 1)); if (ang > Math.PI) ang -= TAU; if (Math.abs(ang) < 1e-4) return;
@@ -1689,28 +1728,72 @@ function pointBone(p, b, child, dir, w) {
   b.parent.getWorldQuaternion(_q1); const ax = _v8.set(q.x, q.y, q.z).normalize().applyQuaternion(_q1.invert());
   b.quaternion.premultiply(_q1.setFromAxisAngle(ax, ang * w)); b.updateMatrixWorld(true);
 }
+function rollBone(p, b, axisWorld, ang) { // twist a bone around a world axis (used to turn palms forward)
+  if (!b || Math.abs(ang) < 1e-4) return;
+  if (!p.saved.some(s => s[0] === b)) p.saved.push([b, b.quaternion.clone()]);
+  b.parent.getWorldQuaternion(_q1); const ax = _v8.copy(axisWorld).applyQuaternion(_q1.invert());
+  b.quaternion.premultiply(_q1.setFromAxisAngle(ax.normalize(), ang)); b.updateMatrixWorld(true);
+}
+const _dirA = V3(), _dirB = V3();
+function legDir(out, F, ang) { return out.set(0, -Math.cos(ang), 0).addScaledVector(F, Math.sin(ang)); }
 function pedArms(p) {
-  const [uL, fL, hL, uR, fR, hR] = p.arms; if (!uL || !uR) return;
+  if (p.kind) { pedPose(p); return; }
+  // hero-model walkers keep their own clips; only add the hands-up pose
+  const [uL, fL, hL, uR, fR, hR] = p.arms; if (!uL || !uR || p.hands < .002 || p.state === 'dead') return;
   p.obj.updateMatrixWorld(true);
-  const sy = Math.sin(p.yaw), cy = Math.cos(p.yaw), F = V3(sy, 0, cy), Lft = V3(cy, 0, -sy), dead = p.state === 'dead';
-  const relax = p.kind && !dead ? 1 : 0, hands = dead ? 0 : p.hands;
-  if (p.torso && !dead && p.torso[0] && p.torso[1]) { // civilian posture: straight back, head up (the source clips are a crouched combat walk)
-    const run0 = clamp((p.speed - 2) / 2.5, 0, 1);
-    pointBone(p, p.torso[0], p.torso[1], V3(0, 1, 0).addScaledVector(F, .06 + run0 * .25), .8);
-    if (p.torso[2]) pointBone(p, p.torso[1], p.torso[2], V3(0, 1, 0).addScaledVector(F, .1), .7);
+  const sy = Math.sin(p.yaw), cy = Math.cos(p.yaw), F = V3(sy, 0, cy), Lft = V3(cy, 0, -sy);
+  for (const [u, f, h, side] of [[uL, fL, hL, 1], [uR, fR, hR, -1]]) {
+    pointBone(p, u, f, V3(0, .55, 0).addScaledVector(Lft, side * .8).addScaledVector(F, .18), p.hands);
+    pointBone(p, f, h, V3(0, 1, 0).addScaledVector(F, .12).addScaledVector(Lft, side * .08), p.hands);
   }
-  const run = clamp((p.speed - 2) / 2.5, 0, 1), sw = Math.sin(p.phase * TAU) * (.32 + .35 * run) * clamp(p.speed / 1.2, 0, 1);
-  for (const [u, f, h, side, s] of [[uL, fL, hL, 1, -1], [uR, fR, hR, -1, 1]]) {
-    if (relax > 0) { // arm hanging down, swinging opposite to the legs; elbow bent more when running
-      pointBone(p, u, f, V3(0, -1, 0).addScaledVector(Lft, side * .14).addScaledVector(F, s * sw), relax * (1 - hands));
-      pointBone(p, f, h, V3(0, -1, 0).addScaledVector(F, .25 + run * 1.1 + Math.max(0, s * sw) * .6).addScaledVector(Lft, -side * .05), relax * (1 - hands));
+}
+function pedPose(p) {
+  const B = p.bn; if (!B.Hips || p.state === 'dead') return;
+  restAll(p);
+  const sy = Math.sin(p.yaw), cy = Math.cos(p.yaw), F = V3(sy, 0, cy), Lft = V3(cy, 0, -sy);
+  const sp = p.speed, run = clamp((sp - 2) / 2.5, 0, 1), mv = clamp(sp / 1.2, 0, 1), ph = p.phase * TAU, hands = p.hands;
+  const A = lerp(.42, .78, run) * mv, K = lerp(.55, 1.5, run) * mv;
+  // pelvis: bob, sway, small turn
+  p.model.position.y = (Math.abs(Math.cos(ph)) * -.035 - run * .03) * mv;
+  rollBone(p, B.Hips, F, Math.sin(ph) * .045 * mv);
+  rollBone(p, B.Hips, V3(0, 1, 0), Math.sin(ph) * .1 * mv * (1 + run));
+  // legs (parent first): thigh swings, knee bends in the forward swing, foot follows the ground
+  for (const [side, ul, l, ft, tb] of [[1, B.LeftUpLeg, B.LeftLeg, B.LeftFoot, B.LeftToeBase], [-1, B.RightUpLeg, B.RightLeg, B.RightFoot, B.RightToeBase]]) {
+    if (!ul || !l || !ft) continue;
+    const a = ph + (side > 0 ? Math.PI : 0), th = A * Math.sin(a), kn = K * Math.max(0, Math.cos(a)) + .06 * mv;
+    pointBone(p, ul, l, legDir(_dirA, F, th));
+    pointBone(p, l, ft, legDir(_dirB, F, th - kn));
+    const fa = clamp(-(th - kn) * .8, -.45, .45) + .05;
+    pointBone(p, ft, tb, _dirA.copy(F).multiplyScalar(Math.cos(fa)).addScaledVector(V3(0, 1, 0), -Math.sin(fa)));
+  }
+  // spine / head: upright, a little lean when running, counter-twist against the pelvis, head turns toward the player when near
+  const lean = .03 + run * .22;
+  p.obj.updateMatrixWorld(true);
+  pointBone(p, B.Spine, B.Spine1, V3(0, 1, 0).addScaledVector(F, lean * .5), 1);
+  pointBone(p, B.Spine1, B.Spine2, V3(0, 1, 0).addScaledVector(F, lean * .5), 1);
+  rollBone(p, B.Spine1, V3(0, 1, 0), -Math.sin(ph) * .12 * mv * (1 + run));
+  pointBone(p, B.Spine2, B.Neck, V3(0, 1, 0).addScaledVector(F, lean * .3), 1);
+  pointBone(p, B.Neck, B.Head, V3(0, 1, 0).addScaledVector(F, -lean * .2 + (p.state === 'flee' ? .1 : 0)), 1);
+  // arms
+  const sw = Math.sin(ph) * (.34 + .5 * run) * mv;
+  for (const [u, f, h, side, s] of [[B.LeftArm, B.LeftForeArm, B.LeftHand, 1, -1], [B.RightArm, B.RightForeArm, B.RightHand, -1, 1]]) {
+    if (!u || !f || !h) continue;
+    const down = 1 - hands;
+    if (down > .002) {
+      pointBone(p, u, f, V3(0, -1, 0).addScaledVector(Lft, side * (.1 + run * .1)).addScaledVector(F, s * sw), down);
+      pointBone(p, f, h, V3(0, -1, 0).addScaledVector(F, .22 + run * 1.2 + Math.max(0, s * sw) * .7).addScaledVector(Lft, -side * .04), down);
     }
-    if (hands > .002) { // hands up, palms out, a little tremble
-      const tr = Math.sin(clock * 23 + side) * .03;
-      pointBone(p, u, f, V3(0, .55 + tr, 0).addScaledVector(Lft, side * .8).addScaledVector(F, .18), hands);
-      pointBone(p, f, h, V3(0, 1, 0).addScaledVector(F, .12).addScaledVector(Lft, side * .08), hands);
+    if (hands > .002) { // hands up beside the head, palms toward you, a little tremble
+      const tr = Math.sin(clock * 21 + side * 2) * .035;
+      pointBone(p, u, f, V3(0, .35 + tr, 0).addScaledVector(Lft, side * .9).addScaledVector(F, .22), hands);
+      pointBone(p, f, h, V3(0, 1, 0).addScaledVector(F, .35).addScaledVector(Lft, side * .1), hands);
+      rollBone(p, f, _dirA.subVectors(h.getWorldPosition(_v5), f.getWorldPosition(_v6)).normalize(), side * 1.55 * hands);
     }
   }
+  // fingers: loose half-curl (relaxed) / open (hands up)
+  const curl = lerp(.45, .05, hands);
+  for (const fb of p.fingers) { if (!p.saved.some(s => s[0] === fb)) p.saved.push([fb, fb.quaternion.clone()]); _q1.setFromAxisAngle(V3(0, 0, 1), curl * fb.userData.fc); fb.quaternion.multiply(_q1); }
+  p.model.updateMatrixWorld(true);
 }
 /** ray vs ped (vertical cylinder). returns {t, ped, y} or null */
 function rayPeds(o, d, max) {
@@ -2122,7 +2205,7 @@ function drawMapBase() {
   g.fillStyle = '#dcc59a'; g.fillRect(P(-LIMIT - SHORE), P(-LIMIT - SHORE), (LIMIT + SHORE) * 2 * MAPS, (LIMIT + SHORE) * 2 * MAPS);
   g.fillStyle = '#2d2f36'; g.fillRect(P(-LIMIT), P(-LIMIT), LIMIT * 2 * MAPS, LIMIT * 2 * MAPS);
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
-    const t = blocks[i][j]; g.fillStyle = t === 'park' ? '#4d8a3e' : t === 'motel' ? '#3b3e46' : '#7b7f88';
+    const t = blocks[i][j]; g.fillStyle = t === 'park' || t === 'home' ? '#4d8a3e' : t === 'motel' ? '#3b3e46' : '#7b7f88';
     g.fillRect(P(bc(i) - BLOCK / 2), P(bc(j) - BLOCK / 2), BLOCK * MAPS, BLOCK * MAPS);
   }
   g.fillStyle = '#b9bec8'; for (const b of buildingBoxes) if (b.y1 > 2) g.fillRect(P(b.x0), P(b.z0), (b.x1 - b.x0) * MAPS, (b.z1 - b.z0) * MAPS);
@@ -2936,7 +3019,7 @@ async function main() {
   const clips = {}; animKeys.forEach((k, i) => clips[k] = anims[i] && anims[i].animations && anims[i].animations[0]);
   setupCharacter(charFbx, clips);
   charTpl = charFbx; charClips = clips;
-  player.obj.position.copy(motelSpawn); player.yaw = Math.PI; camYaw = Math.PI;
+  motelSpawn.copy(HOME.spawn); player.obj.position.copy(motelSpawn); player.yaw = 0; camYaw = 0;
   await loadNpcModels().catch(e => console.warn('npc', e));
   setupPeds();
   setupWeapon(glock, 'glock', 'glock'); setupWeapon(m4, 'm4', 'm4'); setupGrenadeModel(); makeIcons(); ICONS.fists = FIST_ICON;
@@ -2963,7 +3046,7 @@ $('play').onclick = () => {
     const de = document.documentElement; try { const r = de.requestFullscreen && de.requestFullscreen({ navigationUI: 'hide' }); if (r && r.then) r.then(() => { try { const o = screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'); if (o && o.catch) o.catch(() => { }); } catch (e) { } }).catch(() => { }); } catch (e) { }
   }
   running = true; last = performance.now();
-  toast(isTouch ? 'Find a pickup truck and tap the car button' : 'Find a pickup truck and press F', 3200);
+  toast(isTouch ? 'Welcome home · your car is on the driveway, tap the car button' : 'Welcome home · your car is on the driveway, press F', 3600);
 };
 main().catch(e => { console.error(e); showError('Could not start: ' + (e && e.message || e)); });
 

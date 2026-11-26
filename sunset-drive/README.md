@@ -2,7 +2,11 @@
 
 Single-file open-city game (three.js r170, every model, animation and texture embedded). Open `index.html` in Chrome / Safari (needs internet for three.js from jsDelivr).
 
+## Home and spawn
+The player now spawns at an original two-storey villa (garage, driveway with a parked pickup, front pool, hedges, palms) on a block west of the motel, and respawns there. The supplied "Michael's House" zip only held photos of a GTA V location, so that house was not recreated.
+
 ## People
+- NPC walk and arms: the supplied characters no longer use the rifle-walk clips. Each frame the skeleton is reset to rest and posed in code: straight legs with a thigh swing, knee bend and foot roll, hip sway, counter-twisting spine, opposite arm swing and loosely curled fingers. When aimed at, the arms go up with open palms facing the player (the old twisted-wrist look is gone).
 - Three kinds of pedestrians: the hero model in different shirts, **"Standing Man"** (by zhuoyi0904, Sketchfab, CC-BY 4.0) and a **Ready Player Me** avatar. The two supplied characters were shrunk (512 px textures, face blendshapes removed) and are driven by Mixamo idle / walk / run / death clips taken from the repo's `assets/models/player.glb`, retargeted by bone name. Their arms and back are posed in code to a relaxed civilian walk, because the source clips are a rifle walk.
 - **Scared on aim**: point a gun at someone and they stop, turn to you and raise their hands (shaking). Nearby people do the same. Keep aiming, or fire, and they run. When shot they play a real fall clip and bleed.
 - **Accuracy**: aimed shots go exactly to the crosshair. Spread only opens a little for hip fire, rapid fire, moving or jumping, and the recoil kick returns to the aim point.
