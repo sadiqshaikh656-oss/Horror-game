@@ -64,6 +64,13 @@ export class TPSPlayer {
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
       if (o.isCamera || o.isLight) o.visible = false;
     });
+    // shirt and jacket are skinned separately: keep the shirt behind the jacket in depth and draw the jacket
+    // front faces only (its inner faces showed through as dark patches when the spine bends)
+    this.root.traverse(o => {
+      if (!o.isSkinnedMesh) return;
+      if (o.name === 'Object_367') { const m = o.material.clone(); m.side = THREE.FrontSide; o.material = m; } // jacket: its inner back-faces showed as dark patches
+      else if (o.name === 'Object_366') { const m = o.material.clone(); m.polygonOffset = true; m.polygonOffsetFactor = 6; m.polygonOffsetUnits = 6; o.material = m; } // shirt
+    });
     this.G = {}; // GTA bones by base name (SKEL_L_Hand_059 -> SKEL_L_Hand)
     this.root.traverse(o => { if (o.isBone || /^(SKEL|RB|CLOTH)_?/.test(o.name)) { const n = o.name.replace(/_\d+$/, ''); if (!this.G[n]) this.G[n] = o; } });
     this.bones = ORDER.map(m => ({ m, s: this.src.B[m], t: this.G[MAP[m]] })).filter(b => b.s && b.t);
@@ -108,6 +115,8 @@ export class TPSPlayer {
     }
     this.root.updateMatrixWorld(true);
     for (const b of this.bones) { b.sRest = b.s.getWorldQuaternion(Q()); b.tRest = b.t.getWorldQuaternion(Q()); }
+    this.spineRestQ = this.G.SKEL_Spine0.getWorldQuaternion(Q());
+    { const rb = this.G.SKEL_ROOT || this.G.SKEL_Pelvis; this.pelvisOff = this.G.SKEL_Pelvis.getWorldPosition(V()).sub(rb.getWorldPosition(V())); }
     this.cloth = this.G.CLOTH || null;
     if (this.cloth) this.clothRest = this.cloth.getWorldQuaternion(Q());
     // ---- MP5 in the right hand, measured in the aim-idle pose
@@ -154,15 +163,19 @@ export class TPSPlayer {
     // GTA thigh-roll helpers hang off the pelvis (not the thigh), so they don't follow the leg on
     // their own; without this the jacket hem stays in rest pose and sticks out when crouching
     for (const [roll, thigh] of this.rolls) roll.quaternion.copy(roll.userData.rest).slerp(thigh.quaternion, 0.7);
-    // the jacket hem is skinned to GTA's CLOTH bone (cloth-simulated in the original); approximate gravity
-    // by letting it hang mostly upright instead of tilting with the pelvis
+    // pelvis and spine root are siblings under SKEL_ROOT: move that root so the torso and the cloth
+    // bone follow the hips (before this the legs crouched while the spine stayed at standing height)
+    const rootB = this.G.SKEL_ROOT || this.G.SKEL_Pelvis;
+    rootB.parent.updateMatrixWorld(true);
+    rootB.position.copy(rootB.parent.worldToLocal(sh.clone().sub(this.pelvisOff)));
+    this.root.updateMatrixWorld(true);
+    // jacket hem: the CLOTH bone was cloth-simulated in the original. Let it follow the lower spine
+    // part-way so the jacket neither stays rigid-upright (folds/dark creases at the back) nor swings
     if (this.cloth) {
-      this.cloth.parent.updateMatrixWorld(true);
-      const cur = this.cloth.getWorldQuaternion(Q()), hang = tQ.clone().multiply(this.clothRest);
-      setWorldQuat(this.cloth, cur.slerp(hang, 0.75));
+      const k = this.clothW ?? 0.55, sp = this.G.SKEL_Spine0, rest = this.spineRestQ;
+      const follow = sp.getWorldQuaternion(Q()).multiply(rest.clone().invert()).multiply(this.clothRest);
+      setWorldQuat(this.cloth, tQ.clone().multiply(this.clothRest).slerp(follow, k));
     }
-    const pel = this.G.SKEL_Pelvis; pel.parent.updateMatrixWorld(true);
-    pel.position.copy(pel.parent.worldToLocal(sh));
     this.root.updateMatrixWorld(true);
   }
 
