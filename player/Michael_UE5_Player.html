@@ -298,17 +298,18 @@ const TRAV={},CUT={};
     let i0=0;while(i0<n-1&&rmY(m,i0)<0.03)i0++;
     let iTop=0;while(iTop<n-1&&rmY(m,iTop)<0.97*maxY)iTop++;
     const over=/Vault|Hurdle/.test(name);
+    const ledge=over?H:Math.max(H,rmY(m,n-1)); // root ends standing on the ledge -> that is the clip's real ledge height
     const a=gm.clipAction(CLIPS[name]);a.play();
     let W=-1e9;
     for(let i=0;i<=iTop;i++){gm.setTime(i/30);ghost.updateMatrixWorld(true);
-      for(const b of gb){b.getWorldPosition(v);const y=rmY(m,i)+v.y,z=rmZ(m,i)+v.z;if(y<H-0.1&&y>0.04)W=Math.max(W,z)}}
+      for(const b of gb){b.getWorldPosition(v);const y=rmY(m,i)+v.y,z=rmZ(m,i)+v.z;if(y<ledge-0.15&&y>0.04)W=Math.max(W,z)}}
     a.stop();
     let iLand=n-1;if(over){for(let i=iMax;i<n;i++)if(rmY(m,i)<=0.02){iLand=i;break}}
     let iEnd;
     if(over)iEnd=Math.min(n-1,iLand+(/_run_/.test(name)?9:6));
     else if(/_run_/.test(name))iEnd=Math.min(n-1,iTop+12);
     else{iEnd=n-1;for(let i=iTop;i<n;i++)if(Math.abs(rmZ(m,n-1)-rmZ(m,i))<0.01){iEnd=Math.min(n-1,i+5);break}}
-    TRAV[name]={H,W:W+0.05,i0,iTop,iMax,iLand,iEnd,over,dyEnd:Math.max(0.3,rmY(m,iEnd))};
+    TRAV[name]={H,ledge,W:W+0.05,i0,iTop,iMax,iLand,iEnd,over,dyEnd:Math.max(0.3,rmY(m,iEnd))};
   }
   // stops: skip the full-speed lead-in, start where the deceleration begins
   for(const name of ['Run_Stop_F_Lfoot','Sprint_Stop_F_Lfoot','Walk_Stop_F_Lfoot']){const m=META[name];if(!m)continue;const n=rmN(m);
@@ -333,6 +334,7 @@ const FING=[];
         return b.sub(a).normalize().applyQuaternion(bn.getWorldQuaternion(q).invert()).clone()});
       H.chains.push({f,bs,L});
     }
+    const th=[1,2,3].map(k=>BONE(`thumb_0${k}_${s}`));if(th.every(Boolean))H.th=th;
     if(H.hand&&H.idx&&H.mid&&H.pk)FING.push(H);
   }
 }
@@ -352,7 +354,7 @@ const S={pos:new THREE.Vector3(0,0,0),vel:new THREE.Vector3(),vy:0,yaw:0,onGroun
   speed:0,phase:0,idleT:0,airT:0,fallStart:0,
   gw:{idle:1,walk:0,run:0,sprint:0,cidle:0,crouch:0}, dirSm:0,
   one:null};
-let camYaw=Math.PI,camPitch=0.16,camDist=2.8,camZoom=2.8,lastLook=-9;
+let camYaw=Math.PI,camPitch=0.16,camYawT=Math.PI,camPitchT=0.16,camDist=2.8,camZoom=2.8,lastLook=-9;
 const input={x:0,y:0,mag:0};
 const keys={};
 
@@ -383,7 +385,7 @@ const pinchDist=()=>{const v=[...lookIds.values()];return v.length<2?0:Math.hypo
 look.addEventListener('pointerdown',e=>{look.setPointerCapture(e.pointerId);lookIds.set(e.pointerId,{x:e.clientX,y:e.clientY});if(lookIds.size===2){pinch0=pinchDist();zoom0=camZoom}});
 look.addEventListener('pointermove',e=>{const p=lookIds.get(e.pointerId);if(!p)return;
   if(lookIds.size>=2){p.x=e.clientX;p.y=e.clientY;const d=pinchDist();if(pinch0>0&&d>0)camZoom=clamp(zoom0*pinch0/d,1.4,5);return}
-  const k=0.0058*(camDist/2.6+0.35);camYaw-=(e.clientX-p.x)*k;camPitch=clamp(camPitch+(e.clientY-p.y)*k*0.75,-0.45,1.05);p.x=e.clientX;p.y=e.clientY;lastLook=clock.elapsedTime});
+  const k=0.0058*(camDist/2.6+0.35);camYawT-=(e.clientX-p.x)*k;camPitchT=clamp(camPitchT+(e.clientY-p.y)*k*0.75,-0.45,1.05);p.x=e.clientX;p.y=e.clientY;lastLook=clock.elapsedTime});
 const endLook=e=>{lookIds.delete(e.pointerId);pinch0=0};look.addEventListener('pointerup',endLook);look.addEventListener('pointercancel',endLook);
 addEventListener('wheel',e=>{camZoom=clamp(camZoom+e.deltaY*0.002,1.4,5)},{passive:true});
 /* keyboard */
@@ -395,7 +397,7 @@ addEventListener('keyup',e=>keys[e.code]=false);
 function bindBtn(id,fn,hold){const el=$(id);el.addEventListener('pointerdown',e=>{e.stopPropagation();el.classList.add('down');vib();fn&&fn()});const up=()=>{el.classList.remove('down');hold&&hold(false)};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',up)}
 bindBtn('bJump',doJump);bindBtn('bSprint',()=>setSprint(!S.sprint));bindBtn('bCrouch',toggleCrouch);bindBtn('bVault',doTraverse);bindBtn('bRoll',doRoll);
 bindBtn('bAim',()=>setStrafe(!S.strafe));bindBtn('bWalk',()=>setWalk(!S.walk));
-bindBtn('bCam',()=>{camYaw=S.yaw+Math.PI;camPitch=0.16;camZoom=2.8;toast('Camera reset')});
+bindBtn('bCam',()=>{camYawT=camYaw+angD(S.yaw+Math.PI,camYaw);camPitchT=0.16;camZoom=2.8;toast('Camera reset')});
 $('bQ').textContent=QN[Q];
 bindBtn('bQ',()=>{Q=(Q+2)%3;try{localStorage.setItem('tp_q2',Q)}catch(e){}$('bQ').textContent=QN[Q];applyQ();toast({PERF:'Performance',HIGH:'High quality',ULTRA:'Ultra cinematic'}[QN[Q]])});
 bindBtn('bEmote',doEmote);
@@ -465,7 +467,7 @@ function doTraverse(){
   let ts=is/30;if(is<iLead){const z0=rmZ(m,is),z1=rmZ(m,is+1);if(z1>z0)ts=(is+clamp((tgt-z0)/(z1-z0),0,1))/30}
   const z0=sampleRM(t.clip,ts)[2];
   const off=t.d-(T.W-z0); // residual: >0 stretch the approach, <0 ease back so legs never enter the wall
-  const vs=t.h/(T.over?T.H:T.dyEnd);
+  const vs=t.h/T.ledge;
   const tPk=(T.over?T.iMax:T.iTop)/30,tLd=(T.over?T.iLand:T.iEnd)/30;
   const fEnd=rmZ(m,T.over?T.iLand:T.iEnd)-z0+off;
   const need=T.over?t.d+t.depth+(/_run_/.test(t.clip)?1.0:0.45):t.d+0.4;
@@ -503,7 +505,7 @@ function update(dt){
   let ix=input.x,iy=input.y,im=input.mag;
   const kx=(keys.KeyA?1:0)-(keys.KeyD?1:0),ky=(keys.KeyW?1:0)-(keys.KeyS?1:0);
   if(kx||ky){const l=Math.hypot(kx,ky);ix=-kx/l;iy=ky/l;im=1}
-  if(keys.ArrowLeft)camYaw+=dt*2.2;if(keys.ArrowRight)camYaw-=dt*2.2;
+  if(keys.ArrowLeft)camYawT+=dt*2.2;if(keys.ArrowRight)camYawT-=dt*2.2;
   const cf=new THREE.Vector3(-Math.sin(camYaw),0,-Math.cos(camYaw)),cr=new THREE.Vector3(Math.cos(camYaw),0,-Math.sin(camYaw)).multiplyScalar(-1);
   const wish=new THREE.Vector3().addScaledVector(cf,iy).addScaledVector(cr,-ix);
   if(wish.lengthSq()>1e-4)wish.normalize();
@@ -545,8 +547,10 @@ function update(dt){
   }
   if(moving)lastGait=gait;
   // one-shot root motion
+  // sample root motion at the time the pose will be shown this frame (no one-frame lag between body and root)
+  const tNow=one?Math.min(one.t+dt*one.rate,one.dur):0;
   if(one&&!one.fadeOut&&one.rm==='warp'){
-    const w=one.warp,r=sampleRM(one.name,one.t),tt=one.t;
+    const w=one.warp,r=sampleRM(one.name,tNow),tt=tNow;
     let f=(r[2]-w.z0)+w.off*sm((tt-w.ts)/w.rampT)+w.off2*sm((tt-w.tPk)/Math.max(0.12,w.tLd-w.tPk))-w.push;
     S.pos.x=w.p0.x+w.fx*f;S.pos.z=w.p0.z+w.fz*f;
     let y=w.p0.y+r[1]*w.vs;
@@ -555,7 +559,7 @@ function update(dt){
     S.yaw=w.yaw0+angD(w.yawT,w.yaw0)*sm((tt-w.ts)/0.25);
   }
   else if(one&&!one.fadeOut&&one.rm!=='none'){
-    const r=sampleRM(one.name,one.t),l=one.lastRM;const c=Math.cos(one.yaw0),s=Math.sin(one.yaw0);
+    const r=sampleRM(one.name,one.loop?one.t:tNow),l=one.lastRM;const c=Math.cos(one.yaw0),s=Math.sin(one.yaw0);
     if(one.rm!=='yaw'){const dx=(r[0]-l[0])*one.hscale,dz=(r[2]-l[2])*one.hscale;S.pos.x+=dx*c+dz*s;S.pos.z+=-dx*s+dz*c;}
     if(one.rm==='xyz'){S.pos.y=one.pos0.y+r[1]*one.vscale;const g=groundAt(S.pos.x,S.pos.z,.3,one.pos0.y+r[1]*one.vscale+0.35);if(one.minY!==null&&S.pos.y<g)S.pos.y=g}
     if(one.rm==='yaw'||one.rm==='xz'||one.rm==='xyz'){S.yaw+=r[3]-l[3]}
@@ -617,6 +621,7 @@ function update(dt){
   player.position.copy(S.pos);player.rotation.y=S.yaw;
   player.updateMatrixWorld(true);
   procedural(dt,sp);
+  handIK(dt);
   fingers(dt,sp);
   solveBody();
   player.position.copy(S.pos);
@@ -655,30 +660,85 @@ function procedural(dt,sp){
   P.look+=(lookT-P.look)*Math.min(1,dt*4);
   rotWorld(bSpine2,_up,P.look*0.2);rotWorld(bNeck,_up,P.look*0.3);rotWorld(bHead,_up,P.look*0.35);
 }
-/* fingers: drive each joint towards a natural relaxed curl (index least, pinky most); tighter when running */
-const FT={index:[.26,.40,.26],middle:[.34,.50,.32],ring:[.42,.56,.36],pinky:[.50,.60,.40]};
-const _fa=new THREE.Vector3(),_fb=new THREE.Vector3(),_fc=new THREE.Vector3(),_fn=new THREE.Vector3(),_fs=new THREE.Vector3(),_ff=new THREE.Vector3(),_pd=new THREE.Vector3(),_dir=new THREE.Vector3(),_axs=new THREE.Vector3(),_fq=new THREE.Quaternion(),_cx=new THREE.Vector3();
+/* fingers: relaxed natural pose like the reference: gentle graduated curl, fingers slightly spread
+   (not glued together), thumb resting forward along the index. Fully overrides the clip's finger noise. */
+const FT={index:[.20,.40,.28],middle:[.26,.48,.32],ring:[.32,.52,.34],pinky:[.40,.56,.36]};
+const SPREAD={index:0.10,middle:0.0,ring:-0.07,pinky:-0.16};
+const _fa=new THREE.Vector3(),_fb=new THREE.Vector3(),_fc=new THREE.Vector3(),_fn=new THREE.Vector3(),_fs=new THREE.Vector3(),_fi=new THREE.Vector3(),_ff=new THREE.Vector3(),_pd=new THREE.Vector3(),_dir=new THREE.Vector3(),_axs=new THREE.Vector3(),_fq=new THREE.Quaternion(),_cx=new THREE.Vector3(),_tt=new THREE.Vector3();
 function fingers(dt,sp){
-  const grip=S.one&&!S.one.fadeOut&&/vault|hurdle|mantle|climb|roll|preview/.test(S.one.tag);
-  P.fw+=((grip?0:1)-P.fw)*Math.min(1,dt*6);if(P.fw<0.02)return;
-  const runK=clamp((sp-1.6)/4,0,1)*0.32;
+  const off=S.one&&!S.one.fadeOut&&/roll|preview/.test(S.one.tag);
+  P.fw+=((off?0:1)-P.fw)*Math.min(1,dt*6);if(P.fw<0.02)return;
+  const runK=clamp((sp-1.6)/4,0,1)*0.28;
   for(const H of FING){
+    const gk=IKS.find(k=>k.s===H.s);const G=gk?clamp(gk.w*1.3,0,1):0; // planted on a ledge -> flat palm, slight hook over the edge
     H.hand.getWorldPosition(_fa);H.mid.getWorldPosition(_fb);H.idx.getWorldPosition(_fc);H.pk.getWorldPosition(_fs);
     _ff.subVectors(_fb,_fa).normalize();
-    if(H.s==='l')_fs.subVectors(_fc,_fs);else _fs.sub(_fc);
-    _fn.crossVectors(_ff,_fs).normalize(); // palm normal
+    _fi.subVectors(_fc,_fs).normalize();               // towards the index side
+    _fn.crossVectors(_ff,_fi).normalize();if(H.s==='r')_fn.negate(); // palm normal
+    // thumb: aim it forward along the hand, slightly palm-ward and towards the index
+    if(H.th){H.th[0].getWorldPosition(_fb);H.th[1].getWorldPosition(_fc);_dir.subVectors(_fc,_fb).normalize();
+      _tt.copy(_ff).multiplyScalar(0.72).addScaledVector(_fi,0.42).addScaledVector(_fn,0.38).normalize();
+      _axs.crossVectors(_dir,_tt);const sn=_axs.length();if(sn>1e-4){_axs.divideScalar(sn);rotWorld(H.th[0],_axs,Math.atan2(sn,_dir.dot(_tt))*0.75*P.fw)}
+    }
     for(const c of H.chains){
-      c.bs[0].getWorldPosition(_fb);_pd.subVectors(_fb,_fa).normalize();
+      // spread (abduction) at the knuckle
+      c.bs[0].getWorldPosition(_fb);_dir.copy(c.L[0]).applyQuaternion(c.bs[0].getWorldQuaternion(_fq));
+      _axs.crossVectors(_dir,_fi);if(_axs.lengthSq()>1e-6){_axs.normalize();rotWorld(c.bs[0],_axs,SPREAD[c.f]*P.fw*(1+G*0.6))}
+      _pd.subVectors(_fb,_fa).normalize();
       for(let k=0;k<3;k++){const bn=c.bs[k];
         _dir.copy(c.L[k]).applyQuaternion(bn.getWorldQuaternion(_fq));
         _axs.crossVectors(_pd,_fn);if(_axs.lengthSq()<1e-6)break;_axs.normalize();
         const flex=Math.atan2(_cx.crossVectors(_pd,_dir).dot(_axs),_pd.dot(_dir));
-        const target=FT[c.f][k]+runK*(k===0?1:1.25);
-        const delta=clamp((target-flex)*P.fw*0.85,-0.7,0.7);
+        const target=THREE.MathUtils.lerp(FT[c.f][k]+runK*(k===0?1:1.25),[0.06,0.22,0.18][k],G);
+        const delta=clamp((target-flex)*P.fw*0.95,-0.9,0.9);
         rotWorld(bn,_axs,delta);
         _pd.copy(_dir.applyAxisAngle(_axs,delta));
       }
     }
+  }
+}
+/* hand IK: during vault/mantle/climb the hands are pulled onto the ledge and planted there (no grip in mid-air) */
+const IKS=['l','r'].map(s=>({s,U:BONE('upperarm_'+s),L:BONE('lowerarm_'+s),H:BONE('hand_'+s),w:0,lock:null}));
+const _ia=new THREE.Vector3(),_ib=new THREE.Vector3(),_ic=new THREE.Vector3(),_it=new THREE.Vector3(),_iu=new THREE.Vector3(),_iv=new THREE.Vector3(),_hq=new THREE.Quaternion(),_hp=new THREE.Quaternion();
+function twoBone(k,target,w){
+  k.U.getWorldPosition(_ia);k.L.getWorldPosition(_ib);k.H.getWorldPosition(_ic);
+  k.H.getWorldQuaternion(_hq);
+  const lab=_ia.distanceTo(_ib),lbc=_ib.distanceTo(_ic);
+  const dist=clamp(_ia.distanceTo(target),0.05,lab+lbc-0.002);
+  _iu.subVectors(_ia,_ib).normalize();_iv.subVectors(_ic,_ib).normalize();
+  const cur=Math.acos(clamp(_iu.dot(_iv),-1,1));
+  const des=Math.acos(clamp((lab*lab+lbc*lbc-dist*dist)/(2*lab*lbc),-1,1));
+  _it.crossVectors(_iv,_iu);if(_it.lengthSq()>1e-8){_it.normalize();rotWorld(k.L,_it,(cur-des)*w)}
+  k.H.getWorldPosition(_ic);
+  _iu.subVectors(_ic,_ia).normalize();_iv.subVectors(target,_ia).normalize();
+  _it.crossVectors(_iu,_iv);const sn=_it.length();if(sn>1e-6){_it.divideScalar(sn);rotWorld(k.U,_it,Math.atan2(sn,_iu.dot(_iv))*w)}
+  // keep the clip's hand orientation, then lay the palm flat on the ledge (palm normal -> down)
+  k.H.parent.getWorldQuaternion(_hp);k.H.quaternion.copy(_hp.invert().multiply(_hq));k.H.updateMatrixWorld(true);
+  const F=FING.find(h=>h.s===k.s);if(F){
+    F.hand.getWorldPosition(_ia);F.mid.getWorldPosition(_ib);F.idx.getWorldPosition(_ic);F.pk.getWorldPosition(_it);
+    _iu.subVectors(_ib,_ia).normalize();_iv.subVectors(_ic,_it).normalize();_it.crossVectors(_iu,_iv).normalize();if(k.s==='r')_it.negate();
+    _iv.set(0,-1,0);_iu.crossVectors(_it,_iv);const sn=_iu.length();if(sn>1e-5){_iu.divideScalar(sn);rotWorld(k.H,_iu,Math.atan2(sn,_it.dot(_iv))*w)}
+  }
+}
+function handIK(dt){
+  const one=S.one&&!S.one.fadeOut&&S.one.warp?S.one:null;
+  for(const k of IKS){
+    let wT=0;
+    if(one){const w=one.warp;k.H.getWorldPosition(_ic);
+      const s=(_ic.x-w.p0.x)*w.fx+(_ic.z-w.p0.z)*w.fz-w.d;       // + = over the top, - = in front of the face
+      const b=w.b,inLat=Math.hypot(_ic.x-clamp(_ic.x,b.minX,b.maxX),_ic.z-clamp(_ic.z,b.minZ,b.maxZ))<0.5;
+      const dy=_ic.y-(w.top+0.045);
+      if(inLat&&s>-0.45&&s<0.6&&dy<0.45&&dy>-0.5)wT=(1-sm((Math.abs(dy)-0.12)/0.3))*(1-sm((-s-0.2)/0.25));
+      if(one.t>w.tLd)wT*=1-sm((one.t-w.tLd)/0.2);
+      if(wT>0.02){
+        _it.set(_ic.x,w.top+0.045,_ic.z);const st=Math.max(s,0.11)-s;_it.x+=w.fx*st;_it.z+=w.fz*st;
+        if(!k.lock&&wT>0.6)k.lock=_it.clone();
+        if(k.lock&&wT>0.2)_it.copy(k.lock);
+      }
+    }
+    if(wT<0.2)k.lock=null;
+    k.w+=(wT-k.w)*Math.min(1,dt*14);
+    if(k.w>0.01&&(k.lock||wT>0.02))twoBone(k,k.lock||_it,k.w);
   }
 }
 /* body-vs-box solver: during one-shots (traversal, roll, landing, stop) no limb may end up inside a box */
@@ -689,7 +749,7 @@ function solveBody(){
   let pushW=0,px=0,pz=0;const r=0.06;
   for(const bn of SOLV){bn.getWorldPosition(_sv);
     for(const b of boxes){
-      if(_sv.y>=b.top-0.06||_sv.x<b.minX-r||_sv.x>b.maxX+r||_sv.z<b.minZ-r||_sv.z>b.maxZ+r)continue;
+      if(_sv.y>=b.top-0.14||_sv.x<b.minX-r||_sv.x>b.maxX+r||_sv.z<b.minZ-r||_sv.z>b.maxZ+r)continue;
       if(one.warp&&b===one.warp.b){const w=one.warp;if(w.over&&one.t>w.tPk-0.15)continue; // legs swinging over the top
 const s=(_sv.x-w.p0.x)*w.fx+(_sv.z-w.p0.z)*w.fz;const pen=s-(w.d-w.push)+r;
         // only limbs on the near side of the wall count (legs that already went over are fine)
@@ -702,35 +762,44 @@ const s=(_sv.x-w.p0.x)*w.fx+(_sv.z-w.p0.z)*w.fz;const pen=s-(w.d-w.push)+r;
 }
 
 /* camera */
-const camTarget=new THREE.Vector3();
+const camTarget=new THREE.Vector3(0,1.22,0),camVel=new THREE.Vector3(),_look=new THREE.Vector3();
 const _cp=new THREE.Vector3(),_cr=new THREE.Vector3(),_ct=new THREE.Vector3();
+let camShY=0;
 function camBlocked(x,y,z){for(const b of boxes){if(x>b.minX-0.15&&x<b.maxX+0.15&&z>b.minZ-0.15&&z<b.maxZ+0.15&&y<b.top+0.15)return true}return false}
 function updateCam(dt){
-  const sp=Math.hypot(S.vel.x,S.vel.z),t=clock.elapsedTime;
-  const h=S.crouch?0.95:1.22;
-  camTarget.x+= (S.pos.x-camTarget.x)*(1-Math.exp(-dt*14));
-  camTarget.z+= (S.pos.z-camTarget.z)*(1-Math.exp(-dt*14));
-  camTarget.y+= (S.pos.y+h-camTarget.y)*(1-Math.exp(-dt*(S.onGround?9:4)));
-  if(sp>1.2&&!S.strafe&&t-lastLook>1.4&&lookIds.size===0&&!(S.one&&!S.one.fadeOut)){
-    const d=angD(S.yaw+Math.PI,camYaw);
-    camYaw+=d*Math.min(1,dt*1.4*clamp(sp/SPEED.run,0.3,1.3));
-    camPitch+=(0.16-camPitch)*Math.min(1,dt*0.8);
+  const sp=Math.hypot(S.vel.x,S.vel.z),t=clock.elapsedTime,trav=S.one&&!S.one.fadeOut&&S.one.warp;
+  // look input with inertia (no 1:1 jerk)
+  camYaw+=angD(camYawT,camYaw)*(1-Math.exp(-dt*14));camPitch+=(camPitchT-camPitch)*(1-Math.exp(-dt*14));
+  // GTA-style auto follow: after the thumb is off the screen for a moment, swing in behind the run direction
+  if(sp>1.2&&!S.strafe&&t-lastLook>1.2&&lookIds.size===0&&!trav){
+    const d=angD(S.yaw+Math.PI,camYawT);
+    camYawT+=d*Math.min(1,dt*1.1*clamp(sp/SPEED.run,0.35,1.25));
+    camPitchT+=(0.16-camPitchT)*Math.min(1,dt*0.7);
   }
+  // critically damped spring on the follow point, with a little look-ahead in the movement direction
+  const h=S.crouch?0.95:1.22;
+  _look.set(S.pos.x+S.vel.x*0.10,S.pos.y+h,S.pos.z+S.vel.z*0.10);
+  const kx=trav?26:46,ky=trav?12:28;
+  camVel.x+=((_look.x-camTarget.x)*kx-camVel.x*2*Math.sqrt(kx))*dt;
+  camVel.z+=((_look.z-camTarget.z)*kx-camVel.z*2*Math.sqrt(kx))*dt;
+  camVel.y+=((_look.y-camTarget.y)*ky-camVel.y*2*Math.sqrt(ky))*dt;
+  camTarget.addScaledVector(camVel,dt);
+  if(camTarget.distanceTo(_look)>3)camTarget.copy(_look);
   const sprintK=clamp((sp-SPEED.run)/(SPEED.sprint-SPEED.run),0,1);
-  const wantDist=camZoom*(1+0.18*sprintK)*(S.strafe?0.85:1);
-  const fov=55+8*sprintK;camera.fov+=(fov-camera.fov)*Math.min(1,dt*3);camera.updateProjectionMatrix();
-  const sh=S.strafe?0.48:0.36;
+  const wantDist=camZoom*(1+0.16*sprintK)*(S.strafe?0.85:1)*(trav?1.12:1);
+  const fov=55+7*sprintK;camera.fov+=(fov-camera.fov)*Math.min(1,dt*2.5);camera.updateProjectionMatrix();
+  camShY+=((S.strafe?0.48:0.36)-camShY)*Math.min(1,dt*6);
   const cp=Math.cos(camPitch);
   _cr.set(Math.cos(camYaw),0,-Math.sin(camYaw));
-  _ct.copy(camTarget).addScaledVector(_cr,sh);
+  _ct.copy(camTarget).addScaledVector(_cr,camShY);
   const dir=new THREE.Vector3(Math.sin(camYaw)*cp,Math.sin(camPitch),Math.cos(camYaw)*cp);
-  let dist=wantDist;for(let d=0.4;d<=wantDist;d+=0.1){_cp.copy(_ct).addScaledVector(dir,d);if(camBlocked(_cp.x,_cp.y,_cp.z)){dist=Math.max(0.6,d-0.2);break}}
-  camDist+= (dist-camDist)*Math.min(1,dt*(dist<camDist?18:4));
+  let dist=wantDist;for(let d=0.4;d<=wantDist;d+=0.08){_cp.copy(_ct).addScaledVector(dir,d);if(camBlocked(_cp.x,_cp.y,_cp.z)){dist=Math.max(0.6,d-0.2);break}}
+  camDist+= (dist-camDist)*Math.min(1,dt*(dist<camDist?16:3));
   const pos=_cp.copy(_ct).addScaledVector(dir,camDist);
-  const bob=Math.min(sp/SPEED.sprint,1)*0.018;pos.y+=Math.sin(t*9.5)*bob;pos.addScaledVector(_cr,Math.sin(t*4.75)*bob*0.6);
+  // very light handheld sway, stronger when sprinting
+  const bob=0.004+Math.min(sp/SPEED.sprint,1)*0.010;pos.y+=Math.sin(t*1.7)*0.006+Math.sin(t*9.2)*bob;pos.addScaledVector(_cr,Math.sin(t*4.6)*bob*0.6);
   pos.y=Math.max(pos.y,S.pos.y+0.25,0.2);
   camera.position.copy(pos);camera.lookAt(_ct);
-  // shadow frustum follows the player, snapped to texels to avoid shimmering
   const ts=20/sun.shadow.mapSize.x;const sx=Math.round(S.pos.x/ts)*ts,sz=Math.round(S.pos.z/ts)*ts;
   sun.position.set(sx+sunDir.x*30,S.pos.y+sunDir.y*30,sz+sunDir.z*30);sun.target.position.set(sx,S.pos.y,sz);
   rim.position.set(S.pos.x-sunDir.x*8,S.pos.y+3,S.pos.z-sunDir.z*8);rim.target.position.copy(S.pos);
@@ -744,7 +813,7 @@ function fitHud(){const k=Math.min(1.15,Math.max(0.6,(innerHeight-70)/270),inner
 fitHud();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(composer){composer.setSize(innerWidth,innerHeight);gtao&&gtao.setSize(innerWidth,innerHeight)}fitHud()});
 bar.style.width='100%';setTimeout(()=>{$('load').style.opacity=0;setTimeout(()=>$('load').remove(),500)},200);
-window.__dbg={S,boxes,TRAV,CUT,doTraverse,traverseCheck,doRoll,setSprint,keys,get one(){return S.one},player,model,BONE};
+window.__dbg={S,boxes,TRAV,CUT,CLIPS,META,IKS,doTraverse,traverseCheck,doRoll,setSprint,keys,get one(){return S.one},player,model,BONE};
 loop();
 </script>
 </body>
