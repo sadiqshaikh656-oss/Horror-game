@@ -62,7 +62,7 @@ canvas{display:block}
 #libctl button.on{border-color:var(--acc);color:var(--acc)}
 #toast{position:fixed;left:50%;top:20%;transform:translateX(-50%);padding:7px 14px;border-radius:9px;background:var(--glass);border:1px solid var(--line);font-size:12px;letter-spacing:.06em;opacity:0;transition:opacity .25s;z-index:30;pointer-events:none}
 </style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
 <body>
 <div id="load"><b>LOADING PLAYER</b><div id="bar"><i></i></div><small id="lmsg" style="opacity:.6">decoding…</small></div>
@@ -71,7 +71,7 @@ canvas{display:block}
   <div class="top">
     <div class="chip" id="state"><b>IDLE</b><br><span>Free</span></div>
     <div class="trow">
-      <div class="tbtn txt" id="bQ" title="Graphics quality">HD</div>
+      <div class="tbtn txt" id="bQ" title="Graphics quality">ULTRA</div>
       <div class="tbtn" id="bCam" title="Reset camera"><svg viewBox="0 0 24 24"><path d="M2 8V5a1 1 0 0 1 1-1h3M22 8V5a1 1 0 0 0-1-1h-3M2 16v3a1 1 0 0 0 1 1h3M22 16v3a1 1 0 0 1-1 1h-3"/><circle cx="12" cy="12" r="3.2"/></svg></div>
       <div class="tbtn" id="bEmote" title="Idle gesture"><svg viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5v-7a1.5 1.5 0 0 1 3 0V12M14 11.5V6a1.5 1.5 0 0 1 3 0v8.5a6.5 6.5 0 0 1-6.5 6.5h-.3a6.5 6.5 0 0 1-5-2.3L3.7 16a1.6 1.6 0 0 1 2.4-2.1L8 15.6"/></svg></div>
       <div class="tbtn" id="bLib" title="Animations"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></div>
@@ -101,70 +101,156 @@ canvas{display:block}
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {GTAOPass} from 'three/addons/postprocessing/GTAOPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+import {ShaderPass} from 'three/addons/postprocessing/ShaderPass.js';
 
 const $=id=>document.getElementById(id);
 const bar=$('bar').firstElementChild;
 const toast=(t)=>{const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(e._t);e._t=setTimeout(()=>e.style.opacity=0,1300)};
 const vib=(ms=12)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
+const clamp=THREE.MathUtils.clamp;
+const sm=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
+const angD=(a,b)=>((a-b+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;
+
+/* ---------------- quality presets ---------------- */
+const QN=['PERF','HIGH','ULTRA'];
+let Q=2;try{const s=localStorage.getItem('tp_q2');if(s!==null)Q=clamp(+s,0,2)}catch(e){}
+const QS=[{dpr:1,shadow:1024,post:false,ao:false},{dpr:1.6,shadow:2048,post:true,ao:false},{dpr:2,shadow:4096,post:true,ao:true}];
 
 /* ---------------- renderer / scene ---------------- */
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
-let HQ=true;try{HQ=localStorage.getItem('tp_q')!=='perf'}catch(e){}
-const applyQ=()=>{renderer.setPixelRatio(Math.min(devicePixelRatio,HQ?2.5:1.25));renderer.setSize(innerWidth,innerHeight)};
-applyQ();
-renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
 const scene=new THREE.Scene();
-scene.fog=new THREE.Fog(0xc9d6e6,40,140);
-{ // sky dome
-  const g=new THREE.SphereGeometry(300,32,16);
-  const m=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{},
-    vertexShader:'varying vec3 v;void main(){v=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader:'varying vec3 v;void main(){float h=v.y;vec3 c=mix(vec3(.82,.86,.9),vec3(.28,.5,.82),smoothstep(0.,.6,h));c=mix(c,vec3(.55,.55,.52),smoothstep(0.,-.2,h));float s=pow(max(dot(v,normalize(vec3(.5,.45,.3))),0.),300.);gl_FragColor=vec4(c+s*vec3(1.,.9,.7),1.);}'});
-  scene.add(new THREE.Mesh(g,m));
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.05,900);
+
+// physically based sky + matching haze; the sun light comes from the same direction as the sky's sun disc
+const sunDir=new THREE.Vector3().setFromSphericalCoords(1,THREE.MathUtils.degToRad(90-32),THREE.MathUtils.degToRad(215));
+function makeSky(){
+  const m=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{sunDir:{value:sunDir}},
+    vertexShader:'varying vec3 v;void main(){v=normalize(position);vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}',
+    fragmentShader:`uniform vec3 sunDir;varying vec3 v;
+    void main(){float h=v.y;
+      vec3 zen=vec3(.13,.32,.68),mid=vec3(.36,.56,.85),hor=vec3(.74,.82,.90),grd=vec3(.42,.44,.46);
+      vec3 c=mix(hor,mid,smoothstep(0.,.25,h));c=mix(c,zen,smoothstep(.2,.9,h));
+      c=mix(c,grd,smoothstep(0.,-.08,h));
+      float sd=max(dot(v,sunDir),0.);
+      c+=vec3(1.,.82,.55)*(pow(sd,8.)*.25+pow(sd,64.)*.5)+vec3(1.,.95,.85)*smoothstep(.9994,.9998,sd)*6.;
+      gl_FragColor=vec4(c,1.);}`});
+  const k=new THREE.Mesh(new THREE.SphereGeometry(500,48,24),m);k.frustumCulled=false;k.renderOrder=-1;return k}
+scene.add(makeSky());
+scene.fog=new THREE.FogExp2(0xbccbdc,0.0042);
+{ // sky-lit environment for the world, studio environment for the character's fabric/skin highlights
+  const pm=new THREE.PMREMGenerator(renderer);
+  const ss=new THREE.Scene();ss.add(makeSky());scene.environment=pm.fromScene(ss,0,0.1,1000).texture;scene.environmentIntensity=0.85;
+  var envTex=pm.fromScene(new RoomEnvironment(renderer),0.04).texture;pm.dispose();
 }
-const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.05,400);
-{ // image-based lighting so the suit fabric, skin and hair get real reflections instead of flat black
-  const pm=new THREE.PMREMGenerator(renderer);var envTex=pm.fromScene(new RoomEnvironment(renderer),0.04).texture;pm.dispose();
-}
-scene.add(new THREE.HemisphereLight(0xdfe8ff,0x5a5048,0.55));
-const sun=new THREE.DirectionalLight(0xfff1dc,2.8);
-sun.position.set(6,10,4);sun.castShadow=true;sun.shadow.mapSize.set(HQ?4096:1024,HQ?4096:1024);
-const sc=sun.shadow.camera;sc.left=-9;sc.right=9;sc.top=9;sc.bottom=-9;sc.near=0.5;sc.far=40;sun.shadow.bias=-0.0003;sun.shadow.normalBias=0.025;
-const rim=new THREE.DirectionalLight(0xbfd4ff,1.1);scene.add(rim,rim.target); // back/rim light keeps the dark suit readable against the ground
+const hemi=new THREE.HemisphereLight(0xcfe0ff,0x6b5a48,0.6);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffe6c4,3.4);
+sun.castShadow=true;
+const sc=sun.shadow.camera;sc.left=-10;sc.right=10;sc.top=10;sc.bottom=-10;sc.near=0.5;sc.far=60;sun.shadow.bias=-0.00025;sun.shadow.normalBias=0.02;
+const rim=new THREE.DirectionalLight(0xbcd2ff,0.9);scene.add(rim,rim.target);
 scene.add(sun,sun.target);
 
-function canvasTex(draw,size=512,rep=1){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rep,rep);t.anisotropy=8;return t}
-const groundTex=canvasTex((g,s)=>{g.fillStyle='#7d7f7c';g.fillRect(0,0,s,s);for(let i=0;i<5000;i++){const v=110+Math.random()*40|0;g.fillStyle=`rgba(${v},${v},${v-6},.25)`;g.fillRect(Math.random()*s,Math.random()*s,2,2)}g.strokeStyle='rgba(30,30,30,.45)';g.lineWidth=3;for(let i=0;i<=4;i++){g.beginPath();g.moveTo(i*s/4,0);g.lineTo(i*s/4,s);g.stroke();g.beginPath();g.moveTo(0,i*s/4);g.lineTo(s,i*s/4);g.stroke()}},512,60);
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(240,240),new THREE.MeshStandardMaterial({map:groundTex,roughness:.92}));
+/* procedural PBR textures */
+function canvas(size,draw){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);return c}
+function tex(c,rep,srgb=true){const t=new THREE.CanvasTexture(c);if(srgb)t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rep,rep);t.anisotropy=16;return t}
+function noiseCanvas(size,base,amp,_b,seed=1){let s=seed;const R=()=>(s=(s*16807)%2147483647)/2147483647;
+  // fractal value noise: random grids of increasing resolution, upscaled with smoothing and layered
+  return canvas(size,(g)=>{g.fillStyle=base;g.fillRect(0,0,size,size);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
+    for(const [cells,a] of [[4,1],[8,.8],[16,.6],[32,.45],[64,.35],[128,.25],[256,.18]]){
+      const c=document.createElement('canvas');c.width=c.height=cells;const x=c.getContext('2d');const im=x.createImageData(cells,cells);
+      for(let i=0;i<cells*cells;i++){const v=R()*255|0;im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=v;im.data[i*4+3]=255}x.putImageData(im,0,0);
+      g.globalAlpha=amp*a;g.globalCompositeOperation='overlay';
+      for(const ox of [-size,0,size])for(const oy of [-size,0,size])g.drawImage(c,ox-size/cells/2,oy-size/cells/2,size+size/cells,size+size/cells);}
+    g.globalAlpha=1;g.globalCompositeOperation='source-over';
+    for(let i=0;i<size*size/10;i++){const v=R()*255|0;g.fillStyle=`rgba(${v},${v},${v},${amp*0.25})`;g.fillRect(R()*size,R()*size,1,1)}})}
+function normalFromHeight(src,strength=2){const s=src.width,g=src.getContext('2d').getImageData(0,0,s,s).data;
+  return canvas(s,(o)=>{const im=o.createImageData(s,s);const H=(x,y)=>g[(((y+s)%s)*s+((x+s)%s))*4]/255;
+    for(let y=0;y<s;y++)for(let x=0;x<s;x++){const dx=(H(x+1,y)-H(x-1,y))*strength,dy=(H(x,y+1)-H(x,y-1))*strength;const l=Math.hypot(dx,dy,1);const i=(y*s+x)*4;
+      im.data[i]=(-dx/l*.5+.5)*255;im.data[i+1]=(dy/l*.5+.5)*255;im.data[i+2]=(1/l*.5+.5)*255;im.data[i+3]=255}o.putImageData(im,0,0)})}
+// ground: weathered concrete slabs with expansion joints
+const gH=noiseCanvas(512,'#808080',0.18,900,7);
+{const g=gH.getContext('2d');g.strokeStyle='rgba(20,20,20,.9)';g.lineWidth=3;for(let i=0;i<=2;i++){g.beginPath();g.moveTo(i*256,0);g.lineTo(i*256,512);g.stroke();g.beginPath();g.moveTo(0,i*256);g.lineTo(512,i*256);g.stroke()}}
+const gC=canvas(512,(g)=>{g.drawImage(gH,0,0);g.globalCompositeOperation='multiply';g.fillStyle='#9a968e';g.fillRect(0,0,512,512);g.globalCompositeOperation='source-over';
+  for(let i=0;i<40;i++){g.fillStyle=`rgba(60,55,48,${Math.random()*.08})`;g.beginPath();g.ellipse(Math.random()*512,Math.random()*512,20+Math.random()*60,10+Math.random()*40,Math.random()*3,0,7);g.fill()}});
+const gR=noiseCanvas(256,'#d8d8d8',0.25,300,3);
+const groundMat=new THREE.MeshStandardMaterial({map:tex(gC,60),normalMap:tex(normalFromHeight(gH,3),60,false),roughnessMap:tex(gR,60,false),roughness:1,metalness:0});
+groundMat.normalScale.set(0.8,0.8);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),groundMat);
 ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
-
-/* obstacles: AABB colliders */
+// obstacles: concrete blocks (AABB colliders)
+const bH=noiseCanvas(256,'#8a8a8a',0.22,500,11);
+const bN=tex(normalFromHeight(bH,2.2),1,false),bRo=tex(noiseCanvas(256,'#cfcfcf',0.2,200,5),1,false);
 const boxes=[];
-function label(text){return canvasTex((g,s)=>{g.fillStyle='#d9d4c7';g.fillRect(0,0,s,s);g.fillStyle='rgba(0,0,0,.06)';for(let i=0;i<s;i+=32)g.fillRect(0,i,s,2);g.fillStyle='#2b2f36';g.font='bold 70px system-ui';g.textAlign='center';g.fillText(text,s/2,s/2+24)},256)}
-function addBox(x,z,w,h,d,col,txt){
-  const mat=txt?new THREE.MeshStandardMaterial({map:label(txt),roughness:.8}):new THREE.MeshStandardMaterial({color:col,roughness:.8});
-  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,h/2,z);m.castShadow=m.receiveShadow=true;scene.add(m);
+function blockMat(tint,text){const c=canvas(512,(g)=>{g.drawImage(bH,0,0,512,512);g.globalCompositeOperation='multiply';g.fillStyle=tint;g.fillRect(0,0,512,512);g.globalCompositeOperation='source-over';
+    g.fillStyle='rgba(0,0,0,.18)';g.fillRect(0,470,512,42); // dirt line at the base
+    if(text){g.font='bold 92px system-ui';g.textAlign='center';g.fillStyle='rgba(235,190,40,.85)';g.fillText(text,256,290)}});
+  return new THREE.MeshStandardMaterial({map:tex(c,1),normalMap:bN,roughnessMap:bRo,roughness:1})}
+function addBox(x,z,w,h,d,tint,txt){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),blockMat(tint||'#b9b4aa',txt));m.position.set(x,h/2,z);m.castShadow=m.receiveShadow=true;scene.add(m);
   boxes.push({minX:x-w/2,maxX:x+w/2,minZ:z-d/2,maxZ:z+d/2,top:h,mesh:m});
 }
 addBox(0,8,6,1.0,0.4,0,'VAULT');
 addBox(-7,8,6,0.95,0.35,0,'HURDLE');
 addBox(8,9,5,1.05,4,0,'MANTLE');
 addBox(-8,-8,6,2.5,4,0,'CLIMB');
-addBox(8,-8,4,1.0,4,0x8a99ad);addBox(8,-12.5,4,2.0,5,0x7c8aa0);
-for(let i=0;i<14;i++){const a=i/14*Math.PI*2;addBox(Math.cos(a)*30,Math.sin(a)*30,2,1+Math.random()*2.4,2,0x6f7d92)}
+addBox(8,-8,4,1.0,4,'#a3a9b2');addBox(8,-12.5,4,2.0,5,'#99a0aa');
+{let s=5;const R=()=>(s=(s*16807)%2147483647)/2147483647;for(let i=0;i<14;i++){const a=i/14*Math.PI*2;addBox(Math.cos(a)*30,Math.sin(a)*30,2,1+R()*2.4,2,'#a8a49c')}}
 function groundAt(x,z,r,y){let g=0;for(const b of boxes){if(x>b.minX-r*.3&&x<b.maxX+r*.3&&z>b.minZ-r*.3&&z<b.maxZ+r*.3&&y>=b.top-0.35)g=Math.max(g,b.top)}return g}
 function collide(p,r,ignore){for(const b of boxes){if(b===ignore||p.y>=b.top-0.3)continue;const cx=Math.max(b.minX,Math.min(p.x,b.maxX)),cz=Math.max(b.minZ,Math.min(p.z,b.maxZ));let dx=p.x-cx,dz=p.z-cz;const d2=dx*dx+dz*dz;if(d2<r*r){if(d2<1e-8){const ox=Math.min(p.x-b.minX,b.maxX-p.x),oz=Math.min(p.z-b.minZ,b.maxZ-p.z);if(ox<oz)p.x=(p.x-b.minX<b.maxX-p.x)?b.minX-r:b.maxX+r;else p.z=(p.z-b.minZ<b.maxZ-p.z)?b.minZ-r:b.maxZ+r}else{const d=Math.sqrt(d2);p.x=cx+dx/d*r;p.z=cz+dz/d*r}}}}
+// 2D ray vs AABB (xz). Returns entry/exit distance and the entry face normal.
+function rayBox(ox,oz,dx,dz,b){let t0=-Infinity,t1=Infinity,nx=0,nz=0;
+  if(Math.abs(dx)<1e-6){if(ox<b.minX||ox>b.maxX)return null}else{let a=(b.minX-ox)/dx,c=(b.maxX-ox)/dx,n=-1;if(a>c){const k=a;a=c;c=k;n=1}if(a>t0){t0=a;nx=n;nz=0}t1=Math.min(t1,c)}
+  if(Math.abs(dz)<1e-6){if(oz<b.minZ||oz>b.maxZ)return null}else{let a=(b.minZ-oz)/dz,c=(b.maxZ-oz)/dz,n=-1;if(a>c){const k=a;a=c;c=k;n=1}if(a>t0){t0=a;nx=0;nz=n}t1=Math.min(t1,c)}
+  if(t0>t1||t1<0)return null;return{t0,t1,nx,nz}}
+
+/* ---------------- post processing ---------------- */
+const GradeShader={uniforms:{tDiffuse:{value:null},time:{value:0},vig:{value:0.32},grain:{value:0.035}},
+  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:`uniform sampler2D tDiffuse;uniform float time,vig,grain;varying vec2 vUv;
+  float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+  void main(){vec3 c=texture2D(tDiffuse,vUv).rgb;
+    float l=dot(c,vec3(.2126,.7152,.0722));
+    c=mix(vec3(l),c,1.12);                                   // saturation
+    c=mix(c*vec3(.94,.99,1.05),c*vec3(1.05,1.,.93),smoothstep(.15,.75,l)); // teal shadows / warm highlights
+    c=(c-.5)*1.07+.5;                                        // contrast
+    vec2 q=vUv-.5;c*=1.-vig*dot(q,q)*2.2;                    // vignette
+    c+=(h(vUv*1000.+time)-.5)*grain;                         // film grain
+    gl_FragColor=vec4(clamp(c,0.,1.),1.);}`};
+let composer=null,gtao=null,bloom=null,grade=null;
+function buildComposer(){
+  if(composer){composer.dispose&&composer.dispose();composer=null}
+  const qs=QS[Q];if(!qs.post)return;
+  const pr=renderer.getPixelRatio(),w=innerWidth,h=innerHeight;
+  const rt=new THREE.WebGLRenderTarget(w*pr,h*pr,{type:THREE.HalfFloatType,samples:4});
+  composer=new EffectComposer(renderer,rt);composer.setPixelRatio(pr);composer.setSize(w,h);
+  composer.addPass(new RenderPass(scene,camera));
+  if(qs.ao){gtao=new GTAOPass(scene,camera,w,h);gtao.updateGtaoMaterial({radius:0.45,distanceExponent:1.4,thickness:1.2,scale:1.1,samples:12});gtao.blendIntensity=0.9;composer.addPass(gtao)}else gtao=null;
+  bloom=new UnrealBloomPass(new THREE.Vector2(w,h),0.22,0.55,0.92);composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+  grade=new ShaderPass(GradeShader);composer.addPass(grade);
+}
+function applyQ(){
+  const qs=QS[Q];renderer.setPixelRatio(Math.min(devicePixelRatio,qs.dpr));renderer.setSize(innerWidth,innerHeight);
+  sun.shadow.mapSize.set(qs.shadow,qs.shadow);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}
+  sun.shadow.radius=Q===2?3:2;
+  buildComposer();
+}
+applyQ();
 
 /* ---------------- load embedded GLB ---------------- */
 const b64=$('glbdata').textContent.trim();
 $('lmsg').textContent='decoding '+(b64.length*0.75/1e6).toFixed(1)+' MB';bar.style.width='20%';
 const buf=await (await fetch('data:application/octet-stream;base64,'+b64)).arrayBuffer();
 bar.style.width='45%';
-// read raw json for root-motion extras
 const dv=new DataView(buf);const jlen=dv.getUint32(12,true);
 const J=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,20,jlen)));
 const binOff=20+jlen+8;
@@ -172,20 +258,19 @@ function accessor(i){const a=J.accessors[i],bv=J.bufferViews[a.bufferView];const
 const META={};J.animations.forEach(a=>{META[a.name]={...a.extras,rm:accessor(a.extras.rootMotion)}});
 $('lmsg').textContent='building scene';
 const gltf=await new Promise((res,rej)=>new GLTFLoader().parse(buf,'',res,rej));
-bar.style.width='85%';
+bar.style.width='75%';
 
 const model=gltf.scene;
 const maxAniso=renderer.capabilities.getMaxAnisotropy();
 model.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;
   const m=o.material;
   for(const k of ['map','normalMap','roughnessMap','metalnessMap','specularIntensityMap','specularColorMap','aoMap'])if(m[k]){m[k].anisotropy=maxAniso;m[k].needsUpdate=true}
-  m.envMap=envTex;m.envMapIntensity=0.6;m.needsUpdate=true;
-  if(/hair/i.test(m.name)){ // alpha-blended hair sorts badly (see-through head) -> alpha-tested + alpha-to-coverage
-    m.transparent=false;m.alphaTest=0.4;m.alphaToCoverage=true;m.depthWrite=true;m.side=THREE.DoubleSide;o.castShadow=true}
+  m.envMap=envTex;m.envMapIntensity=/head|hand/i.test(m.name)?0.45:0.6;m.needsUpdate=true;
+  if(/hair/i.test(m.name)){m.transparent=false;m.alphaTest=0.4;m.alphaToCoverage=true;m.depthWrite=true;m.side=THREE.DoubleSide;o.castShadow=true}
   else if(m.transparent){m.depthWrite=false;o.castShadow=false}
 });
 const player=new THREE.Group();player.add(model);scene.add(player);
-const blob=new THREE.Mesh(new THREE.CircleGeometry(.45,24),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.25,depthWrite:false}));blob.rotation.x=-Math.PI/2;scene.add(blob);
+const blob=new THREE.Mesh(new THREE.CircleGeometry(.42,24),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.16,depthWrite:false}));blob.rotation.x=-Math.PI/2;scene.add(blob);
 
 const mixer=new THREE.AnimationMixer(model);
 const CLIPS={};gltf.animations.forEach(c=>CLIPS[c.name]=c);
@@ -193,14 +278,72 @@ $('cnt').textContent=gltf.animations.length;
 const A={};
 function act(name){if(!A[name]){const c=CLIPS[name];if(!c){console.warn('missing',name);return null}const a=mixer.clipAction(c);a.enabled=true;a.setEffectiveWeight(0);a.play();a.paused=true;A[name]=a}return A[name]}
 for(const n in CLIPS)act(n);
+const BONE=n=>model.getObjectByName(n);
+
+/* ---------------- clip analysis (done once at load) ----------------
+   GASP clips contain long lead-ins (a run-up before a vault, a fall before the roll, a full-speed
+   stride before a stop) and long tails. We find the useful window and, for traversals, where the
+   wall sits in clip space, so the clip can be started at the right frame and warped onto the real
+   obstacle (motion warping) instead of running the character into the box. */
+const rmY=(m,i)=>m.rm[i*4+1],rmZ=(m,i)=>m.rm[i*4+2],rmN=m=>m.rm.length/4;
+const TRAV={},CUT={};
+{
+  const ghost=SkeletonUtils.clone(model);const gm=new THREE.AnimationMixer(ghost);
+  const gb=['head','hand_l','hand_r','lowerarm_l','lowerarm_r','foot_l','foot_r','ball_l','ball_r','calf_l','calf_r','thigh_l','thigh_r','pelvis','spine_03','spine_05'].map(n=>ghost.getObjectByName(n));
+  const v=new THREE.Vector3();
+  for(const name in CLIPS){
+    if(!/^Traversal_/.test(name))continue;
+    const m=META[name],n=rmN(m);const mh=name.match(/_(\d)_(\d)_/);const H=mh?+(mh[1]+'.'+mh[2]):1;
+    let maxY=0,iMax=0;for(let i=0;i<n;i++)if(rmY(m,i)>maxY){maxY=rmY(m,i);iMax=i}
+    let i0=0;while(i0<n-1&&rmY(m,i0)<0.03)i0++;
+    let iTop=0;while(iTop<n-1&&rmY(m,iTop)<0.97*maxY)iTop++;
+    const over=/Vault|Hurdle/.test(name);
+    const a=gm.clipAction(CLIPS[name]);a.play();
+    let W=-1e9;
+    for(let i=0;i<=iTop;i++){gm.setTime(i/30);ghost.updateMatrixWorld(true);
+      for(const b of gb){b.getWorldPosition(v);const y=rmY(m,i)+v.y,z=rmZ(m,i)+v.z;if(y<H-0.1&&y>0.04)W=Math.max(W,z)}}
+    a.stop();
+    let iLand=n-1;if(over){for(let i=iMax;i<n;i++)if(rmY(m,i)<=0.02){iLand=i;break}}
+    let iEnd;
+    if(over)iEnd=Math.min(n-1,iLand+(/_run_/.test(name)?9:6));
+    else if(/_run_/.test(name))iEnd=Math.min(n-1,iTop+12);
+    else{iEnd=n-1;for(let i=iTop;i<n;i++)if(Math.abs(rmZ(m,n-1)-rmZ(m,i))<0.01){iEnd=Math.min(n-1,i+5);break}}
+    TRAV[name]={H,W:W+0.05,i0,iTop,iMax,iLand,iEnd,over,dyEnd:Math.max(0.3,rmY(m,iEnd))};
+  }
+  // stops: skip the full-speed lead-in, start where the deceleration begins
+  for(const name of ['Run_Stop_F_Lfoot','Sprint_Stop_F_Lfoot','Walk_Stop_F_Lfoot']){const m=META[name];if(!m)continue;const n=rmN(m);
+    const v0=(rmZ(m,3)-rmZ(m,0))/3;let i=3;while(i<n-1&&(rmZ(m,i+1)-rmZ(m,i))>0.85*v0)i++;
+    let e=i;while(e<n-1&&Math.abs(rmZ(m,n-1)-rmZ(m,e))>0.01)e++;
+    CUT[name]={start:Math.max(0,(i-4)/30),end:Math.min(CLIPS[name].duration,(e+8)/30)}}
+  // jump starts: begin just before take-off
+  for(const name in CLIPS){if(!/^Jump_F_Start_/.test(name))continue;const m=META[name],n=rmN(m);let i=0;while(i<n-1&&rmY(m,i)<0.03)i++;CUT[name]={start:Math.max(0,(i-3)/30)}}
+  CUT.Roll={start:0.95,end:2.05};
+}
+
+/* ---------------- finger rig (relaxed, GTA-style natural curl) ---------------- */
+const FING=[];
+{
+  model.updateMatrixWorld(true);
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),q=new THREE.Quaternion();
+  for(const s of ['l','r']){
+    const H={s,hand:BONE('hand_'+s),idx:BONE('index_01_'+s),mid:BONE('middle_01_'+s),pk:BONE('pinky_01_'+s),chains:[]};
+    for(const f of ['index','middle','ring','pinky']){
+      const bs=[1,2,3].map(k=>BONE(`${f}_0${k}_${s}`));if(bs.some(x=>!x))continue;
+      const L=bs.map((bn,k)=>{bn.getWorldPosition(a);if(k<2)bs[k+1].getWorldPosition(b);else{bs[1].getWorldPosition(b);b.subVectors(a,b).add(a)}
+        return b.sub(a).normalize().applyQuaternion(bn.getWorldQuaternion(q).invert()).clone()});
+      H.chains.push({f,bs,L});
+    }
+    if(H.hand&&H.idx&&H.mid&&H.pk)FING.push(H);
+  }
+}
 
 /* ---------------- locomotion data ---------------- */
-const DIRS=['F','FL','LL','BL','B','BR','RR','FR']; // 45deg steps, positive angle = character's left
+const DIRS=['F','FL','LL','BL','B','BR','RR','FR'];
 const GAITS={walk:'Walk_Loop_',run:'Run_Loop_',crouch:'Crouch_Loop_',sprint:'Sprint_Loop_'};
 const SPEED={walk:META.Walk_Loop_F.speed,run:META.Run_Loop_F.speed,sprint:META.Sprint_Loop_F.speed,crouch:META.Crouch_Loop_F.speed};
-function dirWeights(theta,gait){ // theta rad, + = left
+function dirWeights(theta,gait){
   const w={};
-  if(gait==='sprint'){const t=THREE.MathUtils.clamp(theta/(Math.PI/4),-1,1);w.F=1-Math.abs(t);if(t>0)w.FL=t;else w.FR=-t;return w}
+  if(gait==='sprint'){const t=clamp(theta/(Math.PI/4),-1,1);w.F=1-Math.abs(t);if(t>0)w.FL=t;else w.FR=-t;return w}
   let k=((theta/(Math.PI/4))%8+8)%8;const i=Math.floor(k),f=k-i;w[DIRS[i]]=(w[DIRS[i]]||0)+1-f;w[DIRS[(i+1)%8]]=(w[DIRS[(i+1)%8]]||0)+f;return w;
 }
 
@@ -218,12 +361,13 @@ function playOne(name,o={}){
   const a=act(name);if(!a)return;
   if(S.one&&S.one.a!==a){S.one.fadeOut=true;S.one.prev=true;fading.push(S.one)}
   a.time=o.start||0;a.paused=true;
-  S.one={name,a,t:o.start||0,dur:CLIPS[name].duration,w:S.one&&S.one.a===a?S.one.w:0,fadeIn:o.fadeIn??0.12,fadeOutT:o.fadeOut??0.2,
-    rm:o.rm||'none',hscale:o.hscale||1,rate:o.rate||1,loop:!!o.loop,onEnd:o.onEnd,lock:o.lock!==false,yaw0:S.yaw,pos0:S.pos.clone(),lastRM:[0,0,0,0],vscale:o.vscale||1,ignore:o.ignore,tag:o.tag||name,minY:o.minY};
+  S.one={name,a,t:o.start||0,dur:o.end||CLIPS[name].duration,w:S.one&&S.one.a===a?S.one.w:0,fadeIn:o.fadeIn??0.12,fadeOutT:o.fadeOut??0.2,
+    rm:o.rm||'none',hscale:o.hscale||1,rate:o.rate||1,loop:!!o.loop,onEnd:o.onEnd,lock:o.lock!==false,yaw0:S.yaw,pos0:S.pos.clone(),lastRM:[0,0,0,0],vscale:o.vscale||1,ignore:o.ignore,tag:o.tag||name,minY:o.minY,warp:o.warp};
   S.one.lastRM=sampleRM(name,S.one.t);
 }
 const fading=[];
 function sampleRM(name,t){const m=META[name];if(!m||!m.rm)return[0,0,0,0];const r=m.rm,n=r.length/4,f=Math.min(Math.max(t*30,0),n-1),i=Math.floor(f),j=Math.min(i+1,n-1),u=f-i;const o=[];for(let k=0;k<4;k++)o.push(r[i*4+k]*(1-u)+r[j*4+k]*u);return o}
+function cutOpts(name){const c=CUT[name]||{};return{start:c.start||0,end:c.end}}
 
 /* ---------------- input: joystick ---------------- */
 const joy=$('joy'),stick=$('stick'),knob=$('knob');let joyId=null,jx0=0,jy0=0;
@@ -238,24 +382,23 @@ let pinch0=0,zoom0=0;
 const pinchDist=()=>{const v=[...lookIds.values()];return v.length<2?0:Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y)};
 look.addEventListener('pointerdown',e=>{look.setPointerCapture(e.pointerId);lookIds.set(e.pointerId,{x:e.clientX,y:e.clientY});if(lookIds.size===2){pinch0=pinchDist();zoom0=camZoom}});
 look.addEventListener('pointermove',e=>{const p=lookIds.get(e.pointerId);if(!p)return;
-  if(lookIds.size>=2){p.x=e.clientX;p.y=e.clientY;const d=pinchDist();if(pinch0>0&&d>0)camZoom=THREE.MathUtils.clamp(zoom0*pinch0/d,1.4,5);return}
-  const k=0.0058*(camDist/2.6+0.35);camYaw-=(e.clientX-p.x)*k;camPitch=THREE.MathUtils.clamp(camPitch+(e.clientY-p.y)*k*0.75,-0.45,1.05);p.x=e.clientX;p.y=e.clientY;lastLook=clock.elapsedTime});
+  if(lookIds.size>=2){p.x=e.clientX;p.y=e.clientY;const d=pinchDist();if(pinch0>0&&d>0)camZoom=clamp(zoom0*pinch0/d,1.4,5);return}
+  const k=0.0058*(camDist/2.6+0.35);camYaw-=(e.clientX-p.x)*k;camPitch=clamp(camPitch+(e.clientY-p.y)*k*0.75,-0.45,1.05);p.x=e.clientX;p.y=e.clientY;lastLook=clock.elapsedTime});
 const endLook=e=>{lookIds.delete(e.pointerId);pinch0=0};look.addEventListener('pointerup',endLook);look.addEventListener('pointercancel',endLook);
-addEventListener('wheel',e=>{camZoom=THREE.MathUtils.clamp(camZoom+e.deltaY*0.002,1.4,5)},{passive:true});
+addEventListener('wheel',e=>{camZoom=clamp(camZoom+e.deltaY*0.002,1.4,5)},{passive:true});
 /* keyboard */
 addEventListener('keydown',e=>{if(e.repeat)return;keys[e.code]=true;
   if(e.code==='Space')doJump();if(e.code==='KeyC')toggleCrouch();if(e.code==='ShiftLeft')setSprint(!S.sprint);if(e.code==='KeyE')doTraverse();if(e.code==='KeyQ')doRoll();if(e.code==='KeyF')setStrafe(!S.strafe);if(e.code==='KeyV')setWalk(!S.walk);if(e.code==='KeyB')doEmote()});
 addEventListener('keyup',e=>keys[e.code]=false);
-let mouseDown=false;renderer.domElement.addEventListener('mousedown',()=>mouseDown=true);addEventListener('mouseup',()=>mouseDown=false);
 
 /* buttons */
 function bindBtn(id,fn,hold){const el=$(id);el.addEventListener('pointerdown',e=>{e.stopPropagation();el.classList.add('down');vib();fn&&fn()});const up=()=>{el.classList.remove('down');hold&&hold(false)};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',up)}
 bindBtn('bJump',doJump);bindBtn('bSprint',()=>setSprint(!S.sprint));bindBtn('bCrouch',toggleCrouch);bindBtn('bVault',doTraverse);bindBtn('bRoll',doRoll);
 bindBtn('bAim',()=>setStrafe(!S.strafe));bindBtn('bWalk',()=>setWalk(!S.walk));
 bindBtn('bCam',()=>{camYaw=S.yaw+Math.PI;camPitch=0.16;camZoom=2.8;toast('Camera reset')});
-$('bQ').textContent=HQ?'HD':'PERF';
-bindBtn('bQ',()=>{HQ=!HQ;try{localStorage.setItem('tp_q',HQ?'hd':'perf')}catch(e){}$('bQ').textContent=HQ?'HD':'PERF';applyQ();
-  sun.shadow.mapSize.set(HQ?4096:1024,HQ?4096:1024);sun.shadow.map&&sun.shadow.map.dispose();sun.shadow.map=null;toast(HQ?'High quality':'Performance mode')});bindBtn('bEmote',doEmote);
+$('bQ').textContent=QN[Q];
+bindBtn('bQ',()=>{Q=(Q+2)%3;try{localStorage.setItem('tp_q2',Q)}catch(e){}$('bQ').textContent=QN[Q];applyQ();toast({PERF:'Performance',HIGH:'High quality',ULTRA:'Ultra cinematic'}[QN[Q]])});
+bindBtn('bEmote',doEmote);
 bindBtn('bLib',()=>$('lib').classList.add('open'));bindBtn('bLibX',()=>$('lib').classList.remove('open'));
 function setSprint(v){S.sprint=v;if(v){S.crouch&&toggleCrouch();S.walk=false;$('bWalk').classList.remove('on')}$('bSprint').classList.toggle('on',v)}
 function setStrafe(v){S.strafe=v;$('bAim').classList.toggle('on',v);toast(v?'Lock-on strafe':'Free movement')}
@@ -263,35 +406,47 @@ function setWalk(v){S.walk=v;if(v)setSprint(false);$('bWalk').classList.toggle('
 
 /* ---------------- actions ---------------- */
 function busy(){return S.one&&S.one.lock&&!S.one.fadeOut}
+function carry(name,t,dirYaw){ // hand the clip's exit speed back to locomotion so motion stays continuous
+  const r1=sampleRM(name,t),r0=sampleRM(name,t-0.1);const v=Math.hypot(r1[0]-r0[0],r1[2]-r0[2])/0.1;
+  S.speed=clamp(v,0,SPEED.sprint);S.vel.set(Math.sin(dirYaw),0,Math.cos(dirYaw)).multiplyScalar(S.speed)}
 function doJump(){
   if(!S.onGround||busy())return;
   if(traverseCheck()){doTraverse();return}
   const sp=S.speed;const n=sp>6?'Jump_F_Start_Sprint_Lfoot':sp>3.2?'Jump_F_Start_Run_Lfoot':sp>0.8?'Jump_F_Start_Walk_Lfoot':'Jump_F_Start_Stand_Lfoot';
   if(S.crouch)toggleCrouch(true);
-  S.vy=6.4;S.onGround=false;S.fallStart=S.pos.y;S.airT=0;
-  playOne(n,{fadeIn:0.08,lock:false,rm:'none',onEnd:()=>{if(!S.onGround)playOne('Jump_Loop_Fall',{loop:true,lock:false,fadeIn:0.2,tag:'fall'})}});
+  S.vy=sp>3.2?6.0:5.4;S.onGround=false;S.fallStart=S.pos.y;S.airT=0;
+  const c=cutOpts(n);
+  playOne(n,{fadeIn:0.08,lock:false,rm:'none',start:c.start,end:c.start+0.55,fadeOut:0.25,onEnd:()=>{if(!S.onGround)playOne('Jump_Loop_Fall',{loop:true,lock:false,fadeIn:0.25,tag:'fall'})}});
 }
-function doRoll(){if(!S.onGround||busy())return;if(S.crouch)toggleCrouch(true);playOne('Jump_F_Land_Roll_Lfoot',{rm:'xz',fadeIn:.1,start:0.12})}
+function doRoll(){if(!S.onGround||busy())return;if(S.crouch)toggleCrouch(true);
+  const c=CUT.Roll;const y=S.yaw;
+  playOne('Jump_F_Land_Roll_Lfoot',{rm:'xz',start:c.start,end:c.end,hscale:0.62,fadeIn:.12,fadeOut:.22,tag:'roll',onEnd:()=>carry('Jump_F_Land_Roll_Lfoot',c.end-0.22,y)})}
 function doEmote(){if(!S.onGround||busy()||S.speed>0.3)return;const n=S.crouch?['Crouch_Idle_Break_v01','Crouch_Idle_Break_v02']:['Stand_Idle_Break_v01','Stand_Idle_Break_v02','Stand_Idle_Break_v03','Stand_Idle_Break_v04','Stand_Idle_Break_v05','Stand_Idle_Break_v06'];playOne(n[Math.random()*n.length|0],{lock:false,fadeIn:.3,fadeOut:.35,tag:'break'})}
 function toggleCrouch(silent){if(busy()&&!silent)return;S.crouch=!S.crouch;$('bCrouch').classList.toggle('on',S.crouch);if(S.crouch)setSprint(false);
   if(silent!==true&&S.speed<0.5&&S.onGround)playOne(S.crouch?'Transition_Stand_to_Crouch':'Transition_Crouch_to_Stand',{lock:false,fadeIn:.15,fadeOut:.25})}
-/* traversal detection */
-const fwd=new THREE.Vector3();
+
+/* traversal detection: exact ray vs box, must face the wall within ~50 degrees */
 function traverseCheck(){
   if(!S.onGround)return null;
-  fwd.set(Math.sin(S.yaw),0,Math.cos(S.yaw));
+  const fx=Math.sin(S.yaw),fz=Math.cos(S.yaw);
   let best=null;
   for(const b of boxes){
-    for(let d=0.3;d<=1.5;d+=0.1){const x=S.pos.x+fwd.x*d,z=S.pos.z+fwd.z*d;
-      if(x>b.minX&&x<b.maxX&&z>b.minZ&&z<b.maxZ){const h=b.top-S.pos.y;if(h<0.4||h>2.9)break;
-        // depth along facing
-        let depth=0;for(let e=d;e<d+3;e+=0.05){const x2=S.pos.x+fwd.x*e,z2=S.pos.z+fwd.z*e;if(x2>b.minX&&x2<b.maxX&&z2>b.minZ&&z2<b.maxZ)depth+=0.05;else break}
-        if(!best||d<best.d)best={b,d,h,depth};break}}
+    const h=b.top-S.pos.y;if(h<0.4||h>2.9)continue;
+    const r=rayBox(S.pos.x,S.pos.z,fx,fz,b);if(!r||r.t0<-0.05||r.t0>1.7)continue;
+    const cosA=-(fx*r.nx+fz*r.nz);if(cosA<0.64)continue;
+    const d=Math.max(0,r.t0*cosA);const depth=r.nx?b.maxX-b.minX:b.maxZ-b.minZ;
+    if(!best||d<best.d)best={b,d,h,depth,nx:r.nx,nz:r.nz};
   }
   if(!best)return null;
   const run=S.speed>2.6;
   if(best.h>1.35)best.type='climb';
-  else if(best.depth<0.6)best.type=(best.h<1.0&&run)?'hurdle':'vault';
+  else if(best.depth<0.6){
+    // vault only if there is free ground on the far side
+    const lx=S.pos.x-best.nx*(best.d+best.depth+0.8),lz=S.pos.z-best.nz*(best.d+best.depth+0.8);
+    const blocked=boxes.some(o=>o!==best.b&&lx>o.minX-0.3&&lx<o.maxX+0.3&&lz>o.minZ-0.3&&lz<o.maxZ+0.3&&o.top>S.pos.y+0.3);
+    if(blocked)return null;
+    best.type=(best.h<1.0&&run)?'hurdle':'vault';
+  }
   else best.type='mantle';
   best.clip={climb:run?'Traversal_Climb_Start_2_5_run_F_Lfoot':'Traversal_Climb_Start_2_5_stand_F_Lfoot',
     vault:run?'Traversal_Vault_1_0_run_F_Lfoot':'Traversal_Vault_1_0_stand_F_Lfoot',
@@ -302,16 +457,29 @@ function traverseCheck(){
 function doTraverse(){
   if(busy())return;const t=traverseCheck();if(!t){toast('No obstacle ahead');return}
   if(S.crouch)toggleCrouch(true);
-  const m=META[t.clip];const top=t.b.top;
-  // vertical scaling so the clip's climb height matches the obstacle
-  let vscale=1;if(t.type==='mantle'||t.type==='climb'){vscale=t.h/Math.max(0.5,m.dy)}
-  // horizontal: snap so obstacle edge sits where the clip expects it
-  const rmA=m.rm,H=Math.hypot(rmA[rmA.length-4],rmA[rmA.length-2])||1;
-  const need=(t.type==='vault'||t.type==='hurdle')?t.d+t.depth+0.5:t.d+0.55;
-  const hscale=THREE.MathUtils.clamp(need/H,1,2.2);
-  playOne(t.clip,{rm:'xyz',fadeIn:.1,fadeOut:.25,vscale,hscale,ignore:t.b,minY:(t.type==='mantle'||t.type==='climb')?null:0,tag:t.type,
-    onEnd:()=>{S.pos.y=groundAt(S.pos.x,S.pos.z,.3,S.pos.y+0.4);S.onGround=true;S.vy=0}});
-  S.vel.set(0,0,0);toast(t.type.toUpperCase());
+  const T=TRAV[t.clip],m=META[t.clip];
+  const fx=-t.nx,fz=-t.nz,yawT=Math.atan2(fx,fz);
+  // pick the start frame whose distance-to-wall matches ours
+  const tgt=T.W-t.d,iLead=Math.max(0,T.i0-5);let is=0;
+  while(is<iLead&&rmZ(m,is+1)<=tgt)is++;
+  let ts=is/30;if(is<iLead){const z0=rmZ(m,is),z1=rmZ(m,is+1);if(z1>z0)ts=(is+clamp((tgt-z0)/(z1-z0),0,1))/30}
+  const z0=sampleRM(t.clip,ts)[2];
+  const off=t.d-(T.W-z0); // residual: >0 stretch the approach, <0 ease back so legs never enter the wall
+  const vs=t.h/(T.over?T.H:T.dyEnd);
+  const tPk=(T.over?T.iMax:T.iTop)/30,tLd=(T.over?T.iLand:T.iEnd)/30;
+  const fEnd=rmZ(m,T.over?T.iLand:T.iEnd)-z0+off;
+  const need=T.over?t.d+t.depth+(/_run_/.test(t.clip)?1.0:0.45):t.d+0.4;
+  // after the apex: stretch if we would land on the obstacle, compress if the clip would carry us metres past it
+  const off2=T.over?clamp(need-fEnd,-1.6,1.2):Math.max(0,need-fEnd);
+  const end=Math.min(CLIPS[t.clip].duration,T.iEnd/30+0.22);
+  const w={p0:S.pos.clone(),fx,fz,z0,off,off2,ts,rampT:Math.max(0.12,T.i0/30-ts),tPk,tLd,over:T.over,vs,yaw0:S.yaw,yawT,push:0,d:t.d,top:t.b.top,b:t.b};
+  playOne(t.clip,{rm:'warp',start:ts,end,fadeIn:.14,fadeOut:.22,ignore:t.b,tag:t.type,warp:w,
+    onEnd:()=>{
+      const g=groundAt(S.pos.x,S.pos.z,.3,S.pos.y+0.4);
+      if(!T.over&&g<w.top-0.05){const f=w.d+0.4;S.pos.x=w.p0.x+fx*f;S.pos.z=w.p0.z+fz*f;S.pos.y=w.top}else S.pos.y=g;
+      S.onGround=true;S.vy=0;S.yaw=yawT;if(/_run_/.test(t.clip))carry(t.clip,end-0.22,yawT);else{S.speed=0;S.vel.set(0,0,0)}
+    }});
+  S.vel.set(0,0,0);
 }
 
 /* ---------------- animation library ---------------- */
@@ -328,13 +496,14 @@ $('lStop').onclick=()=>{if(S.one){S.one.fadeOut=true;fading.push(S.one);S.one=nu
 /* ---------------- update ---------------- */
 const tmpV=new THREE.Vector3();
 let lastGait='run';
+function wallFactor(dx,dz){ // slow down when running straight into a wall so the feet never step into it
+  let f=1;for(const b of boxes){if(b.top<S.pos.y+0.35)continue;const r=rayBox(S.pos.x,S.pos.z,dx,dz,b);if(!r||r.t0<-0.1||r.t0>1.2)continue;
+    const into=clamp(-(dx*r.nx+dz*r.nz),0,1);f=Math.min(f,1-into*(1-clamp((r.t0*into-0.36)/0.55,0,1)))}return f}
 function update(dt){
-  // gather input (keyboard overrides)
   let ix=input.x,iy=input.y,im=input.mag;
   const kx=(keys.KeyA?1:0)-(keys.KeyD?1:0),ky=(keys.KeyW?1:0)-(keys.KeyS?1:0);
   if(kx||ky){const l=Math.hypot(kx,ky);ix=-kx/l;iy=ky/l;im=1}
   if(keys.ArrowLeft)camYaw+=dt*2.2;if(keys.ArrowRight)camYaw-=dt*2.2;
-  // world move dir relative to camera
   const cf=new THREE.Vector3(-Math.sin(camYaw),0,-Math.cos(camYaw)),cr=new THREE.Vector3(Math.cos(camYaw),0,-Math.sin(camYaw)).multiplyScalar(-1);
   const wish=new THREE.Vector3().addScaledVector(cf,iy).addScaledVector(cr,-ix);
   if(wish.lengthSq()>1e-4)wish.normalize();
@@ -342,45 +511,50 @@ function update(dt){
   if(!moving&&S.sprint&&!(kx||ky)){S.sprintIdle=(S.sprintIdle||0)+dt;if(S.sprintIdle>0.35)setSprint(false)}else S.sprintIdle=0;
   const one=S.one;const locked=one&&one.lock&&!one.fadeOut;
 
-  // gait selection
   let gait=S.crouch?'crouch':(S.walk||im<0.55)?'walk':'run';
   if(S.sprint&&!S.crouch&&moving&&im>0.5)gait='sprint';
   let target=moving?SPEED[gait]*(gait==='walk'&&!S.walk?Math.max(0.45,im/0.55):1):0;
   if(gait==='run'&&!S.sprint)target=SPEED.run*THREE.MathUtils.lerp(0.75,1,(im-0.55)/0.45);
   if(!S.onGround)target=Math.min(target,S.speed+0.01);
 
-  // facing
   S.turnVel=0;
   let desiredYaw=S.yaw;
   if(S.strafe&&gait!=='sprint')desiredYaw=camYaw+Math.PI;
   else if(moving)desiredYaw=Math.atan2(wish.x,wish.z);
   if(!locked){
-    const spN=THREE.MathUtils.clamp(S.speed/SPEED.sprint,0,1);
+    const spN=clamp(S.speed/SPEED.sprint,0,1);
     const turnRate=S.onGround?THREE.MathUtils.lerp(11,gait==='sprint'?3.6:5.2,spN):2.2;
-    let dy=((desiredYaw-S.yaw+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;
-    // turn-in-place in strafe mode when idle and big delta
+    let dy=angD(desiredYaw,S.yaw);
     if(S.strafe&&!moving&&S.onGround&&Math.abs(dy)>1.2&&!(one&&!one.fadeOut)){
       const big=Math.abs(dy)>2.4,L=dy>0;const n=S.crouch?(L?'Crouch_Idle_Turn_090_L':'Crouch_Idle_Turn_090_R'):(big?(L?'Stand_Turn_180_L':'Stand_Turn_180_R'):(L?'Stand_Turn_090_L':'Stand_Turn_090_R'));
       playOne(n,{rm:'yaw',lock:true,fadeIn:.15,fadeOut:.25});
-    } else if(moving||!S.strafe){const st=THREE.MathUtils.clamp(dy*Math.min(1,turnRate*dt),-7*dt,7*dt);S.yaw+=st;S.turnVel=st/Math.max(dt,1e-4)}
+    } else if(moving||!S.strafe){const st=clamp(dy*Math.min(1,turnRate*dt),-7*dt,7*dt);S.yaw+=st;S.turnVel=st/Math.max(dt,1e-4)}
   }
-  // velocity
   if(!locked){
     const accel=moving?(S.onGround?(target>S.speed?(gait==='sprint'?3.2:5.5):7):2.5):(S.onGround?9:0.5);
-    const turnPen=moving?1-0.35*THREE.MathUtils.clamp(Math.abs(S.turnVel||0)/5,0,1)*THREE.MathUtils.clamp(S.speed/SPEED.run,0,1):1;
+    const turnPen=moving?1-0.35*clamp(Math.abs(S.turnVel||0)/5,0,1)*clamp(S.speed/SPEED.run,0,1):1;
     S.speed+= (target*turnPen-S.speed)*Math.min(1,accel*dt);
     const dir=S.strafe&&gait!=='sprint'?wish:(moving?new THREE.Vector3(Math.sin(S.yaw),0,Math.cos(S.yaw)):tmpV.copy(S.vel).setY(0).normalize());
+    if(S.onGround&&(moving||S.speed>0.05)){const wf=wallFactor(dir.x,dir.z);S.speed=Math.min(S.speed,Math.max(target*wf,S.speed*wf))}
     if(moving||S.speed>0.05)S.vel.copy(dir).multiplyScalar(S.speed);else S.vel.set(0,0,0);
-    // stop animations (free mode)
     if(!moving&&S.onGround&&!S.strafe&&S.speed>1.4&&!S.crouch&&!(one&&!one.fadeOut)){
-      const n=lastGait==='sprint'?'Sprint_Stop_F_Lfoot':lastGait==='run'?'Run_Stop_F_Lfoot':'Walk_Stop_F_Lfoot';
-      playOne(n,{rm:'xz',lock:false,fadeIn:.18,fadeOut:.3,tag:'stop'});S.speed=0;S.vel.set(0,0,0);
+      const n=lastGait==='sprint'?'Sprint_Stop_F_Lfoot':lastGait==='run'?'Run_Stop_F_Lfoot':'Walk_Stop_F_Lfoot';const c=cutOpts(n);
+      playOne(n,{rm:'xz',lock:false,start:c.start,end:c.end,fadeIn:.15,fadeOut:.3,tag:'stop'});S.speed=0;S.vel.set(0,0,0);
     }
     S.pos.addScaledVector(S.vel,dt);
   }
   if(moving)lastGait=gait;
   // one-shot root motion
-  if(one&&!one.fadeOut&&one.rm!=='none'){
+  if(one&&!one.fadeOut&&one.rm==='warp'){
+    const w=one.warp,r=sampleRM(one.name,one.t),tt=one.t;
+    let f=(r[2]-w.z0)+w.off*sm((tt-w.ts)/w.rampT)+w.off2*sm((tt-w.tPk)/Math.max(0.12,w.tLd-w.tPk))-w.push;
+    S.pos.x=w.p0.x+w.fx*f;S.pos.z=w.p0.z+w.fz*f;
+    let y=w.p0.y+r[1]*w.vs;
+    if(w.over){const g=groundAt(S.pos.x,S.pos.z,.3,y+0.3);y=Math.max(y,g)}else y=Math.max(y,w.p0.y);
+    S.pos.y=y;
+    S.yaw=w.yaw0+angD(w.yawT,w.yaw0)*sm((tt-w.ts)/0.25);
+  }
+  else if(one&&!one.fadeOut&&one.rm!=='none'){
     const r=sampleRM(one.name,one.t),l=one.lastRM;const c=Math.cos(one.yaw0),s=Math.sin(one.yaw0);
     if(one.rm!=='yaw'){const dx=(r[0]-l[0])*one.hscale,dz=(r[2]-l[2])*one.hscale;S.pos.x+=dx*c+dz*s;S.pos.z+=-dx*s+dz*c;}
     if(one.rm==='xyz'){S.pos.y=one.pos0.y+r[1]*one.vscale;const g=groundAt(S.pos.x,S.pos.z,.3,one.pos0.y+r[1]*one.vscale+0.35);if(one.minY!==null&&S.pos.y<g)S.pos.y=g}
@@ -388,14 +562,14 @@ function update(dt){
     one.lastRM=r;
   }
   // gravity & ground
-  const rmY=one&&!one.fadeOut&&one.rm==='xyz';
-  if(!rmY){
+  const rmYon=one&&!one.fadeOut&&(one.rm==='xyz'||one.rm==='warp');
+  if(!rmYon){
     const g=groundAt(S.pos.x,S.pos.z,.3,S.pos.y+0.05);
     if(!S.onGround){S.vy-=19*dt;S.pos.y+=S.vy*dt;S.airT+=dt;
       if(S.pos.y<=g&&S.vy<=0){S.pos.y=g;S.onGround=true;const fall=S.fallStart-g;
         const sp=S.speed;let n=sp>6?'Jump_F_Land_Sprint_Light_Lfoot':sp>3.2?'Jump_F_Land_Run_Light_Lfoot':sp>0.8?'Jump_F_Land_Walk_Light_Lfoot':(fall>1.2?'Jump_F_Land_Stand_Heavy_Lfoot':'Jump_F_Land_Stand_Light_Lfoot');
-        if(fall>2.2&&sp>3)n='Jump_F_Land_Roll_Lfoot';
-        playOne(n,{rm:'none',lock:n.includes('Roll'),fadeIn:.06,fadeOut:.3,start:0.05,tag:'land'});}
+        if(fall>2.2&&sp>3){const c=CUT.Roll,y0=S.yaw;playOne('Jump_F_Land_Roll_Lfoot',{rm:'xz',start:c.start,end:c.end,hscale:0.62,fadeIn:.08,fadeOut:.22,tag:'roll',onEnd:()=>carry('Jump_F_Land_Roll_Lfoot',c.end-0.22,y0)})}
+        else playOne(n,{rm:'none',lock:false,fadeIn:.06,fadeOut:.3,start:0.05,end:Math.min(CLIPS[n].duration,0.9),tag:'land'});}
     } else {
       if(S.pos.y>g+0.25){S.onGround=false;S.vy=0;S.fallStart=S.pos.y;playOne('Jump_Loop_Fall',{loop:true,lock:false,fadeIn:.25,tag:'fall'})}
       else S.pos.y+= (g-S.pos.y)*Math.min(1,dt*18);
@@ -407,65 +581,57 @@ function update(dt){
   /* ----- animation blending ----- */
   const sp=Math.hypot(S.vel.x,S.vel.z);
   const gwT={idle:0,walk:0,run:0,sprint:0,cidle:0,crouch:0};
-  if(S.crouch){const k=THREE.MathUtils.clamp(sp/0.6,0,1);gwT.cidle=1-k;gwT.crouch=k}
-  else{const k=THREE.MathUtils.clamp(sp/0.6,0,1);gwT.idle=1-k;
+  if(S.crouch){const k=clamp(sp/0.6,0,1);gwT.cidle=1-k;gwT.crouch=k}
+  else{const k=clamp(sp/0.6,0,1);gwT.idle=1-k;
     if(sp<=SPEED.walk)gwT.walk=k;
     else if(sp<=SPEED.run){const u=(sp-SPEED.walk)/(SPEED.run-SPEED.walk);gwT.walk=k*(1-u);gwT.run=k*u}
-    else{const u=THREE.MathUtils.clamp((sp-SPEED.run)/(SPEED.sprint-SPEED.run),0,1);gwT.run=k*(1-u);gwT.sprint=k*u}}
+    else{const u=clamp((sp-SPEED.run)/(SPEED.sprint-SPEED.run),0,1);gwT.run=k*(1-u);gwT.sprint=k*u}}
   for(const k in S.gw)S.gw[k]+=(gwT[k]-S.gw[k])*Math.min(1,dt*10);
-  // direction (local)
   let theta=0;if(sp>0.05){const lx=S.vel.x*Math.cos(S.yaw)-S.vel.z*Math.sin(S.yaw),lz=S.vel.x*Math.sin(S.yaw)+S.vel.z*Math.cos(S.yaw);theta=Math.atan2(lx,lz)}
-  let dd=((theta-S.dirSm+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;S.dirSm+=dd*Math.min(1,dt*8);
-  // phase sync: advance by distance / stride of the dominant gait
+  S.dirSm+=angD(theta,S.dirSm)*Math.min(1,dt*8);
   const gs=['walk','run','sprint','crouch'];let stride=0,ws=0;
   for(const g of gs){const w=S.gw[g];if(w<1e-3)continue;const c=CLIPS[GAITS[g]+'F'];stride+=w*SPEED[g]*c.duration;ws+=w}
   if(ws>1e-3){stride/=ws;S.phase=(S.phase+sp*dt/Math.max(stride,0.5))%1}
-  // one-shot weight
   let ow=0;
   if(one){one.t+=dt*one.rate;one.w=Math.min(1,one.w+dt/Math.max(one.fadeIn,0.01));
     const left=one.dur-one.t;
     if(one.loop&&one.t>=one.dur){one.t%=one.dur;one.lastRM=sampleRM(one.name,one.t);one.yaw0=S.yaw;one.pos0.copy(S.pos)}
     else if(!one.loop&&left<=one.fadeOutT){one.fadeOut=true;S.one=null;fading.push(one);one.onEnd&&one.onEnd()}
-    one.a.time=Math.min(one.t,one.dur-1e-3)}
-  // stop one-shot "fall" when grounded; cancel idle breaks/stops when moving
+    one.a.time=Math.min(one.t,CLIPS[one.name].duration-1e-3)}
   if(S.one&&S.one.tag==='fall'&&S.onGround){S.one.fadeOut=true;fading.push(S.one);S.one=null}
   if(S.one&&(S.one.tag==='break'||S.one.tag==='stop'||S.one.tag==='land')&&moving&&S.one.t>0.15){S.one.fadeOutT=0.2;S.one.fadeOut=true;fading.push(S.one);S.one=null}
   ow=S.one?S.one.w:0;
   let fadeSum=0;
-  for(let i=fading.length-1;i>=0;i--){const f=fading[i];f.t+=dt*f.rate;f.w-=dt/Math.max(f.fadeOutT,0.05);f.a.time=Math.min(f.t,f.dur-1e-3);if(f.w<=0||(S.one&&S.one.a===f.a)){if(!(S.one&&S.one.a===f.a))f.a.setEffectiveWeight(0);fading.splice(i,1)}else{f.a.setEffectiveWeight(f.w*(1-ow));fadeSum+=f.w}}
+  for(let i=fading.length-1;i>=0;i--){const f=fading[i];f.t+=dt*f.rate;f.w-=dt/Math.max(f.fadeOutT,0.05);f.a.time=Math.min(f.t,CLIPS[f.name].duration-1e-3);if(f.w<=0||(S.one&&S.one.a===f.a)){if(!(S.one&&S.one.a===f.a))f.a.setEffectiveWeight(0);fading.splice(i,1)}else{f.a.setEffectiveWeight(f.w*(1-ow));fadeSum+=f.w}}
   const base=Math.max(0,1-ow-fadeSum*(1-ow));
   if(S.one)S.one.a.setEffectiveWeight(ow);
-  // idle & loops
   const setW=(n,w,time)=>{const a=A[n];if(!a)return;a.setEffectiveWeight(w);if(time!==undefined)a.time=time};
-  const idleN=S.crouch?'Crouch_Idle_Loop':'Stand_Idle_Loop';
   S.idleT+=dt;const ic=CLIPS.Stand_Idle_Loop.duration,cc=CLIPS.Crouch_Idle_Loop.duration;
   setW('Stand_Idle_Loop',base*S.gw.idle,S.idleT%ic);setW('Crouch_Idle_Loop',base*S.gw.cidle,S.idleT%cc);
-  for(const g of gs){const w=S.gw[g];const dw=dirWeights(g==='sprint'?THREE.MathUtils.clamp(S.dirSm,-0.8,0.8):S.dirSm,g);
+  for(const g of gs){const w=S.gw[g];const dw=dirWeights(g==='sprint'?clamp(S.dirSm,-0.8,0.8):S.dirSm,g);
     const dirs=g==='sprint'?['F','FL','FR']:DIRS;
     for(const d of dirs){const n=GAITS[g]+d;const c=CLIPS[n];setW(n,base*w*(dw[d]||0),S.phase*c.duration)}}
-  // idle break auto
   if(sp<0.05&&S.onGround&&!S.one){S.idleBreak=(S.idleBreak||0)+dt;if(S.idleBreak>9){S.idleBreak=0;doEmote()}}else S.idleBreak=0;
 
-  mixer.update(0); // times are driven manually
-  model.updateMatrixWorld(true);
-  procedural(dt,sp);
-  // transform
+  mixer.update(0);
   player.position.copy(S.pos);player.rotation.y=S.yaw;
+  player.updateMatrixWorld(true);
+  procedural(dt,sp);
+  fingers(dt,sp);
+  solveBody();
+  player.position.copy(S.pos);
   blob.position.set(S.pos.x,groundAt(S.pos.x,S.pos.z,.3,S.pos.y+0.05)+0.01,S.pos.z);
-  // context button
   const t=(S.onGround&&!busy())?traverseCheck():null;$('bVault').classList.toggle('ctx',!!t);
   const cl=$('ctxLabel');cl.style.opacity=t?1:0;if(t)cl.textContent=t.type.toUpperCase()+' '+t.h.toFixed(1)+'m';
-  // HUD
   const st=!S.onGround?'AIR':S.one&&!S.one.fadeOut?S.one.tag.toUpperCase().replace(/_/g,' '):sp<0.1?(S.crouch?'CROUCH IDLE':'IDLE'):(S.crouch?'CROUCH':gait.toUpperCase());
   const html=`<b>${st}</b> · ${sp.toFixed(1)} m/s<br><span>${S.strafe?'Lock-on':'Free'} · ${S.walk?'Walk':S.sprint?'Sprint':'Jog'}</span>`;if(html!==S._hud){S._hud=html;$('state').innerHTML=html}
 }
 
-/* ---------------- procedural layer: body lean into turns, accel tilt, head look ---------------- */
-const BONE=n=>model.getObjectByName(n);
+/* ---------------- procedural layer: lean, accel tilt, head look ---------------- */
 const bSpine=BONE('spine_03'),bSpine2=BONE('spine_05'),bPelvis=BONE('pelvis'),bNeck=BONE('neck_01'),bHead=BONE('head');
 const _q1=new THREE.Quaternion(),_q2=new THREE.Quaternion(),_q3=new THREE.Quaternion(),_ax=new THREE.Vector3(),_up=new THREE.Vector3(0,1,0);
-const P={lean:0,tilt:0,look:0,lastSp:0};
-function rotWorld(bone,axis,ang){ // rotate a bone about a world-space axis, keeping the pose underneath
+const P={lean:0,tilt:0,look:0,lastSp:0,fw:1};
+function rotWorld(bone,axis,ang){
   if(!bone||Math.abs(ang)<1e-5)return;
   bone.getWorldQuaternion(_q1);bone.parent.getWorldQuaternion(_q2);
   _q3.setFromAxisAngle(axis,ang).multiply(_q1);bone.quaternion.copy(_q2.invert().multiply(_q3));bone.updateMatrixWorld(true);
@@ -473,25 +639,66 @@ function rotWorld(bone,axis,ang){ // rotate a bone about a world-space axis, kee
 function procedural(dt,sp){
   const busyOne=S.one&&!S.one.fadeOut;
   const k=busyOne?0:1;
-  // lean into the turn (bank) proportional to turn rate x speed
-  const leanT=k*THREE.MathUtils.clamp(-(S.turnVel||0)*sp*0.022,-0.26,0.26);
+  const leanT=k*clamp(-(S.turnVel||0)*sp*0.022,-0.26,0.26);
   P.lean+=(leanT-P.lean)*Math.min(1,dt*6);
-  // forward tilt when accelerating, lean back when braking
   const acc=(sp-P.lastSp)/Math.max(dt,1e-3);P.lastSp=sp;
-  const tiltT=k*THREE.MathUtils.clamp(acc*0.018,-0.12,0.14);
+  const tiltT=k*clamp(acc*0.018,-0.12,0.14);
   P.tilt+=(tiltT-P.tilt)*Math.min(1,dt*5);
   const fwdW=_ax.set(Math.sin(S.yaw),0,Math.cos(S.yaw));
   rotWorld(bPelvis,fwdW,P.lean*0.45);
   rotWorld(bSpine,fwdW,P.lean*0.4);
   const rightW=new THREE.Vector3(Math.cos(S.yaw),0,-Math.sin(S.yaw));
   rotWorld(bSpine,rightW,P.tilt);
-  // head/neck follow the camera view direction (like GTA) when not sprinting
-  const camFwdYaw=camYaw+Math.PI;
-  let d=((camFwdYaw-S.yaw+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;
+  let d=angD(camYaw+Math.PI,S.yaw);
   const allow=k*(S.sprint?0.25:1)*(Math.abs(d)<2.1?1:0);
-  const lookT=THREE.MathUtils.clamp(d,-1.05,1.05)*allow;
+  const lookT=clamp(d,-1.05,1.05)*allow;
   P.look+=(lookT-P.look)*Math.min(1,dt*4);
   rotWorld(bSpine2,_up,P.look*0.2);rotWorld(bNeck,_up,P.look*0.3);rotWorld(bHead,_up,P.look*0.35);
+}
+/* fingers: drive each joint towards a natural relaxed curl (index least, pinky most); tighter when running */
+const FT={index:[.26,.40,.26],middle:[.34,.50,.32],ring:[.42,.56,.36],pinky:[.50,.60,.40]};
+const _fa=new THREE.Vector3(),_fb=new THREE.Vector3(),_fc=new THREE.Vector3(),_fn=new THREE.Vector3(),_fs=new THREE.Vector3(),_ff=new THREE.Vector3(),_pd=new THREE.Vector3(),_dir=new THREE.Vector3(),_axs=new THREE.Vector3(),_fq=new THREE.Quaternion(),_cx=new THREE.Vector3();
+function fingers(dt,sp){
+  const grip=S.one&&!S.one.fadeOut&&/vault|hurdle|mantle|climb|roll|preview/.test(S.one.tag);
+  P.fw+=((grip?0:1)-P.fw)*Math.min(1,dt*6);if(P.fw<0.02)return;
+  const runK=clamp((sp-1.6)/4,0,1)*0.32;
+  for(const H of FING){
+    H.hand.getWorldPosition(_fa);H.mid.getWorldPosition(_fb);H.idx.getWorldPosition(_fc);H.pk.getWorldPosition(_fs);
+    _ff.subVectors(_fb,_fa).normalize();
+    if(H.s==='l')_fs.subVectors(_fc,_fs);else _fs.sub(_fc);
+    _fn.crossVectors(_ff,_fs).normalize(); // palm normal
+    for(const c of H.chains){
+      c.bs[0].getWorldPosition(_fb);_pd.subVectors(_fb,_fa).normalize();
+      for(let k=0;k<3;k++){const bn=c.bs[k];
+        _dir.copy(c.L[k]).applyQuaternion(bn.getWorldQuaternion(_fq));
+        _axs.crossVectors(_pd,_fn);if(_axs.lengthSq()<1e-6)break;_axs.normalize();
+        const flex=Math.atan2(_cx.crossVectors(_pd,_dir).dot(_axs),_pd.dot(_dir));
+        const target=FT[c.f][k]+runK*(k===0?1:1.25);
+        const delta=clamp((target-flex)*P.fw*0.85,-0.7,0.7);
+        rotWorld(bn,_axs,delta);
+        _pd.copy(_dir.applyAxisAngle(_axs,delta));
+      }
+    }
+  }
+}
+/* body-vs-box solver: during one-shots (traversal, roll, landing, stop) no limb may end up inside a box */
+const SOLV=['head','hand_l','hand_r','lowerarm_l','lowerarm_r','foot_l','foot_r','ball_l','ball_r','calf_l','calf_r','pelvis','spine_03'].map(BONE).filter(Boolean);
+const _sv=new THREE.Vector3();
+function solveBody(){
+  const one=S.one&&!S.one.fadeOut?S.one:null;if(!one)return;
+  let pushW=0,px=0,pz=0;const r=0.06;
+  for(const bn of SOLV){bn.getWorldPosition(_sv);
+    for(const b of boxes){
+      if(_sv.y>=b.top-0.06||_sv.x<b.minX-r||_sv.x>b.maxX+r||_sv.z<b.minZ-r||_sv.z>b.maxZ+r)continue;
+      if(one.warp&&b===one.warp.b){const w=one.warp;if(w.over&&one.t>w.tPk-0.15)continue; // legs swinging over the top
+const s=(_sv.x-w.p0.x)*w.fx+(_sv.z-w.p0.z)*w.fz;const pen=s-(w.d-w.push)+r;
+        // only limbs on the near side of the wall count (legs that already went over are fine)
+        if(pen>0&&pen<0.6)pushW=Math.max(pushW,pen);continue}
+      const ox1=_sv.x-(b.minX-r),ox2=(b.maxX+r)-_sv.x,oz1=_sv.z-(b.minZ-r),oz2=(b.maxZ+r)-_sv.z;const mn=Math.min(ox1,ox2,oz1,oz2);
+      if(mn===ox1)px=Math.min(px,-ox1);else if(mn===ox2)px=Math.max(px,ox2);else if(mn===oz1)pz=Math.min(pz,-oz1);else pz=Math.max(pz,oz2);
+    }}
+  if(pushW>0){const w=one.warp;const st=Math.min(pushW,0.12);w.push+=st;S.pos.x-=w.fx*st;S.pos.z-=w.fz*st}
+  const l=Math.hypot(px,pz);if(l>0){const k=Math.min(l,0.12)/l;S.pos.x+=px*k;S.pos.z+=pz*k}
 }
 
 /* camera */
@@ -500,45 +707,44 @@ const _cp=new THREE.Vector3(),_cr=new THREE.Vector3(),_ct=new THREE.Vector3();
 function camBlocked(x,y,z){for(const b of boxes){if(x>b.minX-0.15&&x<b.maxX+0.15&&z>b.minZ-0.15&&z<b.maxZ+0.15&&y<b.top+0.15)return true}return false}
 function updateCam(dt){
   const sp=Math.hypot(S.vel.x,S.vel.z),t=clock.elapsedTime;
-  // over-the-shoulder framing: close, chest/head height, slightly right
   const h=S.crouch?0.95:1.22;
   camTarget.x+= (S.pos.x-camTarget.x)*(1-Math.exp(-dt*14));
   camTarget.z+= (S.pos.z-camTarget.z)*(1-Math.exp(-dt*14));
   camTarget.y+= (S.pos.y+h-camTarget.y)*(1-Math.exp(-dt*(S.onGround?9:4)));
-  // auto-recenter behind the player while running, after the thumb leaves the look area (GTA style)
   if(sp>1.2&&!S.strafe&&t-lastLook>1.4&&lookIds.size===0&&!(S.one&&!S.one.fadeOut)){
-    const want=S.yaw+Math.PI;let d=((want-camYaw+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;
-    camYaw+=d*Math.min(1,dt*1.4*THREE.MathUtils.clamp(sp/SPEED.run,0.3,1.3));
+    const d=angD(S.yaw+Math.PI,camYaw);
+    camYaw+=d*Math.min(1,dt*1.4*clamp(sp/SPEED.run,0.3,1.3));
     camPitch+=(0.16-camPitch)*Math.min(1,dt*0.8);
   }
-  // distance & FOV react to speed (pull back + widen when sprinting)
-  const sprintK=THREE.MathUtils.clamp((sp-SPEED.run)/(SPEED.sprint-SPEED.run),0,1);
+  const sprintK=clamp((sp-SPEED.run)/(SPEED.sprint-SPEED.run),0,1);
   const wantDist=camZoom*(1+0.18*sprintK)*(S.strafe?0.85:1);
   const fov=55+8*sprintK;camera.fov+=(fov-camera.fov)*Math.min(1,dt*3);camera.updateProjectionMatrix();
-  const sh=S.strafe?0.48:0.36; // shoulder offset
+  const sh=S.strafe?0.48:0.36;
   const cp=Math.cos(camPitch);
   _cr.set(Math.cos(camYaw),0,-Math.sin(camYaw));
   _ct.copy(camTarget).addScaledVector(_cr,sh);
   const dir=new THREE.Vector3(Math.sin(camYaw)*cp,Math.sin(camPitch),Math.cos(camYaw)*cp);
-  // collision: pull the camera in if a box is between the player and the camera
   let dist=wantDist;for(let d=0.4;d<=wantDist;d+=0.1){_cp.copy(_ct).addScaledVector(dir,d);if(camBlocked(_cp.x,_cp.y,_cp.z)){dist=Math.max(0.6,d-0.2);break}}
   camDist+= (dist-camDist)*Math.min(1,dt*(dist<camDist?18:4));
   const pos=_cp.copy(_ct).addScaledVector(dir,camDist);
-  // subtle handheld bob while moving
   const bob=Math.min(sp/SPEED.sprint,1)*0.018;pos.y+=Math.sin(t*9.5)*bob;pos.addScaledVector(_cr,Math.sin(t*4.75)*bob*0.6);
   pos.y=Math.max(pos.y,S.pos.y+0.25,0.2);
   camera.position.copy(pos);camera.lookAt(_ct);
-  sun.position.set(S.pos.x+6,S.pos.y+10,S.pos.z+4);sun.target.position.copy(S.pos);
-  rim.position.set(S.pos.x-4-Math.sin(camYaw)*0,S.pos.y+3,S.pos.z-6);rim.target.position.copy(S.pos);
+  // shadow frustum follows the player, snapped to texels to avoid shimmering
+  const ts=20/sun.shadow.mapSize.x;const sx=Math.round(S.pos.x/ts)*ts,sz=Math.round(S.pos.z/ts)*ts;
+  sun.position.set(sx+sunDir.x*30,S.pos.y+sunDir.y*30,sz+sunDir.z*30);sun.target.position.set(sx,S.pos.y,sz);
+  rim.position.set(S.pos.x-sunDir.x*8,S.pos.y+3,S.pos.z-sunDir.z*8);rim.target.position.copy(S.pos);
 }
-camYaw=Math.PI; // camera behind player (player faces +Z)
+camYaw=Math.PI;
 
 const clock=new THREE.Clock();
-function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),0.05);update(dt);updateCam(dt);renderer.render(scene,camera)}
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),0.05);update(dt);if(!window.__fc)updateCam(dt);else window.__fc(camera,S);
+  if(composer){grade.uniforms.time.value=clock.elapsedTime%100;composer.render(dt)}else renderer.render(scene,camera)}
 function fitHud(){const k=Math.min(1.15,Math.max(0.6,(innerHeight-70)/270),innerWidth/700);$('btns').style.transform=`scale(${k.toFixed(3)})`;$('ctxLabel').style.bottom=`calc(env(safe-area-inset-bottom) + ${Math.round(14+262*k)}px)`}
 fitHud();
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);fitHud()});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(composer){composer.setSize(innerWidth,innerHeight);gtao&&gtao.setSize(innerWidth,innerHeight)}fitHud()});
 bar.style.width='100%';setTimeout(()=>{$('load').style.opacity=0;setTimeout(()=>$('load').remove(),500)},200);
+window.__dbg={S,boxes,TRAV,CUT,doTraverse,traverseCheck,doRoll,setSprint,keys,get one(){return S.one},player,model,BONE};
 loop();
 </script>
 </body>
