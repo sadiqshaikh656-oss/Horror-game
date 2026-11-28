@@ -1220,6 +1220,7 @@ function update(dt){
   for(const n in RW)setW(n,RW[n],RT[n]);
   if(sp<0.05&&S.onGround&&!S.one){S.idleBreak=(S.idleBreak||0)+dt;if(S.idleBreak>9){S.idleBreak=0;doEmote()}}else S.idleBreak=0;
 
+  if(S.car&&S.carState==='drive'){for(const n in A)A[n].setEffectiveWeight(0);if(A.Car_Sit)A.Car_Sit.setEffectiveWeight(1)} // the frame the enter clip hands over: straight to the seated pose
   mixer.update(0);
   player.position.copy(S.pos);player.rotation.y=S.yaw;
   player.updateMatrixWorld(true);seatAdjust();
@@ -1228,6 +1229,7 @@ function update(dt){
   handIK(dt);
   fingers(dt,sp);
   gunFingers();
+  carHandsPost(dt);
   twistFix();
   solveBody();
   player.position.copy(S.pos);if(S.car)player.position.y+=S.carYOff||0;
@@ -1254,7 +1256,7 @@ const _tq=new THREE.Quaternion(),_tq2=new THREE.Quaternion();
 const TWL=[];for(const s of ['l','r']){const T=BONE('thigh_'+s),TT=BONE('thigh_twist_01_'+s);if(T&&TT&&TT.parent===T.parent)TWL.push({T,TT,off:T.quaternion.clone().invert().multiply(TT.quaternion),tr:T.quaternion.clone()})}
 const _twX=new THREE.Vector3(1,0,0);
 function twistAngle(q){return 2*Math.atan2(q.x,q.w)} // twist about local X (bone axis)
-function twistFix(){const w=RIFLE?G.w:0;if(w<0.01)return;
+function twistFix(){const w=Math.max(RIFLE?G.w:0,S.car?1:0);if(w<0.01)return;
   for(const L of TWL){_tq.copy(L.tr).invert().multiply(L.T.quaternion);let u=twistAngle(_tq);if(u>Math.PI)u-=2*Math.PI;if(u<-Math.PI)u+=2*Math.PI;
     _tq2.setFromAxisAngle(_twX,-clamp(u,-1.2,1.2)*0.5);_tq.copy(L.T.quaternion).multiply(L.off).multiply(_tq2);L.TT.quaternion.slerp(_tq,w);L.TT.updateMatrixWorld(true)}
   for(const T of TWB){
@@ -1902,10 +1904,10 @@ function gunUpdate(dt){
    from the car's own rig, 2D SAT collisions against the city boxes and the other cars, ground following on 4 wheels. */
 const CARDEF={
   venom:{id:'car_venom',name:'Venom GT',scale:1,maxV:64,acc:10.5,brake:17,rev:8,steer:0.56,grip:1.3,wr:0.36,
-    seat:[0.36,0.30,-0.2],swc:[0.36,0.70,0.22],swr:0.165,swTilt:0.42,door:-1.2,
+    seat:[0.28,0.30,-0.08],swc:[0.28,0.73,0.44],swr:0.165,swTilt:-0.32,door:-1.2, /* wheel measured from the cockpit geometry */
     nodes:{wheels:[['DEF-WheelFtL_5',1],['DEF-WheelFtR_7',1],['DEF-WheelBkL_9',0],['DEF-WheelBkR_11',0]],calipers:['DEF-WheelBrakeFtL_13','DEF-WheelBrakeFtR_15'],door:'door_lf_ok_0',sw:null}},
   impala:{id:'car_impala',name:'Impala',scale:9.3,maxV:48,acc:7.5,brake:13,rev:6,steer:0.6,grip:1.0,wr:0.36,
-    seat:[0.38,0.66,0.08],swc:[0.38,0.95,0.56],swr:0.19,swTilt:0.5,door:-1.15,
+    seat:[0.38,0.66,0.13],swc:[0.384,0.962,0.552],swr:0.187,swTilt:-0.48,door:-1.15, /* circle-fit of the steering wheel mesh */
     nodes:{wheels:[['FL_04',1],['FR_03',1],['RL_06',0],['RR_05',0]],calipers:[],door:'FL_Door_09',sw:'SteeringWheel_07'}}};
 const CARS=[];const _cv=new THREE.Vector3(),_cv2=new THREE.Vector3(),_cq=new THREE.Quaternion(),_cq2=new THREE.Quaternion(),_ce=new THREE.Euler(0,0,0,'YXZ'),_cm=new THREE.Matrix4();
 let carReady=false;
@@ -1947,8 +1949,8 @@ function carGround(c,snap){
   const fl=g(hz,hx),fr=g(hz,-hx),bl=g(-hz,hx),br=g(-hz,-hx);
   const gy=(fl+fr+bl+br)/4,tp=Math.atan2((bl+br)-(fl+fr),2*c.wb),tr=Math.atan2((fr+br)-(fl+bl),2*c.track);
   if(snap){c.pos.y=gy;c.pitch=tp;c.roll=tr;return}
-  if(c.pos.y>gy+0.05){c.vy-=19*FIXDT;c.pos.y+=c.vy*FIXDT;if(c.pos.y<=gy){c.pos.y=gy;c.vy=0}}else{c.pos.y+=(gy-c.pos.y)*Math.min(1,FIXDT*18);c.vy=0}
-  c.pitch+=(tp-c.pitch)*Math.min(1,FIXDT*10);c.roll+=(tr-c.roll)*Math.min(1,FIXDT*10)}
+  if(c.pos.y>gy+0.08){c.vy-=19*FIXDT;c.pos.y+=c.vy*FIXDT;if(c.pos.y<=gy){c.pos.y=gy;c.vy=0}}else{c.pos.y+=(gy-c.pos.y)*Math.min(1,FIXDT*12);c.vy=0}
+  c.pitch+=(tp-c.pitch)*Math.min(1,FIXDT*7);c.roll+=(tr-c.roll)*Math.min(1,FIXDT*7)}
 let FIXDT=1/60;
 function carPose(c){
   c.root.position.copy(c.pos);_ce.set(c.pitch+c.bp,c.yaw,c.roll+c.br);c.root.quaternion.setFromEuler(_ce);c.root.updateMatrixWorld(true);
@@ -1976,17 +1978,24 @@ function carCollide(c){
   return hit}
 function carImpact(c,nx,nz){ // kill the velocity into the wall, keep (some of) the slide along it
   const f=carFwd(c,_cv),l=carLeft(c,_cv2);let vx=f.x*c.speed+l.x*c.lat,vz=f.z*c.speed+l.z*c.lat;const vn=vx*nx+vz*nz;if(vn>=0)return 0;
-  vx-=nx*vn*1.25;vz-=nz*vn*1.25;vx*=0.85;vz*=0.85;c.speed=vx*f.x+vz*f.z;c.lat=vx*l.x+vz*l.z;c.yr*=0.5;return -vn}
+  vx-=nx*vn*1.08;vz-=nz*vn*1.08;vx*=0.8;vz*=0.8; /* small bounce only */c.speed=vx*f.x+vz*f.z;c.lat=vx*l.x+vz*l.z;c.yr*=0.5;return -vn}
 /* one physics step: throttle t (-1..1), steer s (-1..1, + = left), handbrake hb */
 function carStep(c,t,s,hb,dt){
   const d=c.d,v=c.speed,av=Math.abs(v);
   const maxSt=d.steer/(1+av/20);c.steer+=(s*maxSt-c.steer)*Math.min(1,dt*(s?5:7));
+  // throttle / brake / reverse: braking never flips straight into reverse - the car has to stop (and hold) first, like GTA
+  c.stopT=(v<0.3&&t<0)?(c.stopT||0)+dt:0;
   let a=0;
   if(t>0)a=v>-0.5?t*d.acc*(1-Math.pow(clamp(v/d.maxV,0,1),1.6)):t*d.brake;
-  else if(t<0)a=v>0.5?t*d.brake:(v>-d.maxV*0.3?t*d.rev:0);
-  a-=v*0.035+0.00075*v*av+(av>0.05?Math.sign(v)*0.35:0);
+  else if(t<0)a=v>0.3?t*d.brake:(c.stopT>0.25&&v>-d.maxV*0.3?t*d.rev*(1-clamp(-v/(d.maxV*0.3),0,1)):0);
+  const drag=v*0.035+0.00075*v*av+(av>0.05?Math.sign(v)*0.35:0)+(!t&&av>0.05?Math.sign(v)*1.6:0); // + engine braking when off the throttle
+  a-=drag;
   if(hb)a-=Math.sign(v)*Math.min(av/dt,7);
-  c.speed+=a*dt;if(!t&&av<0.25&&!hb)c.speed*=Math.max(0,1-dt*6);c.acc+=(a-c.acc)*Math.min(1,dt*6);
+  const v0=c.speed;c.speed+=a*dt;
+  if(v0>0&&c.speed<0&&!(t<0&&c.stopT>0.25))c.speed=0;   // brakes / drag stop at zero, reverse engages after a short hold
+  if(v0<0&&c.speed>0&&!(t>0&&v0>-0.5))c.speed=0;
+  if(!t&&Math.abs(c.speed)<0.4)c.speed=0;              // no creeping when idle
+  c.acc+=(a-c.acc)*Math.min(1,dt*5);
   // tyre grip limits the turn; past the limit (or on the handbrake) the rear steps out and the car slides
   const want=c.speed*Math.tan(c.steer)/Math.max(c.wb,1),gripA=d.grip*9.8*(hb?0.42:1),lim=gripA/Math.max(av,1.5);
   const yrT=hb&&av>6?want*1.35:clamp(want,-lim,lim);c.yr+=(yrT-c.yr)*Math.min(1,dt*(hb?3:7));
@@ -1996,7 +2005,9 @@ function carStep(c,t,s,hb,dt){
   c.pos.x+=(f.x*c.speed+l.x*c.lat)*dt;c.pos.z+=(f.z*c.speed+l.z*c.lat)*dt;
   c.spin+=c.speed/d.wr*dt;
   // body: squat / dive with acceleration, lean out of the turn
-  c.bp+=(clamp(-c.acc*0.006,-0.05,0.05)-c.bp)*Math.min(1,dt*6);c.br+=(clamp(c.yr*av*0.004,-0.06,0.06)-c.br)*Math.min(1,dt*6);
+  // suspension: damped springs for pitch (squat / dive) and roll (lean out of the turn)
+  const sp=(x,vv,tg)=>{const k=55,dmp=2*Math.sqrt(k)*0.65;vv+=(k*(tg-x)-dmp*vv)*dt;return [x+vv*dt,vv]};
+  [c.bp,c.bpv]=sp(c.bp,c.bpv||0,clamp(-c.acc*0.0055,-0.045,0.045));[c.br,c.brv]=sp(c.br,c.brv||0,clamp(c.yr*av*0.0035,-0.055,0.055));
   const hit=carCollide(c);carGround(c,0);return hit}
 /* ---------------- getting in / driving / getting out ---------------- */
 const CARIN={open:[0.17,0.33],close:[0.73,0.87]},CAROUT={open:[0.05,0.2],close:[0.8,0.94]};
@@ -2008,23 +2019,25 @@ function enterCar(c){
   if(S.car||!c||!S.onGround||busy()||!CLIPS.Car_Enter)return;
   S.carWasArmed=G.eq;if(G.eq)setWeapon('melee');setSprint(false);if(S.crouch)toggleCrouch(true);S.aim=false;S.strafe=false;
   const e=rmEnd('Car_Enter');const y0=c.yaw-e[3],cs=Math.cos(y0),sn=Math.sin(y0);const sr=seatRoot(c,new THREE.Vector3());
-  S.car=c;S.carState='approach';S.carT=0;S.carFrom={x:S.pos.x,z:S.pos.z,yaw:S.yaw};S.carTo={x:sr.x-(e[0]*cs+e[2]*sn),z:sr.z-(-e[0]*sn+e[2]*cs),yaw:y0};S.carYOff=0;c.driven=true;
+  S.car=c;S.carState='approach';S.carT=0;S.carFrom={x:S.pos.x,z:S.pos.z,yaw:S.yaw};S.carTo={x:sr.x-(e[0]*cs+e[2]*sn),z:sr.z-(-e[0]*sn+e[2]*cs),yaw:y0};S.carDur=0.2+0.3*Math.hypot(S.carTo.x-S.pos.x,S.carTo.z-S.pos.z);S.carYOff=0;c.driven=true;
   S.speed=0;S.vel.set(0,0,0)}
-function startDrive(){const c=S.car;if(!c)return;S.carState='drive';S.one=null;fading.length=0;document.body.classList.add('driving');$('bBrake').classList.add('show');engine(true)}
+function startDriveT(){}
+function startDrive(){S.doorHand=null;const c=S.car;if(!c)return;S.carState='drive';S.one=null;for(const f of fading)f.a.setEffectiveWeight(0);fading.length=0;S.steerW=0;document.body.classList.add('driving');$('bBrake').classList.add('show');engine(true)}
 function exitCar(){const c=S.car;if(!c||S.carState!=='drive')return;if(Math.abs(c.speed)>1.6){S.exitReq=true;return} // GTA: brake to a stop, then get out
   S.exitReq=false;
   c.speed=0;c.lat=0;c.yr=0;S.carState='exit';document.body.classList.remove('driving');$('bBrake').classList.remove('show');engine(false);
   seatRoot(c,_cv);S.pos.set(_cv.x,c.pos.y,_cv.z);S.yaw=c.yaw;S.vel.set(0,0,0);S.speed=0;S.onGround=true;
   for(const n in A)A[n].setEffectiveWeight(0);
+  S.steerW=1;S.doorHand=null;
   playOne('Car_Exit',{rm:'xz',lock:true,fadeIn:0.01,fadeOut:0.3,tag:'carout',onEnd:()=>{const cc=S.car;S.car=null;S.carState=null;if(cc){cc.driven=false;cc.door=0}S.carYOff=0;if(S.carWasArmed)setWeapon('smg')}});
   if(S.one){S.one.w=1;S.one.yaw0=S.yaw}}
 /* called at the top of update(): returns true while driving (the whole frame is handled here) */
 function carHook(dt){
   if(!S.car)return false;const c=S.car;
-  if(S.carState==='approach'){S.carT+=dt/0.35;const k=Math.min(1,S.carT),e=k*k*(3-2*k);
+  if(S.carState==='approach'){S.carT+=dt/(S.carDur||0.35);const k=Math.min(1,S.carT),e=k*k*(3-2*k);
     S.pos.x=S.carFrom.x+(S.carTo.x-S.carFrom.x)*e;S.pos.z=S.carFrom.z+(S.carTo.z-S.carFrom.z)*e;S.yaw=S.carFrom.yaw+angD(S.carTo.yaw,S.carFrom.yaw)*e;
     if(k>=1){S.pos.x=S.carTo.x;S.pos.z=S.carTo.z;S.yaw=S.carTo.yaw;S.carState='enter';
-      playOne('Car_Enter',{rm:'xz',lock:true,fadeIn:0.25,fadeOut:0.3,tag:'carin',onEnd:startDrive})}
+      playOne('Car_Enter',{rm:'xz',lock:true,fadeIn:0.25,fadeOut:0.04,tag:'carin',onEnd:startDrive})}
     return false}
   if(S.carState==='enter'||S.carState==='exit'){const o=S.one&&(S.one.tag==='carin'||S.one.tag==='carout')?S.one:null;
     if(o){const u=o.t/o.dur,W=S.carState==='enter'?CARIN:CAROUT;c.door=u<W.open[0]?0:u<W.open[1]?sm((u-W.open[0])/(W.open[1]-W.open[0])):u<W.close[0]?1:u<W.close[1]?1-sm((u-W.close[0])/(W.close[1]-W.close[0])):0;
@@ -2040,8 +2053,8 @@ function carHook(dt){
   // Michael in the driver's seat
   S.carSeatK=1;seatRoot(c,_cv);S.pos.set(_cv.x,c.pos.y,_cv.z);S.yaw=c.yaw;const f=carFwd(c,_cv2);S.vel.set(f.x*c.speed,0,f.z*c.speed);S.speed=Math.abs(c.speed);S.onGround=true;
   for(const n in A)A[n].setEffectiveWeight(0);if(A.Car_Sit)A.Car_Sit.setEffectiveWeight(1);mixer.update(0);
-  seatRoot(c,player.position);player.quaternion.copy(c.root.quaternion);player.position.y+=S.carYOff||0;player.updateMatrixWorld(true);
-  steerHands(c);
+  seatRoot(c,player.position);player.quaternion.copy(c.root.quaternion);player.updateMatrixWorld(true);seatAdjust();
+  S.steerW=Math.min(1,(S.steerW||0)+dt*3);steerHands(c,sm(S.steerW));twistFix();
   updatePickups(dt);drawMap();
   for(const G2 of GARDENS){const d2=Math.hypot(camera.position.x-G2.L.x,camera.position.z-G2.L.z);G2.grp.visible=d2<170;if(G2.grp.visible)for(const ch of G2.grp.children)if(ch.userData.far)ch.visible=d2<ch.userData.far}
   $('speedo').firstChild.nodeValue=Math.round(Math.abs(c.speed)*3.6);engineTick(c);
@@ -2051,22 +2064,49 @@ function seatAdjust(){const c=S.car;if(!c)return;const k=S.carSeatK||0;bPelvis.g
   const raw=want-_cv.y;S.carYOff=raw*k;player.position.y+=S.carYOff;player.updateMatrixWorld(true)}
 /* both hands on the steering wheel at ten-to-two; the rim (and the hands) turn with the steering */
 const _sw=new THREE.Vector3(),_sa=new THREE.Vector3(),_su=new THREE.Vector3(),_sl=new THREE.Vector3(),_sp=new THREE.Vector3();
-function steerHands(c){const d=c.d;carLocalToWorld(c,d.swc[0],d.swc[1],d.swc[2],_sw);
+function steerHands(c,W=1){if(W<0.005)return;const d=c.d;carLocalToWorld(c,d.swc[0],d.swc[1],d.swc[2],_sw);
+  // reach: lean the chest towards the wheel just enough that both shoulders are within comfortable arm's reach of the rim
+  {const lat=new THREE.Vector3(1,0,0).applyQuaternion(c.root.quaternion);if(!G.armL){IKS[0].U.getWorldPosition(_a);IKS[0].L.getWorldPosition(_b);IKS[0].H.getWorldPosition(_c);G.armL=_a.distanceTo(_b)+_b.distanceTo(_c)}
+    for(let it=0;it<2;it++){const dl=bShL.getWorldPosition(_a).distanceTo(_sw),dr=bShR.getWorldPosition(_b).distanceTo(_sw);const need=Math.max(dl,dr)-(G.armL*0.88+d.swr*0.55);
+      if(need<=0.005)break;const lean=clamp(need/0.55,0,0.3)*W;rotWorld(bSpine,lat,lean*0.45);rotWorld(bSpine2,lat,lean*0.55);rotWorld(bHead,lat,-lean*0.6)}}
   const f=_sa.set(0,0,1).applyQuaternion(c.root.quaternion),up=_su.set(0,1,0).applyQuaternion(c.root.quaternion),lf=_sl.set(1,0,0).applyQuaternion(c.root.quaternion);
-  // wheel plane tilted back towards the driver
+  // wheel plane tilted back towards the driver: n = wheel axis (away from the driver), wu = 12 o'clock on the rim
   const n=new THREE.Vector3().copy(f).multiplyScalar(Math.cos(d.swTilt)).addScaledVector(up,Math.sin(d.swTilt)).normalize(),wu=new THREE.Vector3().copy(up).multiplyScalar(Math.cos(d.swTilt)).addScaledVector(f,-Math.sin(d.swTilt)).normalize();
   const rot=c.steer*2.6;
-  for(const [side,k,ang] of [['l',0,-1.0],['r',1,1.0]]){const a=ang+rot;
-    const rad=new THREE.Vector3().copy(wu).multiplyScalar(Math.cos(a)).addScaledVector(lf,-Math.sin(a)).normalize(); // + = towards the driver's right
-    const p=_sp.copy(_sw).addScaledVector(rad,d.swr);
-    const tang=new THREE.Vector3().crossVectors(n,rad).normalize(); // along the rim
-    const fT=new THREE.Vector3().copy(n).multiplyScalar(0.55).addScaledVector(rad,-0.45).normalize(),sT=(side==='l'?tang.clone().negate():tang.clone());
-    const sh=(side==='l'?bShL:bShR).getWorldPosition(new THREE.Vector3());const pole=sh.clone().addScaledVector(up,-0.6).addScaledVector(lf,side==='l'?0.6:-0.6);
-    placeHand(side,IKS[k],p.clone(),fT,sT,pole,1)}
-  wheelFingers();if(c.swN){c.swN.o.quaternion.copy(c.swN.rest).multiply(_cq2.setFromAxisAngle(c.swN.az,rot));c.swN.o.updateMatrixWorld(true)}}
-function wheelFingers(){for(const H of FING){if(!H.chains[0]||!H.chains[0].J)continue;
-  for(const c of H.chains){const t=[0.95,1.0,0.6];for(let k=0;k<3;k++){const J=c.J[k];_gq.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,t[k]));c.bs[k].quaternion.copy(_gq)}c.bs[0].updateMatrixWorld(true)}
-  if(H.th&&H.thJ){const tb=[0.1,0.35,0.4];for(let k=0;k<3;k++){const J=H.thJ[k];H.th[k].quaternion.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,tb[k]))}H.th[0].updateMatrixWorld(true)}}}
+  for(const [side,k,ang] of [['l',0,-1.05],['r',1,1.05]]){ // 10-to-2 (hands ride the rim while steering, like GTA V)
+    const a=ang+rot;const rad=new THREE.Vector3().copy(wu).multiplyScalar(Math.cos(a)).addScaledVector(lf,-Math.sin(a)).normalize();
+    // the palm sits on the driver side of the rim, slightly outside it, so the fingers wrap over the top and round the back
+    const p=_sp.copy(_sw).addScaledVector(rad,d.swr+0.012).addScaledVector(n,-0.022);
+    const tang=new THREE.Vector3().crossVectors(n,rad).normalize();
+    const fT=new THREE.Vector3().copy(n).multiplyScalar(0.62).addScaledVector(rad,-0.5).addScaledVector(wu,0.1).normalize();
+    const sT=(side==='l'?tang.clone():tang.clone().negate()); // index side towards 12 o'clock, palm facing the wheel centre
+    const sh=(side==='l'?bShL:bShR).getWorldPosition(new THREE.Vector3());
+    const pole=sh.clone().addScaledVector(up,-0.75).addScaledVector(lf,side==='l'?0.45:-0.45).addScaledVector(f,-0.1); // elbows down and slightly out
+    placeHand(side,IKS[k],p.clone(),fT,sT,pole,W);
+    wheelFingers(side,W,new THREE.Vector3().copy(tang).multiplyScalar(side==='l'?-1:1).multiplyScalar(-0.75).addScaledVector(n,-0.45).normalize())}
+  if(c.swN){c.swN.o.quaternion.copy(c.swN.rest).multiply(_cq2.setFromAxisAngle(c.swN.az,rot));c.swN.o.updateMatrixWorld(true)}}
+/* fingers close round the rim (only about each joint's own flexion axis - no twist); the thumb wraps the inside of the rim */
+function wheelFingers(side,W,thDir){for(const H of FING){if(H.s!==side||!H.chains[0]||!H.chains[0].J)continue;
+  for(const c of H.chains){const t=c.f==='index'?[0.85,1.05,0.55]:c.f==='pinky'?[1.05,1.0,0.5]:[0.95,1.05,0.55];for(let k=0;k<3;k++){const J=c.J[k];_gq.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,t[k]));c.bs[k].quaternion.slerp(_gq,W)}c.bs[0].updateMatrixWorld(true)}
+  if(H.th&&H.thJ){const tb=[0.1,-0.35,-0.45];for(let k=0;k<3;k++){const J=H.thJ[k];_gq.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,tb[k]));H.th[k].quaternion.slerp(_gq,W)}H.th[0].updateMatrixWorld(true);
+    if(thDir){H.th[0].getWorldPosition(_gv);H.th[1].getWorldPosition(_gv2);_gv2.sub(_gv).normalize();rotFromTo(H.th[0],_gv2,thDir,W)}}}}
+/* door handle: the hand that reaches for the door is IK'd onto the handle while the door swings */
+function doorHandle(c,inner,o){const dn=c.doorN;if(!dn)return null;if(!dn.hOut){c.root.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(dn.o);const inv=c.root.matrixWorld.clone().invert();bb.applyMatrix4(inv);
+    const sideX=Math.abs(bb.max.x)>Math.abs(bb.min.x)?bb.max.x:bb.min.x,inX=Math.abs(bb.max.x)>Math.abs(bb.min.x)?bb.min.x:bb.max.x;
+    const y=bb.min.y+(bb.max.y-bb.min.y)*0.62,z=bb.min.z+0.14;const toL=v=>dn.o.worldToLocal(v.applyMatrix4(c.root.matrixWorld));
+    dn.hOut=toL(new THREE.Vector3(sideX+Math.sign(sideX)*0.03,y,z));dn.hIn=toL(new THREE.Vector3(inX-Math.sign(sideX)*0.02,y-0.05,z+0.12))}
+  return dn.o.localToWorld(o.copy(inner?dn.hIn:dn.hOut))}
+const _dh=new THREE.Vector3();
+function carHandsPost(dt){const c=S.car;if(!c)return;
+  if(S.carState==='exit'&&S.steerW>0){S.steerW=Math.max(0,S.steerW-dt*3.5);steerHands(c,sm(S.steerW))}
+  const o=S.one&&(S.one.tag==='carin'||S.one.tag==='carout')?S.one:null;if(!o||!c.doorN)return;
+  const u=o.t/o.dur,W=S.carState==='enter'?CARIN:CAROUT;const a0=W.open[0]-0.02,a1=W.open[1]+0.03;if(u<a0-0.1||u>a1+0.1)return;
+  const w=sm((u-(a0-0.1))/0.1)*(1-sm((u-a1)/0.1));if(w<0.01)return;
+  const h=doorHandle(c,S.carState==='exit',_dh);if(!h)return;
+  if(!S.doorHand){const hl=BONE('hand_l').getWorldPosition(new THREE.Vector3()),hr=BONE('hand_r').getWorldPosition(new THREE.Vector3());S.doorHand=hl.distanceTo(h)<hr.distanceTo(h)?'l':'r'}
+  const side=S.doorHand,k=side==='l'?0:1;const up=new THREE.Vector3(0,1,0).applyQuaternion(c.root.quaternion),fw=new THREE.Vector3(0,0,1).applyQuaternion(c.root.quaternion);
+  const fT=up.clone().multiplyScalar(-0.85).addScaledVector(fw,0.3).normalize(),sT=fw.clone().multiplyScalar(side==='l'?1:-1);
+  const sh=(side==='l'?bShL:bShR).getWorldPosition(new THREE.Vector3());placeHand(side,IKS[k],h.clone(),fT,sT,sh.clone().addScaledVector(up,-0.8),w)}
 /* engine: two detuned saws through a low-pass, pitch follows a simple 5-speed gearbox */
 let ENG=null;
 function engine(on){const a=audio();if(!a)return;if(on&&!ENG){const g=a.createGain();g.gain.value=0;const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=900;
@@ -2077,11 +2117,12 @@ function engineTick(c){if(!ENG)return;const a=audio();const v=Math.abs(c.speed),
   ENG.o1.frequency.setTargetAtTime(fq,a.currentTime,0.05);ENG.o2.frequency.setTargetAtTime(fq*1.007,a.currentTime,0.05);ENG.lp.frequency.setTargetAtTime(500+rpm*0.25,a.currentTime,0.05);
   ENG.g.gain.setTargetAtTime((0.05+0.07*Math.abs(input.y||((keys.KeyW||keys.KeyS)?1:0)))*(CFG.sfx/10),a.currentTime,0.08)}
 /* parked cars push Michael out like any other obstacle (not the one he is getting into / out of) */
-function carPushPlayer(p,r){if(!carReady)return;for(const c of CARS){if(c===S.car)continue;const dx=p.x-c.pos.x,dz=p.z-c.pos.z;if(dx*dx+dz*dz>40)continue;if(p.y>c.pos.y+c.d.h-0.2)continue;
+function carPushPlayer(p,r){if(!carReady)return;const p0x=p.x,p0z=p.z;for(const c of CARS){if(c===S.car)continue;const dx=p.x-c.pos.x,dz=p.z-c.pos.z;if(dx*dx+dz*dz>40)continue;if(p.y>c.pos.y+c.d.h-0.2)continue;
     const f=carFwd(c,_cv),l=carLeft(c,_cv2);const lz=dx*f.x+dz*f.z,lx=dx*l.x+dz*l.z;const cz=clamp(lz,-c.d.hl,c.d.hl),cx=clamp(lx,-c.d.hw,c.d.hw);
     let ex=lx-cx,ez=lz-cz;const d2=ex*ex+ez*ez;
     if(d2<1e-8){const ox=c.d.hw-Math.abs(lx),oz=c.d.hl-Math.abs(lz);if(ox<oz){ex=Math.sign(lx)*(ox+r);ez=0}else{ez=Math.sign(lz)*(oz+r);ex=0}p.x+=l.x*ex+f.x*ez;p.z+=l.z*ex+f.z*ez}
-    else if(d2<r*r){const dd=Math.sqrt(d2),k=(r-dd)/dd;p.x+=(l.x*ex+f.x*ez)*k;p.z+=(l.z*ex+f.z*ez)*k}}}
+    else if(d2<r*r){const dd=Math.sqrt(d2),k=(r-dd)/dd;p.x+=(l.x*ex+f.x*ez)*k;p.z+=(l.z*ex+f.z*ez)*k}}
+  const mx=p.x-p0x,mz=p.z-p0z,ml=Math.hypot(mx,mz);if(ml>0.06){p.x=p0x+mx/ml*0.06;p.z=p0z+mz/ml*0.06}} /* ease out, never teleport */
 /* HUD: the car button offers ENTER near a driver's door, EXIT while driving */
 {const b=$('bCar');const press=e=>{e.stopPropagation();b.classList.add('down');vib();if(S.car&&S.carState==='drive')exitCar();else{const c=nearestCar();if(c)enterCar(c)}};
   b.addEventListener('pointerdown',press);const up=()=>b.classList.remove('down');b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);
@@ -2107,7 +2148,7 @@ fitHud();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(composer)composer.setSize(innerWidth,innerHeight);fitHud()});
 bar.style.width='100%';setTimeout(()=>{$('load').style.opacity=0;setTimeout(()=>$('load').remove(),500)},200);
 applyQ();applyAllCfg();setView(CFG.camDist);
-window.__dbg={carPose:c=>carPose(c),get cars(){return CARS},nearestCar:()=>nearestCar(),groundAt:(x,z,y)=>groundAt(x,z,.3,y),get fading(){return fading.map(f=>f.name+":"+f.w.toFixed(2)+"@"+f.t.toFixed(2))},gripErr:()=>{if(!gun)return null;gunPt(GP.grip,_t1);palmCentre('r',_t2);const r=_t1.distanceTo(_t2);gunPt(GP.fore,_t1);palmCentre('l',_t2);return [r,_t1.distanceTo(_t2)]},setStrafe,setCam:(y,p)=>{camYaw=camYawT=y;if(p!==undefined)camPitch=camPitchT=p},get camYaw(){return camYaw},scene,camera,G,setWeapon,fireShot,get gun(){return gun},get menu(){return {open:menuOpen,tab:mTab}},CFG,get wheel(){return {open:wheelOpen,sel:wheelSel,hot:wheelHot,ts:timeScale}},S,ST,PICK,boxes,renderer,TRAV,CUT,CLIPS,META,IKS,doTraverse,traverseCheck,doRoll,setSprint,keys,get one(){return S.one},player,model,BONE};
+window.__dbg={reach:()=>{const c=S.car;if(!c)return null;const o=[];for(const [s,k] of [["l",0],["r",1]]){const K=IKS[k];const a=K.U.getWorldPosition(new THREE.Vector3()),b=K.L.getWorldPosition(new THREE.Vector3()),h=K.H.getWorldPosition(new THREE.Vector3());const L=a.distanceTo(b)+b.distanceTo(h);const sw=carLocalToWorld(c,c.d.swc[0],c.d.swc[1],c.d.swc[2],new THREE.Vector3());o.push(s+" arm "+L.toFixed(2)+" shoulder-wheelCentre "+a.distanceTo(sw).toFixed(2)+" hand-wheelCentre "+h.distanceTo(sw).toFixed(2))}return o.join(" | ")},get A(){return A},carPose:c=>carPose(c),get cars(){return CARS},nearestCar:()=>nearestCar(),groundAt:(x,z,y)=>groundAt(x,z,.3,y),get fading(){return fading.map(f=>f.name+":"+f.w.toFixed(2)+"@"+f.t.toFixed(2))},gripErr:()=>{if(!gun)return null;gunPt(GP.grip,_t1);palmCentre('r',_t2);const r=_t1.distanceTo(_t2);gunPt(GP.fore,_t1);palmCentre('l',_t2);return [r,_t1.distanceTo(_t2)]},setStrafe,setCam:(y,p)=>{camYaw=camYawT=y;if(p!==undefined)camPitch=camPitchT=p},get camYaw(){return camYaw},scene,camera,G,setWeapon,fireShot,get gun(){return gun},get menu(){return {open:menuOpen,tab:mTab}},CFG,get wheel(){return {open:wheelOpen,sel:wheelSel,hot:wheelHot,ts:timeScale}},S,ST,PICK,boxes,renderer,TRAV,CUT,CLIPS,META,IKS,doTraverse,traverseCheck,doRoll,setSprint,keys,get one(){return S.one},player,model,BONE};
 loop();
 </script>
 </body>
