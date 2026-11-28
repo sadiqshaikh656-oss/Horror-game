@@ -1880,8 +1880,13 @@ function qAim(){
  return null
 }
 /* drawers: pick the one you are looking at (stacked drawers are told apart by the view angle) */
+/* exact pick: the drawer mesh under the crosshair (ray from the screen centre), nearest hit wins */
+const _drRC=new THREE.Raycaster();
+function qRayPick(list,objOf,maxD){_drRC.setFromCamera({x:0,y:0},cam);_drRC.far=maxD||2.3;let best=null,bd=1e9;
+ const bx=new THREE.Box3(),hp=new THREE.Vector3();for(const d of list){const o=objOf(d);if(!o||!o.visible)continue;o.updateWorldMatrix(true,true);bx.setFromObject(o);if(bx.isEmpty())continue;bx.expandByScalar(.004);const h=_drRC.ray.intersectBox(bx,hp);if(!h)continue;const dist=hp.distanceTo(_drRC.ray.origin);if(dist<=_drRC.far&&dist<bd){bd=dist;best=d}}return best}
 function qDrwAim(){
- if(!DRW.length)return null;const f=_nC.set(0,0,-1).applyQuaternion(cam.quaternion),o=cam.position;let best=null,bd=.86;
+ if(!DRW.length)return null;
+ {const near=DRW.filter(d=>!d.lk&&d.o.visible&&Math.hypot(d.cx-P.pos.x,d.cz-P.pos.z)<2.6);if(near.length){const h=qRayPick(near,d=>d.o,2.3);if(h)return h}}const f=_nC.set(0,0,-1).applyQuaternion(cam.quaternion),o=cam.position;let best=null,bd=.86;
  for(const d of DRW){if(d.lk||!d.o.visible)continue;if(Math.hypot(d.cx-P.pos.x,d.cz-P.pos.z)>2.1)continue;
   if(!d.c0){d.o.updateWorldMatrix(true,true);const b=new THREE.Box3().setFromObject(d.o);if(b.isEmpty())continue;d.c0=b.getCenter(new THREE.Vector3());d.c0.x-=(d.base?0:0);d.ofw=new THREE.Vector3();if(d.off){const q=d.o.parent.getWorldQuaternion(new THREE.Quaternion());d.ofw.copy(d.off).applyQuaternion(q)}}
   const cx=d.c0.x+d.ofw.x*d.a,cy=d.c0.y+d.ofw.y*d.a,cz=d.c0.z+d.ofw.z*d.a,dx=cx-o.x,dy=cy-o.y,dz=cz-o.z,l=Math.hypot(dx,dy,dz);
@@ -3399,7 +3404,8 @@ function spAim(){
  if(P.pos.x<SP_REG.x0-1||P.pos.x>SP_REG.x1||P.pos.z<3||P.pos.z>SP_REG.z1||Math.abs(P.pos.y)>1)return null;
  if(SPN.letter&&qFacing(5.2,.78,7.45,2.3,.72))return{k:"spletter",t:G.letter?"Read the letter again":"Pick up letter"};
  if(!G.k1&&SPN.k1&&qFacing(11.0,.82,6.55,2.2,.75))return{k:"spk1",t:"Pick up key"};
- for(const d of SPN.dr){d.g.updateMatrixWorld(true);v.set(d.cx,d.cy,d.cz+d.g.position.z);if(!qFacing(v.x,v.y,v.z,1.9,.8))continue;
+ const dHit=qRayPick(SPN.dr,d=>d.g,2.1);
+ for(const d of (dHit?[dHit]:SPN.dr)){d.g.updateMatrixWorld(true);v.set(d.cx,d.cy,d.cz+d.g.position.z);if(!dHit&&!qFacing(v.x,v.y,v.z,1.9,.8))continue;
   if(d.a>.6&&d.lock&&!G.k2&&qFacing(d.cx,d.bot,d.mid+d.g.position.z,1.9,.75))return{k:"spk2",t:"Pick up drawer key"};
   if(d.lock&&!G.du)return{k:"spdl",d,t:G.k1?"Unlock drawer":"Locked drawer"};
   return{k:"spd",d,t:d.tgt?"Close drawer":"Open drawer"}}
