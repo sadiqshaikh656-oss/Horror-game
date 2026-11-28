@@ -383,7 +383,8 @@ function addBox(x,z,w,h,d,tint){
 addBox(0,8,6,1.0,0.4);addBox(-7,8,6,0.95,0.35);addBox(8,9,5,1.05,4);addBox(-8,-8,6,2.5,4);
 addBox(8,-8,4,1.0,4,'#a3a9b2');addBox(8,-12.5,4,2.0,5,'#99a0aa');
 // walkable height maps baked from each district's own geometry (roads, kerbs, plazas, terrain), so feet stand on what you see
-const HFS=[];{const el=$('city_hf');if(el){const J=JSON.parse(el.textContent);el.textContent='';for(const k in J){const h=J[k];const b=atob(h.d);const q=new Uint8Array(h.nx*h.nz);let o=0;
+const SHOPDX=171.5; // the shop district used to sit 183 m out across empty asphalt: pulled in so its edge meets the ring road
+const HFS=[];{const el=$('city_hf');if(el){const J=JSON.parse(el.textContent);el.textContent='';for(const k in J){const h=J[k];if(k==='shops')h.x0+=SHOPDX;const b=atob(h.d);const q=new Uint8Array(h.nx*h.nz);let o=0;
   for(let i=0;i<b.length;i+=2){const v=b.charCodeAt(i),n=b.charCodeAt(i+1);q.fill(v,o,o+n);o+=n}
   let fq=null;if(h.fill){const fb=atob(h.fill);fq=new Uint8Array(h.nx*h.nz);let fo=0;for(let i=0;i<fb.length;i+=2){const v=fb.charCodeAt(i),n=fb.charCodeAt(i+1);fq.fill(v,fo,fo+n);fo+=n}}
   HFS.push({...h,q,fq,x1:h.x0+h.nx*h.c,z1:h.z0+h.nz*h.c})}}}
@@ -640,7 +641,7 @@ $('lmsg').textContent='building city';bar.style.width='80%';
   const CL=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   for(const id of ['city_downtown','city_shops','city_towers','city_residential']){const el=$(id);if(!el)continue;
     const b=await __gz(el.textContent.trim());el.textContent='';
-    const g=await new Promise((res,rej)=>CL.parse(b,'',res,rej));
+    const g=await new Promise((res,rej)=>CL.parse(b,'',res,rej));if(id==='city_shops'){g.scene.position.x+=SHOPDX;g.scene.updateMatrixWorld(true)}
     g.scene.updateMatrixWorld(true);
     g.scene.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;const m=o.material;
       if(id==='city_towers'&&m.name==='Material.023'){o.material=MANHOLE;return}
@@ -651,7 +652,7 @@ $('lmsg').textContent='building city';bar.style.width='80%';
       for(const k of ['map','normalMap','emissiveMap','roughnessMap'])if(m[k])m[k].anisotropy=Math.min(8,maxAniso);
       if(m.transparent&&m.opacity>0.95){m.transparent=false;m.alphaTest=0.5}});
     scene.add(g.scene)}
-  const C=JSON.parse($('city_col').textContent);for(const c of C)addCollider({minX:c[0],minZ:c[1],maxX:c[2],maxZ:c[3],top:c[4]});
+  const C=JSON.parse($('city_col').textContent);for(const c of C){if(c[2]<-340){c[0]+=SHOPDX;c[2]+=SHOPDX}}for(const c of C)addCollider({minX:c[0],minZ:c[1],maxX:c[2],maxZ:c[3],top:c[4]});
 }
 
 {
@@ -1269,7 +1270,7 @@ function procedural(dt,sp){
 /* fingers: relaxed natural pose like the reference: gentle graduated curl, fingers slightly spread
    (not glued together), thumb resting forward along the index. Fully overrides the clip's finger noise. */
 const _tgt=new THREE.Vector3();
-const GF={r:{index:[.1,.6,.35],middle:[1.05,1.1,.5],ring:[1.1,1.1,.5],pinky:[1.15,1.05,.45]},l:{index:[1.0,1.05,.5],middle:[1.05,1.1,.5],ring:[1.1,1.1,.5],pinky:[1.1,1.05,.45]},trigger:[.2,.85,.5]};
+const GF={r:{index:[.1,.6,.35],middle:[1.05,1.1,.5],ring:[1.1,1.1,.5],pinky:[1.15,1.05,.45]},l:{index:[1.3,1.25,.6],middle:[1.05,1.1,.5],ring:[1.1,1.1,.5],pinky:[1.1,1.05,.45]},trigger:[.2,.85,.5]};
 const FT={index:[.20,.40,.28],middle:[.26,.48,.32],ring:[.32,.52,.34],pinky:[.40,.56,.36]};
 const SPREAD={index:0.10,middle:0.0,ring:-0.07,pinky:-0.16};
 const _fa=new THREE.Vector3(),_fb=new THREE.Vector3(),_fc=new THREE.Vector3(),_fn=new THREE.Vector3(),_fs=new THREE.Vector3(),_fi=new THREE.Vector3(),_ff=new THREE.Vector3(),_pd=new THREE.Vector3(),_dir=new THREE.Vector3(),_axs=new THREE.Vector3(),_fq=new THREE.Quaternion(),_cx=new THREE.Vector3(),_tt=new THREE.Vector3();
@@ -1806,7 +1807,7 @@ function gunUpdate(dt){
   {const base=S.yaw+P.look*(RIFLE?G.stW:0),ad=Math.atan2(_D.x,_D.z),df=angD(ad,base),lim=0.6;if(Math.abs(df)>lim)_D.applyAxisAngle(_UP,-(df-Math.sign(df)*lim))} // never aim behind the chest: the turn catches up
   basisQ(_qa,_D,_UP,0);
   // low ready: angled down and across the body
-  const sprintK=S.sprint?1:0;const dn=THREE.MathUtils.degToRad(34+sprintK*8),acr=THREE.MathUtils.degToRad(28+sprintK*8);
+  const sprintK=S.sprint?1:0;const dn=THREE.MathUtils.degToRad(34+sprintK*8),acr=THREE.MathUtils.degToRad(16+sprintK*8);
   _D.copy(_F).multiplyScalar(Math.cos(dn)).addScaledVector(_UP,-Math.sin(dn)).applyAxisAngle(_UP,acr).normalize(); // +angle about up = towards the character's left
   basisQ(_ql,_D,_UP,THREE.MathUtils.degToRad(-12));
   _pl.copy(_ch).addScaledVector(_R,0.12).addScaledVector(_UP,0.18).addScaledVector(_F,0.06);
@@ -1832,6 +1833,9 @@ function gunUpdate(dt){
   const rp=G.reload>0?clamp((2-G.reload)/2,0,1):0,sm2=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};const rl=G.reload>0?sm2(rp/0.18)*(1-sm2((rp-0.8)/0.2)):0;if(rl>0){gun.quaternion.multiply(_qi.setFromAxisAngle(_t1.set(1,0,0),rl*0.45));gun.position.addScaledVector(_UP,-rl*0.06)}
   // butt -> origin
   gun.position.sub(_t1.copy(GP.butt).multiplyScalar(GUN_S).applyQuaternion(gun.quaternion));
+  // keep the support hand at least ~30 cm in front of the torso, so the left forearm never passes through the jacket
+  if(G.w>0.03){gunPt(GP.mgrip,_gp);bPelvis.getWorldPosition(_s0);bChest.getWorldPosition(_s1);_t2.subVectors(_s1,_s0);const u=clamp(_t3.subVectors(_gp,_s0).dot(_t2)/_t2.lengthSq(),0,1);
+    _t3.copy(_s0).addScaledVector(_t2,u);const hd=Math.hypot(_gp.x-_t3.x,_gp.z-_t3.z),need=0.3*(1-0.5*G.aimW);if(hd<need)gun.position.addScaledVector(_F,need-hd)}
   if(busyA){ // vault / climb / roll: the gun rides in the right hand, left hand free
     if(G.handRel){_mx.multiplyMatrices(IKS[1].H.matrixWorld,G.handRel);_mx.decompose(gun.position,gun.quaternion,_t1)}G.ik=0;return}
   G.ik+=(1-G.ik)*Math.min(1,dt*10);const w=G.ik*G.w;
