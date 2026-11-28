@@ -27,7 +27,7 @@ HOW TO WIN
 - Find the EXIT KEY (always in one of the records-room drawers).
 - Carrying: the item is held in your right hand (the torch moves to your left hand). ONE item at a time: DROP (G / Q, or the DROP button) before picking up another.
 - Unlock the door and escape: cinematic run into the forest, the nun watching from the doorway,
-  then the credits (Made by Mohammed).
+  then the credits (Developed by Mdock).
 - If the nun catches you, the day ends and you wake up in bed again; whatever you were
   holding drops where she caught you. Caught on Day 4 = game over.
 - Hide in the metal lockers (every room, corridors and the basement): you look out through

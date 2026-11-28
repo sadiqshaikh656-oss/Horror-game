@@ -1,7 +1,7 @@
 DUSK PROTOCOL - CREDITS AND ASSET LICENCE AUDIT
 ================================================
 
-Game made by Mohammed.
+Game developed by Mdock.
 
 This is an audit of every third-party asset used in the game. It was written from the
 information supplied with each file; it is NOT legal advice and does NOT make the game
