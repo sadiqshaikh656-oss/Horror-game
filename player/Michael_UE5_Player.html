@@ -1250,7 +1250,7 @@ function procedural(dt,sp){
 /* fingers: relaxed natural pose like the reference: gentle graduated curl, fingers slightly spread
    (not glued together), thumb resting forward along the index. Fully overrides the clip's finger noise. */
 const _tgt=new THREE.Vector3();
-const GF={r:{index:[.1,.85,.6],middle:[1.4,1.55,1.0],ring:[1.45,1.55,1.0],pinky:[1.5,1.5,.95]},l:{index:[1.5,1.45,.95],middle:[1.55,1.5,1.0],ring:[1.5,1.45,.95],pinky:[1.45,1.4,.9]},trigger:[.45,.9,.6]};
+const GF={r:{index:[.1,.85,.6],middle:[1.4,1.55,1.0],ring:[1.45,1.55,1.0],pinky:[1.5,1.5,.95]},l:{index:[1.5,1.65,1.05],middle:[1.5,1.6,1.0],ring:[1.45,1.55,1.0],pinky:[1.5,1.5,.95]},trigger:[.45,.9,.6]};
 const FT={index:[.20,.40,.28],middle:[.26,.48,.32],ring:[.32,.52,.34],pinky:[.40,.56,.36]};
 const SPREAD={index:0.10,middle:0.0,ring:-0.07,pinky:-0.16};
 const _fa=new THREE.Vector3(),_fb=new THREE.Vector3(),_fc=new THREE.Vector3(),_fn=new THREE.Vector3(),_fs=new THREE.Vector3(),_fi=new THREE.Vector3(),_ff=new THREE.Vector3(),_pd=new THREE.Vector3(),_dir=new THREE.Vector3(),_axs=new THREE.Vector3(),_fq=new THREE.Quaternion(),_cx=new THREE.Vector3(),_tt=new THREE.Vector3();
@@ -1269,7 +1269,7 @@ function fingers(dt,sp){
     if(H.th){H.th[0].getWorldPosition(_fb);H.th[1].getWorldPosition(_fc);_dir.subVectors(_fc,_fb).normalize();
       _tt.copy(_ff).multiplyScalar(0.72).addScaledVector(_fi,0.42).addScaledVector(_fn,0.38).normalize();
       // on the gun the thumb lies along the outside: left thumb forward along the barrel's left side, right thumb wrapped over the left of the grip
-      if(GW>0.01){if(H.s==="l")_tgt.copy(_gx).multiplyScalar(0.85).addScaledVector(_gy,0.3).addScaledVector(_gz,0.15);else _tgt.copy(_gx).multiplyScalar(0.75).addScaledVector(_gy,0.2).addScaledVector(_gz,-0.25);_tt.lerp(_tgt.normalize(),GW).normalize()}
+      if(GW>0.01){if(H.s==="l")_tgt.copy(_gx).multiplyScalar(0.75).addScaledVector(_gy,0.42).addScaledVector(_gz,-0.25);else _tgt.copy(_gx).multiplyScalar(0.75).addScaledVector(_gy,0.2).addScaledVector(_gz,-0.25);_tt.lerp(_tgt.normalize(),GW).normalize()}
       _axs.crossVectors(_dir,_tt);const sn=_axs.length();if(sn>1e-4){_axs.divideScalar(sn);rotWorld(H.th[0],_axs,Math.atan2(sn,_dir.dot(_tt))*(0.75+0.25*GW)*P.fw)}
     }
     for(const c of H.chains){
@@ -1648,7 +1648,7 @@ let fpsN=0,fpsT=0;
 const AIM={o:new THREE.Vector3(),d:new THREE.Vector3(0,0,1)}; // crosshair ray, refreshed by the gameplay camera
 const GUN_S=0.14;                                   // model units -> metres (0.68 m long)
 // contact points measured from this MP5 mesh: pistol grip x -0.7..-0.4 (raked), trigger guard -0.3..0.2, magazine 0.6..1.1, barrel/cocking tube 1.2..1.9 at y 0.61..0.76
-const GP={grip:new THREE.Vector3(-0.66,-0.12,0),gripAx:new THREE.Vector3(0.2,0.98,0).normalize(),fore:new THREE.Vector3(1.55,0.66,0),
+const GP={mgrip:new THREE.Vector3(0.64,-0.42,0),magAx:new THREE.Vector3(-0.36,0.93,0).normalize(),grip:new THREE.Vector3(-0.66,-0.12,0),gripAx:new THREE.Vector3(0.2,0.98,0).normalize(),fore:new THREE.Vector3(1.5,0.72,0),
   butt:new THREE.Vector3(-2.36,0.18,0),muzzle:new THREE.Vector3(2.47,0.51,0),mag:new THREE.Vector3(0.82,-0.62,-0.05),eject:new THREE.Vector3(0.05,0.66,0.16)};
 const G={eq:false,w:0,aimW:0,stW:0,ammo:30,res:300,firing:false,shotT:0,fireHold:0,recoil:0,reload:0,handRel:null,ik:0,trig:0};
 let gun=null;
@@ -1796,7 +1796,7 @@ function gunUpdate(dt){
     if(span>0.08){_E1.divideScalar(span);_E2.copy(_UP).addScaledVector(_E1,-_E1.dot(_UP)).normalize();_E3.crossVectors(_E1,_E2);
       _m1.makeBasis(_E1,_E2,_E3);_m2.makeBasis(GL1,GL2,GL3).transpose();_m1.multiply(_m2);_qr.setFromRotationMatrix(_m1);
       _X.set(1,0,0).applyQuaternion(_qr);const fw=clamp((_X.dot(_F)-0.1)/0.4,0,1); // barrel must point forward-ish, else fall back to low ready
-      _ql.slerp(_qr,0.25*fw);_t1.subVectors(GP.butt,GP.grip).multiplyScalar(GUN_S).applyQuaternion(_ql);_pl.copy(_rp).add(_t1)}} // low-ready angle, grip where the animated hand is
+      /* low-ready angle only; the animated palms just place the grip */_t1.subVectors(GP.butt,GP.grip).multiplyScalar(GUN_S).applyQuaternion(_ql);_pl.copy(_rp).add(_t1)}} // low-ready angle, grip where the animated hand is
   gun.quaternion.slerpQuaternions(_ql,_qa,G.aimW);gun.position.lerpVectors(_pl,_pa,G.aimW);
   // keep the gun out of the torso (running / sprinting poses)
   if(!busyA){bPelvis.getWorldPosition(_s0);bChest.getWorldPosition(_s1);_s0.addScaledVector(_UP,0.08);
@@ -1821,15 +1821,13 @@ function gunUpdate(dt){
   placeHand('r',IKS[1],_gp.clone(),fR,sR,_pole.clone(),w);
   // left hand: under the handguard (or on the magazine while reloading), palm up, fingers wrapping the right side
   // reload: left hand leaves the foregrip, takes the magazine, pulls it down and back in, slaps it home, returns
-  gunPt(GP.fore,_gp);
-  {// keep the support hand on the barrel within the arm's reach: slide it back along the gun (never past the magazine well)
-    if(!G.armL){IKS[0].U.getWorldPosition(_a);IKS[0].L.getWorldPosition(_b);IKS[0].H.getWorldPosition(_c);G.armL=_a.distanceTo(_b)+_b.distanceTo(_c)}
-    bShL.getWorldPosition(_a);for(let i=0;i<8&&_gp.distanceTo(_a)>G.armL*0.96;i++)_gp.addScaledVector(_gx,-0.008)}
-  if(rp>0){const m=sm2((rp-0.06)/0.16)*(1-sm2((rp-0.74)/0.16));const drop=0.035*Math.sin(clamp((rp-0.3)/0.32,0,1)*Math.PI); /* the MP5 mesh has a fixed magazine: tug and re-seat it, hand stays on it */
-    gunPt(GP.mag,_t3);_t3.addScaledVector(_gy,-drop-0.01);_gp.lerp(_t3,m)}
-  const fL=_t2.copy(_gz).multiplyScalar(0.97).addScaledVector(_gy,0.12).normalize().clone(),sL=_gx.clone();const palmL=_t1.crossVectors(fL,sL);
+  // support hand: magazine grip. This MP5 mesh has no handguard (only a thin cocking tube in front of the receiver), so the left hand
+  // wraps the 2 cm thick magazine like a vertical foregrip: palm on its left face, fingers round the front, thumb forward along the receiver
+  gunPt(GP.mgrip,_gp);
+  if(rp>0){const m=sm2((rp-0.06)/0.16)*(1-sm2((rp-0.74)/0.16));const drop=0.035*Math.sin(clamp((rp-0.3)/0.32,0,1)*Math.PI); /* fixed magazine: tug and re-seat it */
+    _t3.copy(_gp).addScaledVector(_gy,-drop);_gp.lerp(_t3,m)}
+  const sL=_t2.copy(GP.magAx).applyQuaternion(gun.quaternion).clone();const fL=_gx.clone().addScaledVector(sL,-_gx.dot(sL)).normalize();
   bShL.getWorldPosition(_a);_pole.copy(_a).addScaledVector(_UP,-0.9).addScaledVector(_R,-0.45);
-  _gp.addScaledVector(fL,-0.035*(1-rl)); // thin barrel: it sits in the finger crease (knuckle line), not mid-palm, so the fingers close round it
   placeHand('l',IKS[0],_gp.clone(),fL,sL,_pole.clone(),w);
   // remember the gun relative to the right hand for traversal moves
   G.handRel=(G.handRel||new THREE.Matrix4()).copy(IKS[1].H.matrixWorld).invert().multiply(_mx.compose(gun.position,gun.quaternion,_t1.set(1,1,1)));
