@@ -1807,7 +1807,7 @@ function gunUpdate(dt){
   {const base=S.yaw+P.look*(RIFLE?G.stW:0),ad=Math.atan2(_D.x,_D.z),df=angD(ad,base),lim=0.6;if(Math.abs(df)>lim)_D.applyAxisAngle(_UP,-(df-Math.sign(df)*lim))} // never aim behind the chest: the turn catches up
   basisQ(_qa,_D,_UP,0);
   // low ready: angled down and across the body
-  const sprintK=S.sprint?1:0;const dn=THREE.MathUtils.degToRad(34+sprintK*8),acr=THREE.MathUtils.degToRad(16+sprintK*8);
+  const sprintK=S.sprint?1:0;const dn=THREE.MathUtils.degToRad(24+sprintK*8),acr=THREE.MathUtils.degToRad(16+sprintK*8);
   _D.copy(_F).multiplyScalar(Math.cos(dn)).addScaledVector(_UP,-Math.sin(dn)).applyAxisAngle(_UP,acr).normalize(); // +angle about up = towards the character's left
   basisQ(_ql,_D,_UP,THREE.MathUtils.degToRad(-12));
   _pl.copy(_ch).addScaledVector(_R,0.12).addScaledVector(_UP,0.18).addScaledVector(_F,0.06);
@@ -1820,6 +1820,7 @@ function gunUpdate(dt){
       /* low-ready angle only; the animated palms just place the grip */_t1.subVectors(GP.butt,GP.grip).multiplyScalar(GUN_S).applyQuaternion(_ql);_pl.copy(_rp).add(_t1)}}
   // in the air / during one-shot moves (jump, land, roll exit, unarmed clips) the animated hands swing: carry the gun at a steady chest low-ready instead
   {const o=S.one&&!S.one.fadeOut?S.one:null;const k=S.onGround&&!(o&&o.tag!=='turn'&&o.tag!=='stop')?1:0;G.animK=(G.animK??1)+(k-(G.animK??1))*Math.min(1,dt*7);_pl.lerpVectors(_plP,_pl,G.animK)} // low-ready angle, grip where the animated hand is
+  _pl.addScaledVector(_R,-0.07).addScaledVector(_UP,0.08); // relaxed carry a little to the left so the support arm doesn't reach across the chest
   gun.quaternion.slerpQuaternions(_ql,_qa,G.aimW);gun.position.lerpVectors(_pl,_pa,G.aimW);
   // keep the gun out of the torso (running / sprinting poses)
   if(!busyA){bPelvis.getWorldPosition(_s0);bChest.getWorldPosition(_s1);_s0.addScaledVector(_UP,0.08);
@@ -1853,7 +1854,7 @@ function gunUpdate(dt){
   if(rp>0){const m=sm2((rp-0.06)/0.16)*(1-sm2((rp-0.74)/0.16));const drop=0.035*Math.sin(clamp((rp-0.3)/0.32,0,1)*Math.PI); /* fixed magazine: tug and re-seat it */
     _t3.copy(_gp).addScaledVector(_gy,-drop);_gp.lerp(_t3,m)}
   const sL=_t2.copy(GP.magAx).applyQuaternion(gun.quaternion).clone();const fL=_gx.clone().addScaledVector(sL,-_gx.dot(sL)).normalize();
-  bShL.getWorldPosition(_a);_pole.copy(_a).addScaledVector(_UP,-0.9).addScaledVector(_R,-0.45);
+  bShL.getWorldPosition(_a);_pole.copy(_a).addScaledVector(_UP,-0.55).addScaledVector(_R,-1.0).addScaledVector(_F,-0.1); // left elbow hangs out at the side, only the forearm crosses to the gun
   placeHand('l',IKS[0],_gp.clone(),fL,sL,_pole.clone(),w);
   // remember the gun relative to the right hand for traversal moves
   G.handRel=(G.handRel||new THREE.Matrix4()).copy(IKS[1].H.matrixWorld).invert().multiply(_mx.compose(gun.position,gun.quaternion,_t1.set(1,1,1)));
