@@ -20,6 +20,8 @@ the game is published, sold or monetised.
 - "Unity 5 - Flashlight with Hand" (Blend Swap #88445) by Giovanni Cartella (John's Art),
   CC BY-SA 3.0. The converted model (assets/source/flashlight_with_hand.glb,
   assets/models/flashglb.js) is shared under the same CC BY-SA 3.0 licence.
+- "Bloody Baseball Bat" by Pablo88 (Sketchfab), CC BY 4.0 - the nun's weapon.
+  https://sketchfab.com/3d-models/bloody-baseball-bat-48095b439ec5464db93337b2c3457fcc
 - "A bloody kitchen knife" by blacksheeptal (Sketchfab), CC BY 4.0 - the clown's knife.
   https://sketchfab.com/3d-models/a-bloody-kitchen-knife-01d6d4906ed749329f37c4929a4846aa
 - Procedural content made in code for this game (no licence issue): spawn-room
@@ -34,13 +36,15 @@ the game is published, sold or monetised.
 - The clown model (assets/models/pwglb.js, source assets/source/pennywise_animated.glb)
   is a model of Pennywise from "IT" (Warner Bros / Stephen King). Licence of the file is
   UNKNOWN and the character is copyrighted. Replace with an original clown design.
-- Jump-scare / voice audio in assets/audio/nunsfx.js: 4 clips cut from the video
-  "Evil Nun jumpscare evolution", plus clown laugh/scream clips supplied by the user
-  (the "Well I'm Pennywise" voice line is no longer played). These are cut from
-  commercial games/films: NOT cleared. Replace with self-recorded or licensed sounds.
+- The nun's 4 catch screams (js1-js4) and the menu music are now SYNTHESISED in code for
+  this game (no recordings), so they are original. Still not cleared: the clown laugh /
+  scream clips supplied by the user (pw1, pw2, pwl) and the "hit" / "riser" stingers.
+  Replace those with self-recorded or licensed sounds. (The "Well I'm Pennywise" clip was removed.)
 
 3. UNKNOWN LICENCE (supplied by the user, no licence info included)
 -------------------------------------------------------------------
+- Nun texture (habit, collar, face, hands) supplied by the user as an image, aligned to the
+  nun model's UV layout: licence not stated.
 - "Worn Key" OBJ + Key_Material.png (used for both room keys): supplied by the user, licence not stated.
 - "oak_wood_planks_2k" texture (table in the spawn room): file naming matches Poly Haven, which
   publishes under CC0. Please confirm the download source.
