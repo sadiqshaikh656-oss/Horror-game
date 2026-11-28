@@ -843,6 +843,13 @@ const FING=[];
     const th=[1,2,3].map(k=>BONE(`thumb_0${k}_${s}`));if(th.every(Boolean))H.th=th;
     if(H.hand&&H.idx&&H.mid&&H.pk)FING.push(H);
   }
+  // anatomical flexion axis of every finger / thumb joint, from the bind pose: bending only about this axis keeps fingers straight in their plane (no twist)
+  const n=new THREE.Vector3(),f=new THREE.Vector3(),sd=new THREE.Vector3(),d=new THREE.Vector3(),ax=new THREE.Vector3();
+  for(const H of FING){H.hand.getWorldPosition(a);H.mid.getWorldPosition(b);f.subVectors(b,a).normalize();H.idx.getWorldPosition(a);H.pk.getWorldPosition(b);sd.subVectors(a,b);sd.addScaledVector(f,-sd.dot(f)).normalize();
+    n.crossVectors(f,sd).normalize();if(H.s==='r')n.negate();H.n0=n.clone();
+    const prep=(bs)=>bs.map((bn,k)=>{bn.getWorldPosition(a);if(k<bs.length-1)bs[k+1].getWorldPosition(b);else{bs[k-1].getWorldPosition(b);b.subVectors(a,b).add(a)}
+      d.subVectors(b,a).normalize();ax.crossVectors(d,n).normalize();return {rest:bn.quaternion.clone(),ax:ax.clone().applyQuaternion(bn.getWorldQuaternion(q).invert())}});
+    for(const c of H.chains)c.J=prep(c.bs);if(H.th)H.thJ=prep(H.th)}
 }
 
 /* ---------------- locomotion data ---------------- */
@@ -955,7 +962,18 @@ function doJump(){
 function doRoll(){if(!S.onGround||busy())return;if(S.crouch)toggleCrouch(true);ST.rolls++;
   const c=CUT.Roll;const y=S.yaw;
   playOne('Jump_F_Land_Roll_Lfoot',{rm:'xz',start:c.start,end:c.end,hscale:0.62,fadeIn:.12,fadeOut:.45,tag:'roll',onEnd:()=>carry('Jump_F_Land_Roll_Lfoot',c.end-0.45,y)})}
-function busyTrav(){const o=S.one&&!S.one.fadeOut?S.one:null;return !!o&&(o.rm==='warp'||o.tag==='roll'||/^Jump_/.test(o.name))}
+const _gq=new THREE.Quaternion(),_gq2=new THREE.Quaternion(),_gv=new THREE.Vector3(),_gv2=new THREE.Vector3();
+function gunFingers(){const GW=gun?G.ik*G.w:0;if(GW<0.01)return;
+  for(const H of FING){if(!H.chains[0]||!H.chains[0].J)continue;
+    for(const c of H.chains){const t=(H.s==='r'&&c.f==='index'&&(G.firing||G.trig>0.15))?GF.trigger:GF[H.s][c.f];
+      for(let k=0;k<3;k++){const J=c.J[k];_gq.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,t[k]));c.bs[k].quaternion.slerp(_gq,GW)}
+      c.bs[0].updateMatrixWorld(true)}
+    if(H.th&&H.thJ){const tb=[0.1,0.3,0.35];for(let k=0;k<3;k++){const J=H.thJ[k];_gq.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,tb[k]));H.th[k].quaternion.slerp(_gq,GW)}
+      H.th[0].updateMatrixWorld(true);
+      // aim the thumb along the outside of the gun (swing only, no twist)
+      if(H.s==='l')_tgt.copy(_gx).multiplyScalar(0.75).addScaledVector(_gy,0.42).addScaledVector(_gz,-0.25);else _tgt.copy(_gx).multiplyScalar(0.75).addScaledVector(_gy,0.2).addScaledVector(_gz,-0.25);_tgt.normalize();
+      H.th[0].getWorldPosition(_gv);H.th[1].getWorldPosition(_gv2);_gv2.sub(_gv).normalize();rotFromTo(H.th[0],_gv2,_tgt,GW)}}}
+function busyTrav(){const o=S.one&&!S.one.fadeOut?S.one:null;return !!o&&(o.rm==='warp'||o.tag==='roll'||(!G.eq&&/^Jump_/.test(o.name)))}
 function doEmote(){if(!S.onGround||busy()||S.speed>0.3||G.eq)return;const n=S.crouch?['Crouch_Idle_Break_v01','Crouch_Idle_Break_v02']:['Stand_Idle_Break_v01','Stand_Idle_Break_v02','Stand_Idle_Break_v03','Stand_Idle_Break_v04','Stand_Idle_Break_v05','Stand_Idle_Break_v06'];playOne(n[Math.random()*n.length|0],{lock:false,fadeIn:.3,fadeOut:.35,tag:'break'})}
 function toggleCrouch(silent){if(busy()&&!silent)return;S.crouch=!S.crouch;$('bCrouch').classList.toggle('on',S.crouch);if(S.crouch)setSprint(false);
   if(silent!==true&&S.speed<0.5&&S.onGround&&!G.eq)playOne(S.crouch?'Transition_Stand_to_Crouch':'Transition_Crouch_to_Stand',{lock:false,fadeIn:.15,fadeOut:.25})}
@@ -1180,6 +1198,7 @@ function update(dt){
   gunUpdate(dt);
   handIK(dt);
   fingers(dt,sp);
+  gunFingers();
   twistFix();
   solveBody();
   player.position.copy(S.pos);
@@ -1240,17 +1259,17 @@ function procedural(dt,sp){
   let d=angD(camYaw+Math.PI,S.yaw);
   // camera in front of Michael: the look fades out smoothly instead of snapping on/off (and never flips between +180 and -180)
   const fade=(a0,a1)=>{const t=clamp((Math.abs(d)-a0)/(a1-a0),0,1);return 1-t*t*(3-2*t)};
-  const allow=k*(S.sprint?0.25:1)*fade(1.5,2.2);
+  const allow=k*(S.sprint?0.25:1)*fade(1.0,1.6);
   const ak=RIFLE?G.w*G.stW*(busyTrav()?0:1):0;   // aiming with the rifle
   const lookT=THREE.MathUtils.lerp(clamp(d,-1.05,1.05)*allow,clamp(d,-1.45,1.45)*fade(2.1,2.7),ak);
-  P.look+=(lookT-P.look)*Math.min(1,dt*(4+ak*10));
+  P.look+=(lookT-P.look)*Math.min(1,dt*(2.5+ak*10));
   const L0=P.look*(1-ak),L1=P.look*ak;
   rotWorld(bSpine,_up,L1*0.32);rotWorld(bSpine2,_up,P.look*0.2*(1-ak)+L1*0.42);rotWorld(bNeck,_up,L0*0.3+L1*0.13);rotWorld(bHead,_up,L0*0.35+L1*0.13);
 }
 /* fingers: relaxed natural pose like the reference: gentle graduated curl, fingers slightly spread
    (not glued together), thumb resting forward along the index. Fully overrides the clip's finger noise. */
 const _tgt=new THREE.Vector3();
-const GF={r:{index:[.1,.85,.6],middle:[1.4,1.55,1.0],ring:[1.45,1.55,1.0],pinky:[1.5,1.5,.95]},l:{index:[1.5,1.65,1.05],middle:[1.5,1.6,1.0],ring:[1.45,1.55,1.0],pinky:[1.5,1.5,.95]},trigger:[.45,.9,.6]};
+const GF={r:{index:[.1,.6,.35],middle:[1.05,1.1,.5],ring:[1.1,1.1,.5],pinky:[1.15,1.05,.45]},l:{index:[1.0,1.05,.5],middle:[1.05,1.1,.5],ring:[1.1,1.1,.5],pinky:[1.1,1.05,.45]},trigger:[.2,.85,.5]};
 const FT={index:[.20,.40,.28],middle:[.26,.48,.32],ring:[.32,.52,.34],pinky:[.40,.56,.36]};
 const SPREAD={index:0.10,middle:0.0,ring:-0.07,pinky:-0.16};
 const _fa=new THREE.Vector3(),_fb=new THREE.Vector3(),_fc=new THREE.Vector3(),_fn=new THREE.Vector3(),_fs=new THREE.Vector3(),_fi=new THREE.Vector3(),_ff=new THREE.Vector3(),_pd=new THREE.Vector3(),_dir=new THREE.Vector3(),_axs=new THREE.Vector3(),_fq=new THREE.Quaternion(),_cx=new THREE.Vector3(),_tt=new THREE.Vector3();
@@ -1660,7 +1679,7 @@ let gun=null;
   gun.visible=false;scene.add(gun);
 }
 const gunPt=(p,out)=>out.copy(p).multiplyScalar(GUN_S).applyQuaternion(gun.quaternion).add(gun.position);
-const _rp=new THREE.Vector3(),_lp=new THREE.Vector3(),_E1=new THREE.Vector3(),_E2=new THREE.Vector3(),_E3=new THREE.Vector3(),_qr=new THREE.Quaternion(),_s0=new THREE.Vector3(),_s1=new THREE.Vector3(),_push=new THREE.Vector3(),_t3=new THREE.Vector3();
+const _plP=new THREE.Vector3(),_rp=new THREE.Vector3(),_lp=new THREE.Vector3(),_E1=new THREE.Vector3(),_E2=new THREE.Vector3(),_E3=new THREE.Vector3(),_qr=new THREE.Quaternion(),_s0=new THREE.Vector3(),_s1=new THREE.Vector3(),_push=new THREE.Vector3(),_t3=new THREE.Vector3();
 // gun-local frame: grip -> foregrip, and up
 const GL1=new THREE.Vector3().subVectors(GP.fore,GP.grip).normalize(),GL2=new THREE.Vector3(0,1,0).addScaledVector(GL1,-GL1.y).normalize(),GL3=new THREE.Vector3().crossVectors(GL1,GL2);
 /* white side silhouette of the gun for the weapon panel and the wheel */
@@ -1791,12 +1810,15 @@ function gunUpdate(dt){
   _D.copy(_F).multiplyScalar(Math.cos(dn)).addScaledVector(_UP,-Math.sin(dn)).applyAxisAngle(_UP,acr).normalize(); // +angle about up = towards the character's left
   basisQ(_ql,_D,_UP,THREE.MathUtils.degToRad(-12));
   _pl.copy(_ch).addScaledVector(_R,0.12).addScaledVector(_UP,0.18).addScaledVector(_F,0.06);
+  _plP.copy(_pl).addScaledVector(_UP,-0.2).addScaledVector(_F,0.04); // steady carry height = the relaxed low-ready level
   if(RIFLE&&!busyA){ // rifle animation: the gun sits where the animated hands hold it (grip in the right palm, barrel through the left hand)
     palmCentre('r',_rp);palmCentre('l',_lp);_E1.subVectors(_lp,_rp);const span=_E1.length();
     if(span>0.08){_E1.divideScalar(span);_E2.copy(_UP).addScaledVector(_E1,-_E1.dot(_UP)).normalize();_E3.crossVectors(_E1,_E2);
       _m1.makeBasis(_E1,_E2,_E3);_m2.makeBasis(GL1,GL2,GL3).transpose();_m1.multiply(_m2);_qr.setFromRotationMatrix(_m1);
       _X.set(1,0,0).applyQuaternion(_qr);const fw=clamp((_X.dot(_F)-0.1)/0.4,0,1); // barrel must point forward-ish, else fall back to low ready
-      /* low-ready angle only; the animated palms just place the grip */_t1.subVectors(GP.butt,GP.grip).multiplyScalar(GUN_S).applyQuaternion(_ql);_pl.copy(_rp).add(_t1)}} // low-ready angle, grip where the animated hand is
+      /* low-ready angle only; the animated palms just place the grip */_t1.subVectors(GP.butt,GP.grip).multiplyScalar(GUN_S).applyQuaternion(_ql);_pl.copy(_rp).add(_t1)}}
+  // in the air / during one-shot moves (jump, land, roll exit, unarmed clips) the animated hands swing: carry the gun at a steady chest low-ready instead
+  {const o=S.one&&!S.one.fadeOut?S.one:null;const k=S.onGround&&!(o&&o.tag!=='turn'&&o.tag!=='stop')?1:0;G.animK=(G.animK??1)+(k-(G.animK??1))*Math.min(1,dt*7);_pl.lerpVectors(_plP,_pl,G.animK)} // low-ready angle, grip where the animated hand is
   gun.quaternion.slerpQuaternions(_ql,_qa,G.aimW);gun.position.lerpVectors(_pl,_pa,G.aimW);
   // keep the gun out of the torso (running / sprinting poses)
   if(!busyA){bPelvis.getWorldPosition(_s0);bChest.getWorldPosition(_s1);_s0.addScaledVector(_UP,0.08);
