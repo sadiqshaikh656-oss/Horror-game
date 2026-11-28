@@ -969,10 +969,11 @@ function gunFingers(){const GW=gun?G.ik*G.w:0;if(GW<0.01)return;
     for(const c of H.chains){const t=(H.s==='r'&&c.f==='index'&&(G.firing||G.trig>0.15))?GF.trigger:GF[H.s][c.f];
       for(let k=0;k<3;k++){const J=c.J[k];_gq.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,t[k]));c.bs[k].quaternion.slerp(_gq,GW)}
       c.bs[0].updateMatrixWorld(true)}
-    if(H.th&&H.thJ){const tb=[0.1,0.3,0.35];for(let k=0;k<3;k++){const J=H.thJ[k];_gq.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,tb[k]));H.th[k].quaternion.slerp(_gq,GW)}
+    if(H.th&&H.thJ){const tb=[0.1,-0.45,-0.6];for(let k=0;k<3;k++){const J=H.thJ[k];_gq.copy(J.rest).multiply(_gq2.setFromAxisAngle(J.ax,tb[k]));H.th[k].quaternion.slerp(_gq,GW)}
       H.th[0].updateMatrixWorld(true);
       // aim the thumb along the outside of the gun (swing only, no twist)
-      if(H.s==='l')_tgt.copy(_gx).multiplyScalar(0.75).addScaledVector(_gy,0.42).addScaledVector(_gz,-0.25);else _tgt.copy(_gx).multiplyScalar(0.75).addScaledVector(_gy,0.2).addScaledVector(_gz,-0.25);_tgt.normalize();
+      // thumbs close the fist: right thumb over the left side of the pistol grip, pointing forward-down; left thumb down the left face of the magazine
+      if(H.s==='l')_tgt.copy(_gx).multiplyScalar(0.5).addScaledVector(_gy,-0.25).addScaledVector(_gz,0.65);else _tgt.copy(_gx).multiplyScalar(0.5).addScaledVector(_gy,-0.5).addScaledVector(_gz,-0.4);_tgt.normalize();
       H.th[0].getWorldPosition(_gv);H.th[1].getWorldPosition(_gv2);_gv2.sub(_gv).normalize();rotFromTo(H.th[0],_gv2,_tgt,GW)}}}
 function busyTrav(){const o=S.one&&!S.one.fadeOut?S.one:null;return !!o&&(o.rm==='warp'||o.tag==='roll'||(!G.eq&&/^Jump_/.test(o.name)))}
 function doEmote(){if(!S.onGround||busy()||S.speed>0.3||G.eq)return;const n=S.crouch?['Crouch_Idle_Break_v01','Crouch_Idle_Break_v02']:['Stand_Idle_Break_v01','Stand_Idle_Break_v02','Stand_Idle_Break_v03','Stand_Idle_Break_v04','Stand_Idle_Break_v05','Stand_Idle_Break_v06'];playOne(n[Math.random()*n.length|0],{lock:false,fadeIn:.3,fadeOut:.35,tag:'break'})}
